@@ -52,10 +52,9 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
         private void OnEnable()
         {
-            _iconVRChat = Resources.Load<Texture2D>("Nessie/Icons/VRChat-Emblem-32px");
-            _iconGitHub = Resources.Load<Texture2D>("Nessie/Icons/GitHub-Mark-32px");
-
             m_debugUdon = (NUDebugger)target;
+
+            GetAssets();
 
             GetData();
         }
@@ -188,6 +187,9 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             if (GUILayout.Button(new GUIContent("Cache Udon Behaviours", "Cache all active Udon Behaviours in the scene.")))
             {
+                System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+                timer.Start();
+
                 Component[] udonBehaviours = (Component[])FindObjectsOfType(typeof(UdonBehaviour));
                 List<UdonData> oldData = m_listData;
                 List<UdonData> newData = new List<UdonData>();
@@ -221,6 +223,9 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
                 for (int i = 0; i < oldData.Count && i < newData.Count; i++)
                     newData[i].Expanded = oldData[i].Expanded;
+
+                timer.Stop();
+                Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Cached {newData.Count} UdonBehaviours: {timer.Elapsed:mm\\:ss\\.fff}");
 
                 Undo.RecordObject(m_debugUdon, "Cached all the active Udon Behaviours in the scene.");
 
@@ -346,7 +351,8 @@ namespace UdonSharp.Nessie.Debugger.Internal
         // Custom functions.
         private void GetAssets()
         {
-
+            _iconVRChat = Resources.Load<Texture2D>("Nessie/Icons/VRChat-Emblem-32px");
+            _iconGitHub = Resources.Load<Texture2D>("Nessie/Icons/GitHub-Mark-32px");
         }
 
         private void GetData()

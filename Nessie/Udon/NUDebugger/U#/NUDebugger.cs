@@ -100,6 +100,8 @@ namespace UdonSharp.Nessie.Debugger
 
         private object[] _currentArray;
 
+        private int _buttonCount = 0;
+
         private NUDebuggerText[] _poolDebugText;
         private NUDebuggerButton[] _poolDebugButton;
 
@@ -129,7 +131,6 @@ namespace UdonSharp.Nessie.Debugger
 
         public void _UpdateLoop()
         {
-            // Change color if specified UdonBehaviour ran into an error.
             if (UdonID >= 0)
             {
                 if (Utilities.IsValid(_currentUdon))
@@ -168,9 +169,7 @@ namespace UdonSharp.Nessie.Debugger
                 {
                     Debug.Log("[<color=#00FF9F>NUDebugger</color>] Removing missing pool object from pool array.");
 
-                    object[] bufferArray = ListRemove(_poolDebugText, i);
-                    _poolDebugText = new NUDebuggerText[bufferArray.Length];
-                    bufferArray.CopyTo(_poolDebugText, 0);
+                    _poolDebugText = (NUDebuggerText[])ArrayRemove(_poolDebugText, i);
 
                     continue;
                 }
@@ -194,10 +193,11 @@ namespace UdonSharp.Nessie.Debugger
             // Avoid turning on buttons for custom Udon target, or settings menu.
             if (MenuID > 2 && CustomUdon || MenuID == 2)
             {
-                for (int i = 0; i < _poolDebugButton.Length; i++)
+                for (int i = 0; i < _buttonCount; i++)
                 {
                     _poolDebugButton[i].gameObject.SetActive(false);
                 }
+                _buttonCount = 0;
 
                 if (MenuID == 2)
                 {
@@ -276,18 +276,16 @@ namespace UdonSharp.Nessie.Debugger
                     break;
             }
 
-            int buttonCount = 0;
 
-            if (_currentArray != null)
-                buttonCount = _currentArray.Length;
+            int buttonCountNew = _currentArray == null ? 0 : _currentArray.Length;
 
             // Prepare buttons.
-            if (_poolDebugButton.Length < buttonCount)
+            if (_poolDebugButton.Length < buttonCountNew)
             {
-                NUDebuggerButton[] newPool = new NUDebuggerButton[buttonCount];
+                NUDebuggerButton[] newPool = new NUDebuggerButton[buttonCountNew];
                 _poolDebugButton.CopyTo(newPool, 0);
 
-                for (int i = _poolDebugButton.Length; i < buttonCount; i++)
+                for (int i = _poolDebugButton.Length; i < buttonCountNew; i++)
                 {
                     GameObject newObject = VRCInstantiate(_buttonPrefab);
 
@@ -301,22 +299,17 @@ namespace UdonSharp.Nessie.Debugger
                 _poolDebugButton = newPool;
             }
 
-            for (int i = 0; i < _poolDebugButton.Length; i++)
+            for (int i = 0; i < (buttonCountNew > _buttonCount ? buttonCountNew : _buttonCount); i++)
             {
-                _poolDebugButton[i].gameObject.SetActive(i < buttonCount);
-
-                if (i < buttonCount)
+                if (i < buttonCountNew)
                 {
-                    // Change color if specified UdonBehaviour ran into an error.
                     Color textColor;
                     string textName;
 
                     if (MenuID == 0)
                     {
-                        if (((UdonBehaviour)_currentArray[i]).enabled) // Check if UdonBehaviour hasn't '_crashed'.
-                            textColor = _mainColor;
-                        else
-                            textColor = _crashColor;
+                        // Crashed UdonBehaviour check.
+                        textColor = ((UdonBehaviour)_currentArray[i]).enabled ? _mainColor : _crashColor;
 
                         textName = ((UdonBehaviour)_currentArray[i]).name;
                         string typeName = ((UdonSharpBehaviour)_currentArray[i]).GetUdonTypeName();
@@ -332,20 +325,49 @@ namespace UdonSharp.Nessie.Debugger
                         if (MenuID == 3 || MenuID == 4)
                         {
                             object value = ((UdonBehaviour)ArrUdons[UdonID]).GetProgramVariable((string)_currentArray[i]);
-                            string icon;
+                            Type iconType;
 
                             if (Utilities.IsValid(value))
-                                icon = _CheckType(value.GetType());
+                                iconType = value.GetType();
                             else
-                                icon = _CheckType(((UdonBehaviour)ArrUdons[UdonID]).GetProgramVariableType((string)_currentArray[i]));
-                            textName = $"{icon} {textName}";
+                            {
+                                iconType = ((UdonBehaviour)ArrUdons[UdonID]).GetProgramVariableType((string)_currentArray[i]);
+
+                                if (iconType == null)
+                                {
+                                    Debug.LogError($"[<color=#00FF9F>NUDebugger</color>] Removing missing property: {_currentArray[i]}.");
+
+                                    if (MenuID == 3)
+                                    {
+                                        ArrNames[UdonID] = (string[])ArrayRemove(_currentArray, i);
+                                        _currentArray = ArrNames[UdonID];
+                                    }
+                                    else
+                                    {
+                                        VarNames[UdonID] = (string[])ArrayRemove(_currentArray, i);
+                                        _currentArray = VarNames[UdonID];
+                                    }
+
+                                    buttonCountNew--;
+                                    i--;
+                                    continue;
+                                }
+                            }
+
+                            textName = $"{_CheckType(iconType)} {textName}";
                         }
                     }
 
                     _poolDebugButton[i].TargetText.color = textColor;
                     _poolDebugButton[i].TargetText.text = textName;
                 }
+
+                // Only toggle buttons if necessary.
+                if (i >= (buttonCountNew < _buttonCount ? buttonCountNew : _buttonCount))
+                    _poolDebugButton[i].gameObject.SetActive(i < buttonCountNew);
             }
+
+            _buttonCount = buttonCountNew;
 
             _targetAnimator.SetInteger("MenuID", MenuID);
         }
@@ -387,10 +409,8 @@ namespace UdonSharp.Nessie.Debugger
         {
             if (UdonID < 0)
                 MenuID = 0;
-            else if (TypeID < 0)
-                MenuID = 1;
             else
-                MenuID = TypeID + 3;
+                MenuID = TypeID < 0 ? 1 : TypeID + 3;
         }
 
         public void _SelectID()
@@ -411,12 +431,9 @@ namespace UdonSharp.Nessie.Debugger
                     CustomUdon = false;
                     _currentUdon = newUdon;
 
-                    // Change color if specified UdonBehaviour ran into an error.
                     Color textColor;
-                    if (_crashed = !_currentUdon.enabled)
-                        textColor = _crashColor;
-                    else
-                        textColor = _mainColor;
+                    _crashed = !_currentUdon.enabled;
+                    textColor = _crashed ? _crashColor : _mainColor;
 
                     _udonField.color = textColor;
 
@@ -552,10 +569,10 @@ namespace UdonSharp.Nessie.Debugger
                     if (Utilities.IsValid(newUdon))
                         _SelectCustomUdon(newUdon);
                     else
-                        Debug.LogWarning($"[<color=#00FF9F>NUDebugger</color>] No UdonBehaviour found on {newGameObject}");
+                        Debug.LogWarning($"[<color=#00FF9F>NUDebugger</color>] No UdonBehaviour found on: {newGameObject}");
                 }
                 else
-                    Debug.LogWarning($"[<color=#00FF9F>NUDebugger</color>] No active GameObject found by the name of {_textField.text}");
+                    Debug.LogWarning($"[<color=#00FF9F>NUDebugger</color>] No active GameObject found by the name of: {_textField.text}");
 
                 return;
             }
@@ -605,12 +622,9 @@ namespace UdonSharp.Nessie.Debugger
             CustomUdon = true;
             _currentUdon = udon;
 
-            // Change color if specified UdonBehaviour ran into an error.
             Color textColor;
-            if (_crashed = !_currentUdon.enabled)
-                textColor = _crashColor;
-            else
-                textColor = _mainColor;
+            _crashed = !_currentUdon.enabled;
+            textColor = _crashed ? _crashColor : _mainColor;
 
             _udonField.color = textColor;
 
@@ -631,9 +645,9 @@ namespace UdonSharp.Nessie.Debugger
 
 
 
-        // Custom functions.
+        // Some slightly cursed array functions.
 
-        private object[] ListAdd(object[] list, object value)
+        private object[] ArrayAdd(object[] list, object value)
         {
             object[] newArr = new object[list.Length + 1];
 
@@ -643,7 +657,7 @@ namespace UdonSharp.Nessie.Debugger
             return newArr;
         }
 
-        private object[] ListRemove(object[] list, int index)
+        private object[] ArrayRemove(object[] list, int index)
         {
             if (index < 0 || index >= list.Length)
             {
@@ -693,23 +707,10 @@ namespace UdonSharp.Nessie.Debugger
         {
             Debug.LogError("[<color=#00FF9F>NUDebugger</color>] Removing missing UdonBehaviour from UdonDebugger.");
 
-            object[] newArr;
-
-            newArr = ListRemove(ArrUdons, index);
-            ArrUdons = new Component[newArr.Length];
-            newArr.CopyTo(ArrUdons, 0);
-
-            newArr = ListRemove(ArrNames, index);
-            ArrNames = new string[newArr.Length][];
-            newArr.CopyTo(ArrNames, 0);
-
-            newArr = ListRemove(VarNames, index);
-            VarNames = new string[newArr.Length][];
-            newArr.CopyTo(VarNames, 0);
-
-            newArr = ListRemove(EntNames, index);
-            EntNames = new string[newArr.Length][];
-            newArr.CopyTo(EntNames, 0);
+            ArrUdons = (Component[])ArrayRemove(ArrUdons, index);
+            ArrNames = (string[][])ArrayRemove(ArrNames, index);
+            VarNames = (string[][])ArrayRemove(VarNames, index);
+            EntNames = (string[][])ArrayRemove(EntNames, index);
 
             UdonID = -1;
             MenuID = 0;
@@ -732,9 +733,7 @@ namespace UdonSharp.Nessie.Debugger
                 {
                     Debug.Log("[<color=#00FF9F>NUDebugger</color>] Removing missing pool object from pool array.");
 
-                    object[] bufferArray = ListRemove(_poolDebugText, i);
-                    _poolDebugText = new NUDebuggerText[bufferArray.Length];
-                    bufferArray.CopyTo(_poolDebugText, 0);
+                    _poolDebugText = (NUDebuggerText[])ArrayRemove(_poolDebugText, i);
 
                     continue;
                 }
@@ -769,9 +768,7 @@ namespace UdonSharp.Nessie.Debugger
                 // Store new UdonBehaviour into pool.
                 udonTarget = newObject.GetComponent<NUDebuggerText>();
 
-                object[] bufferArray = ListAdd(_poolDebugText, udonTarget);
-                _poolDebugText = new NUDebuggerText[bufferArray.Length];
-                bufferArray.CopyTo(_poolDebugText, 0);
+                _poolDebugText = (NUDebuggerText[])ArrayAdd(_poolDebugText, udonTarget);
             }
 
             // Set up behaviour.
@@ -795,9 +792,7 @@ namespace UdonSharp.Nessie.Debugger
                 {
                     Debug.Log("[<color=#00FF9F>NUDebugger</color>] Removing missing pool object from pool array.");
 
-                    object[] bufferArray = ListRemove(_poolDebugText, i);
-                    _poolDebugText = new NUDebuggerText[bufferArray.Length];
-                    bufferArray.CopyTo(_poolDebugText, 0);
+                    _poolDebugText = (NUDebuggerText[])ArrayRemove(_poolDebugText, i);
 
                     continue;
                 }
@@ -832,9 +827,7 @@ namespace UdonSharp.Nessie.Debugger
                 // Store new UdonBehaviour into pool.
                 udonTarget = newObject.GetComponent<NUDebuggerText>();
 
-                object[] bufferArray = ListAdd(_poolDebugText, udonTarget);
-                _poolDebugText = new NUDebuggerText[bufferArray.Length];
-                bufferArray.CopyTo(_poolDebugText, 0);
+                _poolDebugText = (NUDebuggerText[])ArrayAdd(_poolDebugText, udonTarget);
             }
 
             // Set up behaviour.

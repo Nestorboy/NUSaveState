@@ -79,14 +79,7 @@ namespace UdonSharp.Nessie.Debugger
 
                     object bufferVariable = TargetUdon.GetProgramVariable(TargetName);
 
-                    if (Utilities.IsValid(bufferVariable))
-                    {
-                        body = VariableToString(bufferVariable);
-                    }
-                    else
-                    {
-                        body = "null";
-                    }
+                    body = Utilities.IsValid(bufferVariable) ? VariableToString(bufferVariable) : "null";
 
                     header = TargetName;
 
