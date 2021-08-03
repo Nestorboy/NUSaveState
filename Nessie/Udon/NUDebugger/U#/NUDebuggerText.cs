@@ -35,7 +35,7 @@ namespace UdonSharp.Nessie.Debugger
         {
             if (TargetUdon == null)
             {
-                Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Missing UdonBehaviour reference on {gameObject}");
+                Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Missing UdonBehaviour reference on: {gameObject}");
 
                 gameObject.SetActive(false);
             }
@@ -105,7 +105,7 @@ namespace UdonSharp.Nessie.Debugger
 
 
 
-        // Custom functoins.
+        // Custom functions.
 
         private string ArrayToString(object[] array)
         {
@@ -117,28 +117,12 @@ namespace UdonSharp.Nessie.Debugger
                 int length = array.Length - 1;
 
                 // Get VRC displayName if possible.
-                if (array[0].GetType() == typeof(VRCPlayerApi))
+                for (int i = 0; i < length; i++)
                 {
-                    VRCPlayerApi user;
-
-                    for (int i = 0; i < length; i++)
-                    {
-                        user = (VRCPlayerApi)array[i];
-                        newString += $"[{i}]: {user.displayName}\n";
-                    }
-
-                    user = (VRCPlayerApi)array[length];
-                    newString += $"[{length}]: {user.displayName}";
+                    newString += $"[{i}]: {VariableToString(array[i])}\n";
                 }
-                else
-                {
-                    for (int i = 0; i < length; i++)
-                    {
-                        newString += $"[{i}]: {array[i]}\n";
-                    }
 
-                    newString += $"[{length}]: {array[length]}";
-                }
+                newString += $"[{length}]: {VariableToString(array[length])}";
             }
 
             return newString;

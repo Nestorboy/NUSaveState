@@ -86,7 +86,6 @@ namespace UdonSharp.Nessie.Debugger
         [HideInInspector] public int ButtonID = 0;
 
         // Settings. (Yes, I was too lazy to make the settings modular.)
-
         [HideInInspector] public Color _mainColor = new Color(0f, 1f, 0.6235294f, 1f);
         [HideInInspector] public Color _crashColor = new Color(1f, 0.2705882f, 0.5294118f, 1f);
         [HideInInspector] public float _updateRate = 0.2f;
@@ -469,13 +468,11 @@ namespace UdonSharp.Nessie.Debugger
                     if (ButtonID == 0)
                     {
                         _updateRate = _settingUpdateRate.value / 20;
-
                         _updateRateField.text = $"Update Rate: {_updateRate} s";
                     }
                     else if (ButtonID == 1)
                     {
                         _networked = _settingNetworked.isOn;
-
                         _networkedField.text = $"Networked: {_networked}";
                     }
 
@@ -731,7 +728,7 @@ namespace UdonSharp.Nessie.Debugger
             {
                 if (!Utilities.IsValid(_poolDebugText[i]))
                 {
-                    Debug.Log("[<color=#00FF9F>NUDebugger</color>] Removing missing pool object from pool array.");
+                    Debug.Log("[<color=#00FF9F>NUDebugger</color>] Removing missing DebugText object from pool array.");
 
                     _poolDebugText = (NUDebuggerText[])ArrayRemove(_poolDebugText, i);
 
@@ -743,7 +740,7 @@ namespace UdonSharp.Nessie.Debugger
                     udonTarget = _poolDebugText[i];
                     usePool = true;
 
-                    Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Found available pool object at index: {i}");
+                    Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Found available DebugText object at index: {i}");
 
                     break;
                 }
@@ -790,7 +787,7 @@ namespace UdonSharp.Nessie.Debugger
             {
                 if (!Utilities.IsValid(_poolDebugText[i]))
                 {
-                    Debug.Log("[<color=#00FF9F>NUDebugger</color>] Removing missing pool object from pool array.");
+                    Debug.Log("[<color=#00FF9F>NUDebugger</color>] Removing missing DebugText object from pool array.");
 
                     _poolDebugText = (NUDebuggerText[])ArrayRemove(_poolDebugText, i);
 
@@ -802,7 +799,7 @@ namespace UdonSharp.Nessie.Debugger
                     udonTarget = _poolDebugText[i];
                     usePool = true;
 
-                    Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Found available pool object at index: {i}");
+                    Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Found available DebugText object at index: {i}");
 
                     break;
                 }
