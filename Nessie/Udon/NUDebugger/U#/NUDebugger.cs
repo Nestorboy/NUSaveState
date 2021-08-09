@@ -1,5 +1,6 @@
 ﻿
 using UnityEngine;
+using UnityEngine.UI;
 using VRC.SDKBase;
 using VRC.Udon;
 using System;
@@ -12,7 +13,12 @@ namespace UdonSharp.Nessie.Debugger
     {
         #region DebugFields
 
-        [HideInInspector] public Component[] ArrUdons = new Component[0];
+        public Component[] ArrUdons = new Component[0];
+        public int[] ProgramIndecies = new int[0]; // Not done.
+        public string[] ProgramNames = new string[0]; // Not done.
+        [HideInInspector] public string[][] GraphSolutions = new string[0][]; // Not done.
+        [HideInInspector] public bool[][] GraphConditions = new bool[0][]; // Not done.
+        [HideInInspector] public long[] SharpIDs = new long[0]; // Not done.
         [HideInInspector] public string[] ArrType = new string[] { "Array", "Variable", "Event" };
         [HideInInspector] public string[][] ArrNames = new string[0][];
         [HideInInspector] public string[][] VarNames = new string[0][];
@@ -57,20 +63,20 @@ namespace UdonSharp.Nessie.Debugger
         [SerializeField] private TextMeshProUGUI _typeField = null;
 
         [Tooltip("Text field used for displaying variable name.")]
-        [SerializeField] private UnityEngine.UI.InputField _textField = null;
+        [SerializeField] private InputField _textField = null;
 
 
 
         [Header("Extra Buttons")]
 
         [Tooltip("Pointer used to get values for the UpdateRate setting.")]
-        [SerializeField] private UnityEngine.UI.Slider _settingUpdateRate = null;
+        [SerializeField] private Slider _settingUpdateRate = null;
 
         [Tooltip("Text field used for displaying UpdateRate status.")]
         [SerializeField] private TextMeshProUGUI _updateRateField = null;
 
         [Tooltip("Pointer used to get values for the Networked setting.")]
-        [SerializeField] private UnityEngine.UI.Toggle _settingNetworked = null;
+        [SerializeField] private Toggle _settingNetworked = null;
 
         [Tooltip("Text field used for displaying Networking status.")]
         [SerializeField] private TextMeshProUGUI _networkedField = null;
@@ -81,6 +87,7 @@ namespace UdonSharp.Nessie.Debugger
 
         [HideInInspector] public bool CustomUdon = false;
         [HideInInspector] public int UdonID = -1;
+        [HideInInspector] public int ProgramID = -1;
         [HideInInspector] public int TypeID = -1;
         [HideInInspector] public int MenuID = 0;
         [HideInInspector] public int ButtonID = 0;
@@ -108,16 +115,35 @@ namespace UdonSharp.Nessie.Debugger
 
         private GameObject[] _poolSettingButton;
 
+        private Selectable[] _poolSettingButtons;
+        private Button[] _poolButtonDebug;
         #endregion PrivateFields
 
         private void Start()
         {
+            Debug.Log($"[<color=#00FF9F>NUDebugger</color>] NUDebugger type ID: {GetComponent<NUDebugger>().GetUdonTypeID()}");
+
             _poolDebugText = new NUDebuggerText[0];
             _poolDebugButton = new NUDebuggerButton[0];
 
-            _poolSettingButton = new GameObject[_buttonContainer.childCount];
-            for (int i = 0; i < _poolSettingButton.Length; i++)
-                _poolSettingButton[i] = _buttonContainer.GetChild(i).gameObject;
+            _poolButtonDebug = _buttonContainer.GetComponentsInChildren<Button>();
+            _poolSettingButton = new GameObject[_buttonContainer.childCount - _poolButtonDebug.Length];
+
+            int settingButtonIndex = 0;
+            int debugButtonIndex = 0;
+            for (int i = 0; i < _poolSettingButton.Length + _poolButtonDebug.Length; i++)
+            {
+                Transform childTransform = _buttonContainer.GetChild(i);
+                Button childButton = childTransform.GetComponent<Button>();
+                if (childButton == null)
+                    _poolSettingButton[settingButtonIndex++] = childTransform.gameObject;
+                else
+                    _poolButtonDebug[debugButtonIndex++] = childTransform.GetComponent<Button>();
+            }
+
+            Selectable[] UIstuff = _buttonContainer.GetComponentsInChildren<Selectable>();
+            foreach (Selectable interactive in UIstuff)
+                Debug.Log(interactive, interactive);
 
             _SetColor(gameObject);
             _SetColor(_buttonPrefab);
@@ -636,6 +662,8 @@ namespace UdonSharp.Nessie.Debugger
 
             UdonID = 0;
 
+            Debug.Log($"Program: {ProgramNames[_GetProgramIndex(_currentUdon)]}");
+
             _CheckSelected();
             _UpdateButtons();
         }
@@ -684,12 +712,12 @@ namespace UdonSharp.Nessie.Debugger
         private void _SetColor(GameObject target)
         {
             TextMeshProUGUI[] TMPs;
-            UnityEngine.UI.Text[] Texts;
-            UnityEngine.UI.Image[] Icons;
+            Text[] Texts;
+            Image[] Icons;
 
             TMPs = target.GetComponentsInChildren<TextMeshProUGUI>(true);
-            Texts = target.GetComponentsInChildren<UnityEngine.UI.Text>(true);
-            Icons = target.GetComponentsInChildren<UnityEngine.UI.Image>(true);
+            Texts = target.GetComponentsInChildren<Text>(true);
+            Icons = target.GetComponentsInChildren<Image>(true);
 
             for (int i = 0; i < TMPs.Length; i++)
                 TMPs[i].color = _mainColor;
@@ -698,6 +726,41 @@ namespace UdonSharp.Nessie.Debugger
             for (int i = 0; i < Icons.Length; i++)
                 if (Icons[i].name.StartsWith("Icon-"))
                     Icons[i].color = _mainColor;
+        }
+
+        private int _GetProgramIndex(UdonBehaviour udon)
+        {
+            long typeID = ((UdonSharpBehaviour)(Component)udon).GetUdonTypeID();
+            int programIndex = -1;
+
+            if (typeID == 0)
+            {
+                for (int i = 0; i < GraphSolutions.Length; i++)
+                {
+                    for (int j = 0; j < GraphSolutions[i].Length; j++)
+                    { 
+                        bool hasVariable = udon.GetProgramVariableType(GraphSolutions[i][j]) != null;
+                        if (hasVariable == GraphConditions[i][j])
+                        {
+                            if (i + 1 >= GraphSolutions[i].Length)
+                            { 
+                                programIndex = i;
+                                break;
+                            }
+                        }
+                        else
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                programIndex = Array.IndexOf(SharpIDs, (long)typeID);
+                if (programIndex >= 0)
+                    programIndex += GraphSolutions.Length;
+            }
+
+            return programIndex;
         }
 
         private void _RemoveUdon(int index)

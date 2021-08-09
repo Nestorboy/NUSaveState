@@ -1,6 +1,7 @@
 ﻿
 using UnityEngine;
 using VRC.Udon;
+using VRC.Udon.Editor.ProgramSources.UdonGraphProgram;
 using System;
 using UnityEditor;
 using UdonSharpEditor;
@@ -37,6 +38,8 @@ namespace UdonSharp.Nessie.Debugger.Internal
         public class UdonData : IComparable<UdonData>
         {
             public UdonBehaviour Udon;
+            public int ProgramIndex;
+            public string ProgramID;
             public List<string> Arrays;
             public List<string> Variables;
             public List<string> Events;
@@ -48,11 +51,35 @@ namespace UdonSharp.Nessie.Debugger.Internal
             }
         }
 
+        public class UniqueSolution
+        {
+            public List<string> SolutionStrings;
+            public List<bool> SolutionConditions;
+
+            public List<string> GetIncludes()
+            {
+                List<string> includes = new List<string>();
+                for (int i = 0; i < SolutionConditions.Count; i++)
+                    if (SolutionConditions[i])
+                        includes.Add(SolutionStrings[i]);
+                return includes;
+            }
+
+            public List<string> GetExcludes()
+            {
+                List<string> excludes = new List<string>();
+                for (int i = 0; i < SolutionConditions.Count; i++)
+                    if (!SolutionConditions[i])
+                        excludes.Add(SolutionStrings[i]);
+                return excludes;
+            }
+        }
+
         private void OnEnable()
         {
             // Stupid workaround for whacky U# related errors.
             if (target == null) return;
-            
+
             _debugUdon = (NUDebugger)target;
 
             GetAssets();
@@ -117,7 +144,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
             GUIContent buttonGitHub = new GUIContent("", "Github");
             GUIStyle styleGitHub = new GUIStyle(GUI.skin.box);
             if (_iconGitHub != null)
-            { 
+            {
                 buttonGitHub = new GUIContent(_iconGitHub, "Github");
                 styleGitHub = GUIStyle.none;
             }
@@ -193,13 +220,52 @@ namespace UdonSharp.Nessie.Debugger.Internal
                 System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
                 timer.Start();
 
-                Component[] udonBehaviours = (Component[])FindObjectsOfType(typeof(UdonBehaviour));
+                List<UdonBehaviour> udonBehaviours = GetUdonBehavioursInScene();
+                GetUdonBehaviourDependencies(udonBehaviours, out List <UdonGraphProgramAsset> graphAssets, out List<UdonSharpProgramAsset> sharpAssets);
+                GetUdonAssetIDs(graphAssets, out List<UniqueSolution> graphIDs);
+                GetUdonAssetIDs(sharpAssets, out List<long> sharpIDs);
+
+                string[] programNames = new string[graphAssets.Count + sharpAssets.Count];
+                string[][] graphSolutions = new string[graphIDs.Count][];
+                bool[][] graphConditions = new bool[graphIDs.Count][];
+                long[] sharpSolutions = sharpIDs.ToArray();
+
+                for (int i = 0; i < programNames.Length; i++)
+                    programNames[i] = i < graphAssets.Count ? graphAssets[i].name : sharpAssets[i - graphAssets.Count].name;
+
+                for (int i = 0; i < graphIDs.Count; i++)
+                {
+                    graphSolutions[i] = graphIDs[i].SolutionStrings.ToArray();
+                    graphConditions[i] = graphIDs[i].SolutionConditions.ToArray();
+
+                    List<string> incs = graphIDs[i].GetIncludes();
+                    List<string> excs = graphIDs[i].GetExcludes();
+
+                    string str = string.Format("Asset {0} [{1}]:", i < graphAssets.Count ? graphAssets[i].name : sharpAssets[i - graphAssets.Count].name, incs.Count + excs.Count);
+                    
+                    str += $"\nIncludes: ";
+                    foreach (string include in incs)
+                        str += $" {include}";
+
+                    str += "\n Excludes: ";
+                    foreach (string exclude in excs)
+                        str += $" {exclude}";
+
+                    Debug.Log(str, graphAssets[i]);
+                }
+
+                _debugUdon.ProgramNames = programNames;
+                _debugUdon.GraphSolutions = graphSolutions;
+                _debugUdon.GraphConditions = graphConditions;
+                _debugUdon.SharpIDs = sharpSolutions;
+
                 List<UdonData> oldData = _listData;
                 List<UdonData> newData = new List<UdonData>();
 
-                for (int i = 0; i < udonBehaviours.Length; i++)
+                int[] programIndecies = new int[udonBehaviours.Count];
+                for (int i = 0; i < udonBehaviours.Count; i++)
                 {
-                    EditorUtility.DisplayProgressBar("NUDebugger", $"Getting Data... ({i}/{udonBehaviours.Length})", (float)i / udonBehaviours.Length);
+                    EditorUtility.DisplayProgressBar("NUDebugger", $"Getting Data... ({i}/{udonBehaviours.Count})", (float)i / udonBehaviours.Count);
 
                     try
                     {
@@ -207,8 +273,16 @@ namespace UdonSharp.Nessie.Debugger.Internal
                         List<string> variableNames;
                         List<string> eventNames;
 
-                        GetProperties((UdonBehaviour)udonBehaviours[i], out arrayNames, out variableNames);
-                        GetMethods((UdonBehaviour)udonBehaviours[i], out eventNames);
+                        AbstractUdonProgramSource program = udonBehaviours[i].programSource;
+                        if (program is UdonGraphProgramAsset)
+                            programIndecies[i] = graphAssets.IndexOf((UdonGraphProgramAsset)program);
+                        else if (program is UdonSharpProgramAsset)
+                            programIndecies[i] = sharpAssets.IndexOf((UdonSharpProgramAsset)program) + graphAssets.Count;
+                        else
+                            programIndecies[i] = -1;
+
+                        GetProperties(udonBehaviours[i], out arrayNames, out variableNames);
+                        GetMethods(udonBehaviours[i], out eventNames);
 
                         arrayNames.Sort();
                         variableNames.Sort();
@@ -216,7 +290,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
                         UdonData data = new UdonData
                         {
-                            Udon = (UdonBehaviour)udonBehaviours[i],
+                            Udon = udonBehaviours[i],
                             Arrays = arrayNames,
                             Variables = variableNames,
                             Events = eventNames,
@@ -227,12 +301,14 @@ namespace UdonSharp.Nessie.Debugger.Internal
                     }
                     catch (Exception e)
                     {
-                        if (((UdonBehaviour)udonBehaviours[i]).programSource == null)
+                        if (udonBehaviours[i].programSource == null)
                             Debug.LogWarning($"[<color=#00FF9F>NUDebugger</color>] Missing program source on: {udonBehaviours[i].name}", udonBehaviours[i]);
                         else
                             Debug.LogWarning($"[<color=#00FF9F>NUDebugger</color>] Couldn't cache: {udonBehaviours[i].name}\n{e}", udonBehaviours[i]);
                     }
                 }
+
+                _debugUdon.ProgramIndecies = programIndecies;
 
                 EditorUtility.DisplayProgressBar("NUDebugger", "Storing Data...", 1);
 
@@ -431,9 +507,9 @@ namespace UdonSharp.Nessie.Debugger.Internal
             _debugUdon.EntNames[index] = _listData[index].Events.ToArray();
         }
 
-        private void GetProperties(UdonBehaviour target, out List<string> arrayNames, out List<string> variableNames)
+        private void GetProperties(UdonBehaviour udon, out List<string> arrayNames, out List<string> variableNames)
         {
-            VRC.Udon.Common.Interfaces.IUdonSymbolTable symbolTable = target.programSource.SerializedProgramAsset.RetrieveProgram().SymbolTable;
+            VRC.Udon.Common.Interfaces.IUdonSymbolTable symbolTable = udon.programSource.SerializedProgramAsset.RetrieveProgram().SymbolTable;
 
             arrayNames = new List<string>();
             variableNames = new List<string>();
@@ -472,6 +548,131 @@ namespace UdonSharp.Nessie.Debugger.Internal
         {
             // Thank you Vowgan and Varneon for pointing me in the right direction when I was trying to getting Udon methods. ^^
             methodNames = target.programSource.SerializedProgramAsset.RetrieveProgram().EntryPoints.GetExportedSymbols().ToList();
+        }
+
+
+
+
+
+        private void GetUdonBehaviourDependencies(List<UdonBehaviour> udonBehaviours, out List<UdonGraphProgramAsset> graphAssets, out List<UdonSharpProgramAsset> sharpAssets)
+        {
+            graphAssets = new List<UdonGraphProgramAsset>();
+            sharpAssets = new List<UdonSharpProgramAsset>();
+
+            UnityEngine.Object[] dependencies = udonBehaviours.ToArray();
+            dependencies = EditorUtility.CollectDependencies(dependencies);
+            foreach (UnityEngine.Object dependency in dependencies)
+            {
+                if (dependency is UdonGraphProgramAsset graphAsset)
+                    graphAssets.Add(graphAsset);
+                else if (dependency is UdonSharpProgramAsset sharpAsset)
+                    sharpAssets.Add(sharpAsset);
+            }
+        }
+
+        private List<UdonBehaviour> GetUdonBehavioursInScene()
+        {
+            List<UdonBehaviour> udonBehavioursInScene = new List<UdonBehaviour>();
+            int curentSceneHandle = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+
+            foreach (UdonBehaviour ub in Resources.FindObjectsOfTypeAll<UdonBehaviour>())
+            {
+                if (ub.gameObject.scene.handle == curentSceneHandle)
+                    if (!EditorUtility.IsPersistent(ub.transform.root.gameObject) && !(ub.hideFlags == HideFlags.NotEditable || ub.hideFlags == HideFlags.HideAndDontSave))
+                        udonBehavioursInScene.Add(ub);
+            }
+
+            return udonBehavioursInScene;
+        }
+
+        private void GetUdonAssetIDs(List<UdonGraphProgramAsset> graphAssets, out List<UniqueSolution> udonGraphIDs)
+        {
+            udonGraphIDs = new List<UniqueSolution>();
+            List<List<string>> udonGraphSymbols = new List<List<string>>();
+            for (int i = 0; i < graphAssets.Count; i++)
+            {
+                List<string> symbols = graphAssets[i].SerializedProgramAsset.RetrieveProgram().SymbolTable.GetSymbols().ToList();
+                udonGraphSymbols.Add(symbols);
+            }
+
+            udonGraphIDs = GetSolutions(udonGraphSymbols);
+        }
+
+        private void GetUdonAssetIDs(List<UdonSharpProgramAsset> sharpAssets, out List<long> udonSharpIDs)
+        {
+            udonSharpIDs = new List<long>();
+            foreach (UdonSharpProgramAsset asset in sharpAssets)
+            {
+                long typeID = UdonSharp.Internal.UdonSharpInternalUtility.GetTypeID(asset.sourceCsScript.GetClass());
+                udonSharpIDs.Add(typeID);
+                Debug.Log($"{asset} type ID: {typeID}", asset);
+            }
+        }
+
+        private List<UniqueSolution> GetSolutions(List<List<string>> data)
+        {
+            List<UniqueSolution> solutions = new List<UniqueSolution>();
+            List<string> occurrences = new List<string>();
+
+            foreach (List<string> list in data)
+                occurrences = occurrences.Concat(list).ToList();
+
+            occurrences = occurrences.GroupBy(x => x)
+                  .OrderByDescending(g => g.Count())
+                  .SelectMany(g => g).Distinct().ToList();
+
+            for (int listIndex = 0; listIndex < data.Count; listIndex++)
+            {
+                List<string> occurrencesFiltered = occurrences.Intersect(data[listIndex]).Reverse().ToList();
+                List<string> occurrencesOthersFiltered = occurrences.Except(data[listIndex]).ToList();
+
+                for (int stringIndex = 0; stringIndex < occurrencesFiltered.Count; stringIndex++)
+                {
+                    List<string> solution = new List<string>() { occurrencesFiltered[stringIndex] };
+                    for (int againstIndex = 0; againstIndex < data.Count; againstIndex++)
+                    {
+                        if (againstIndex == listIndex) continue;
+                        if (data[listIndex].Count == data[againstIndex].Count && data[listIndex].All(data[againstIndex].Contains)) continue;
+                        if (data[againstIndex].Contains(occurrencesFiltered[stringIndex]))
+                        {
+                            List<string> include = occurrencesFiltered.Except(data[againstIndex]).ToList();
+                            List<string> exclude = occurrencesOthersFiltered.Intersect(data[againstIndex]).ToList();
+
+                            string conditions = exclude.Count > 0 ? exclude[0] : include[0];
+
+                            solution.Add(conditions);
+                        }
+                    }
+
+                    List<string> finalResult = occurrences.Intersect(solution).ToList();
+                    List<string> solutionStrings = new List<string>();
+                    List<bool> solutionConditions = new List<bool>();
+
+                    string log = $"List ({listIndex}): Solution ({stringIndex})";
+                    foreach (string str in finalResult)
+                    {
+                        solutionStrings.Add(str);
+                        if (data[listIndex].Contains(str))
+                        {
+                            solutionConditions.Add(true);
+                            log += $"\nInclude: {str}";
+                        }
+                        else
+                        {
+                            solutionConditions.Add(false);
+                            log += $"\nExclude: {str}";
+                        }
+                    }
+
+                    UniqueSolution newSolution = new UniqueSolution();
+                    newSolution.SolutionStrings = solutionStrings;
+                    newSolution.SolutionConditions = solutionConditions;
+                    solutions.Add(newSolution);
+
+                    break;
+                }
+            }
+            return solutions;
         }
     }
 }
