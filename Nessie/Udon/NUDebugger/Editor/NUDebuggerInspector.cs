@@ -14,18 +14,17 @@ namespace UdonSharp.Nessie.Debugger.Internal
     [CustomEditor(typeof(NUDebugger))]
     internal class NUDebuggerInspector : Editor
     {
-        // Assets.
-        private Texture2D _iconGitHub;
-        private Texture2D _iconVRChat;
+        private NUDebugger _udonDebugger;
+        private List<ProgramData> _listPrograms = new List<ProgramData>();
+        private List<UdonData> _listData = new List<UdonData>();
 
         private bool _foldoutRefs;
         private bool _foldoutData;
 
-        public FilterType _filterType = FilterType.Smart;
+        private FilterType _filterType = FilterType.Smart;
 
-        public List<UdonData> _listData = new List<UdonData>();
-
-        private NUDebugger _debugUdon;
+        private Texture2D _iconGitHub;
+        private Texture2D _iconVRChat;
 
         [Flags]
         public enum FilterType
@@ -35,15 +34,19 @@ namespace UdonSharp.Nessie.Debugger.Internal
             Smart
         }
 
-        public class UdonData : IComparable<UdonData>
+        public class ProgramData
         {
-            public UdonBehaviour Udon;
-            public int ProgramIndex;
-            public string ProgramID;
+            public string Name;
             public List<string> Arrays;
             public List<string> Variables;
             public List<string> Events;
             public bool[] Expanded;
+        }
+
+        public class UdonData : IComparable<UdonData>
+        {
+            public UdonBehaviour Udon;
+            public int ProgramIndex;
 
             public int CompareTo(UdonData comparePart)
             {
@@ -80,7 +83,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
             // Stupid workaround for whacky U# related errors.
             if (target == null) return;
 
-            _debugUdon = (NUDebugger)target;
+            _udonDebugger = (NUDebugger)target;
 
             GetAssets();
 
@@ -93,6 +96,8 @@ namespace UdonSharp.Nessie.Debugger.Internal
         {
             // Draws the default convert to UdonBehaviour button, program asset field, sync settings, etc.
             if (UdonSharpGUI.DrawDefaultUdonSharpBehaviourHeader(target)) return;
+
+            GetData();
 
             GUILayout.BeginVertical(EditorStyles.helpBox);
 
@@ -164,38 +169,38 @@ namespace UdonSharp.Nessie.Debugger.Internal
             EditorGUILayout.LabelField("Debugger Settings", EditorStyles.boldLabel);
 
             EditorGUI.BeginChangeCheck();
-            Color mainColor = EditorGUILayout.ColorField(new GUIContent("Main Color", "Color used for UI text and icon elements."), _debugUdon._mainColor);
+            Color mainColor = EditorGUILayout.ColorField(new GUIContent("Main Color", "Color used for UI text and icon elements."), _udonDebugger.MainColor);
             if (EditorGUI.EndChangeCheck())
             {
-                Undo.RecordObject(_debugUdon, "Changed Main Color.");
-                _debugUdon._mainColor = mainColor;
+                Undo.RecordObject(_udonDebugger, "Changed Main Color.");
+                _udonDebugger.MainColor = mainColor;
             }
 
             EditorGUI.BeginChangeCheck();
-            Color crashColor = EditorGUILayout.ColorField(new GUIContent("Crash Color", "Color used to indicate if an UdonBehaviour has crashed."), _debugUdon._crashColor);
+            Color crashColor = EditorGUILayout.ColorField(new GUIContent("Crash Color", "Color used to indicate if an UdonBehaviour has crashed."), _udonDebugger.CrashColor);
             if (EditorGUI.EndChangeCheck())
             {
-                Undo.RecordObject(_debugUdon, "Changed Crash Color.");
-                _debugUdon._crashColor = crashColor;
+                Undo.RecordObject(_udonDebugger, "Changed Crash Color.");
+                _udonDebugger.CrashColor = crashColor;
             }
 
             EditorGUI.BeginChangeCheck();
-            float updateRate = EditorGUILayout.FloatField(new GUIContent("Update Rate", "Delay in seconds between debugger updates."), _debugUdon._updateRate);
+            float updateRate = EditorGUILayout.FloatField(new GUIContent("Update Rate", "Delay in seconds between debugger updates."), _udonDebugger.UpdateRate);
             if (EditorGUI.EndChangeCheck())
             {
                 if (updateRate <= 0)
                     updateRate = 0;
 
-                Undo.RecordObject(_debugUdon, "Changed Update Rate.");
-                _debugUdon._updateRate = updateRate;
+                Undo.RecordObject(_udonDebugger, "Changed Update Rate.");
+                _udonDebugger.UpdateRate = updateRate;
             }
 
             EditorGUI.BeginChangeCheck();
-            bool networked = EditorGUILayout.Toggle(new GUIContent("Networked", "Boolean used to decide if an event call should be networked or not."), _debugUdon._networked);
+            bool networked = EditorGUILayout.Toggle(new GUIContent("Networked", "Boolean used to decide if an event call should be networked or not."), _udonDebugger.Networked);
             if (EditorGUI.EndChangeCheck())
             {
-                Undo.RecordObject(_debugUdon, "Changed Update Rate.");
-                _debugUdon._networked = networked;
+                Undo.RecordObject(_udonDebugger, "Changed Update Rate.");
+                _udonDebugger.Networked = networked;
             }
 
             EditorGUILayout.Space();
@@ -215,122 +220,18 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             EditorGUILayout.LabelField("Debugger Utilities", EditorStyles.boldLabel);
 
-            if (GUILayout.Button(new GUIContent("Cache Udon Behaviours", "Cache all active Udon Behaviours in the scene.")))
+            if (GUILayout.Button(new GUIContent("Cache Udon Programs", "Cache all Udon Program dependencies of the scene.")))
             {
                 System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
                 timer.Start();
 
-                List<UdonBehaviour> udonBehaviours = GetUdonBehavioursInScene();
-                GetUdonBehaviourDependencies(udonBehaviours, out List <UdonGraphProgramAsset> graphAssets, out List<UdonSharpProgramAsset> sharpAssets);
-                GetUdonAssetIDs(graphAssets, out List<UniqueSolution> graphIDs);
-                GetUdonAssetIDs(sharpAssets, out List<long> sharpIDs);
-
-                string[] programNames = new string[graphAssets.Count + sharpAssets.Count];
-                string[][] graphSolutions = new string[graphIDs.Count][];
-                bool[][] graphConditions = new bool[graphIDs.Count][];
-                long[] sharpSolutions = sharpIDs.ToArray();
-
-                for (int i = 0; i < programNames.Length; i++)
-                    programNames[i] = i < graphAssets.Count ? graphAssets[i].name : sharpAssets[i - graphAssets.Count].name;
-
-                for (int i = 0; i < graphIDs.Count; i++)
-                {
-                    graphSolutions[i] = graphIDs[i].SolutionStrings.ToArray();
-                    graphConditions[i] = graphIDs[i].SolutionConditions.ToArray();
-
-                    List<string> incs = graphIDs[i].GetIncludes();
-                    List<string> excs = graphIDs[i].GetExcludes();
-
-                    string str = string.Format("Asset {0} [{1}]:", i < graphAssets.Count ? graphAssets[i].name : sharpAssets[i - graphAssets.Count].name, incs.Count + excs.Count);
-                    
-                    str += $"\nIncludes: ";
-                    foreach (string include in incs)
-                        str += $" {include}";
-
-                    str += "\n Excludes: ";
-                    foreach (string exclude in excs)
-                        str += $" {exclude}";
-
-                    Debug.Log(str, graphAssets[i]);
-                }
-
-                _debugUdon.ProgramNames = programNames;
-                _debugUdon.GraphSolutions = graphSolutions;
-                _debugUdon.GraphConditions = graphConditions;
-                _debugUdon.SharpIDs = sharpSolutions;
-
-                List<UdonData> oldData = _listData;
-                List<UdonData> newData = new List<UdonData>();
-
-                int[] programIndecies = new int[udonBehaviours.Count];
-                for (int i = 0; i < udonBehaviours.Count; i++)
-                {
-                    EditorUtility.DisplayProgressBar("NUDebugger", $"Getting Data... ({i}/{udonBehaviours.Count})", (float)i / udonBehaviours.Count);
-
-                    try
-                    {
-                        List<string> arrayNames;
-                        List<string> variableNames;
-                        List<string> eventNames;
-
-                        AbstractUdonProgramSource program = udonBehaviours[i].programSource;
-                        if (program is UdonGraphProgramAsset)
-                            programIndecies[i] = graphAssets.IndexOf((UdonGraphProgramAsset)program);
-                        else if (program is UdonSharpProgramAsset)
-                            programIndecies[i] = sharpAssets.IndexOf((UdonSharpProgramAsset)program) + graphAssets.Count;
-                        else
-                            programIndecies[i] = -1;
-
-                        GetProperties(udonBehaviours[i], out arrayNames, out variableNames);
-                        GetMethods(udonBehaviours[i], out eventNames);
-
-                        arrayNames.Sort();
-                        variableNames.Sort();
-                        eventNames.Sort();
-
-                        UdonData data = new UdonData
-                        {
-                            Udon = udonBehaviours[i],
-                            Arrays = arrayNames,
-                            Variables = variableNames,
-                            Events = eventNames,
-                            Expanded = new bool[4]
-                        };
-
-                        newData.Add(data);
-                    }
-                    catch (Exception e)
-                    {
-                        if (udonBehaviours[i].programSource == null)
-                            Debug.LogWarning($"[<color=#00FF9F>NUDebugger</color>] Missing program source on: {udonBehaviours[i].name}", udonBehaviours[i]);
-                        else
-                            Debug.LogWarning($"[<color=#00FF9F>NUDebugger</color>] Couldn't cache: {udonBehaviours[i].name}\n{e}", udonBehaviours[i]);
-                    }
-                }
-
-                _debugUdon.ProgramIndecies = programIndecies;
-
-                EditorUtility.DisplayProgressBar("NUDebugger", "Storing Data...", 1);
-
-                newData.Sort();
-
-                for (int i = 0; i < oldData.Count && i < newData.Count; i++)
-                    newData[i].Expanded = oldData[i].Expanded;
-
-                Undo.RecordObject(_debugUdon, "Cached all the active Udon Behaviours in the scene.");
-
-                _listData = newData;
-                _foldoutData = _listData.Count < 20;
-
-                SetData();
-
-                EditorUtility.ClearProgressBar();
+                CacheUdonPrograms();
 
                 timer.Stop();
-                Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Cached {newData.Count} UdonBehaviours: {timer.Elapsed:mm\\:ss\\.fff}");
+                Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Cached {_listPrograms.Count} Programs: {timer.Elapsed:mm\\:ss\\.fff}");
             }
 
-            _filterType = (FilterType)EditorGUILayout.EnumPopup(new GUIContent("Filter Type", "Filter used when storing Udon data.\nNone = Store everything.\nPublic = Store data set to public.\nSmart = Try to store user-defined data."), _filterType);
+            _filterType = (FilterType)EditorGUILayout.EnumPopup(new GUIContent("Filter Type", "Filter used when storing Program data.\nNone = Store everything.\nPublic = Store data set to public.\nSmart = Try to store user-defined data."), _filterType);
 
             GUILayout.EndVertical();
         }
@@ -343,7 +244,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             EditorGUI.indentLevel++;
 
-            _foldoutData = EditorGUILayout.Foldout(_foldoutData, new GUIContent($"Cached Behaviours [{_listData.Count}]", "Display cached data. (Might be laggy with too many Udon Behaviours.)"));
+            _foldoutData = EditorGUILayout.Foldout(_foldoutData, new GUIContent($"Cached Programs [{_listPrograms.Count}]", "Display cached data. (Might be laggy with too many Programs.)"));
             if (_foldoutData)
                 DrawData();
 
@@ -354,69 +255,69 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
         private void DrawData()
         {
-            for (int i = 0; i < _listData.Count; i++)
+            for (int i = 0; i < _listPrograms.Count; i++)
             {
                 GUILayout.BeginVertical(EditorStyles.helpBox);
 
                 EditorGUILayout.BeginHorizontal();
 
                 EditorGUI.BeginChangeCheck();
-                _listData[i].Expanded[0] = EditorGUILayout.Foldout(_listData[i].Expanded[0], $"Udon Data:");
+                _listPrograms[i].Expanded[0] = EditorGUILayout.Foldout(_listPrograms[i].Expanded[0], $"Program:");
                 if (EditorGUI.EndChangeCheck())
                 {
-                    if (_listData[i].Expanded[0])
+                    if (_listPrograms[i].Expanded[0])
                         GetData(i);
                 }
 
                 EditorGUI.BeginChangeCheck();
-                _listData[i].Udon = (UdonBehaviour)EditorGUILayout.ObjectField(_listData[i].Udon, typeof(UdonBehaviour), true);
+                _listPrograms[i].Name = EditorGUILayout.TextField(_listPrograms[i].Name);
                 if (EditorGUI.EndChangeCheck())
                 {
-                    Undo.RecordObject(_debugUdon, "Changed Udon Behaviour.");
+                    Undo.RecordObject(_udonDebugger, "Changed Program Name.");
 
                     SetData(i);
                 }
 
                 EditorGUILayout.EndHorizontal();
 
-                if (_listData[i].Expanded[0])
+                if (_listPrograms[i].Expanded[0])
                 {
                     EditorGUI.indentLevel++;
 
-                    using (new EditorGUI.DisabledScope(_listData[i].Arrays.Count < 1))
+                    using (new EditorGUI.DisabledScope(_listPrograms[i].Arrays.Count < 1))
                     {
-                        _listData[i].Expanded[1] = EditorGUILayout.Foldout(_listData[i].Expanded[1] && _listData[i].Arrays.Count > 0, $"Array Names [{_listData[i].Arrays.Count}]:");
-                        if (_listData[i].Expanded[1])
+                        _listPrograms[i].Expanded[1] = EditorGUILayout.Foldout(_listPrograms[i].Expanded[1] && _listPrograms[i].Arrays.Count > 0, $"Array Names [{_listPrograms[i].Arrays.Count}]:");
+                        if (_listPrograms[i].Expanded[1])
                         {
                             EditorGUI.indentLevel++;
 
-                            DrawStringList(_listData[i].Arrays, i, "Array:");
+                            DrawStringList(_listPrograms[i].Arrays, i, "Array:");
 
                             EditorGUI.indentLevel--;
                         }
                     }
 
-                    using (new EditorGUI.DisabledScope(_listData[i].Variables.Count < 1))
+                    using (new EditorGUI.DisabledScope(_listPrograms[i].Variables.Count < 1))
                     {
-                        _listData[i].Expanded[2] = EditorGUILayout.Foldout(_listData[i].Expanded[2] && _listData[i].Variables.Count > 0, $"Variable Names [{_listData[i].Variables.Count}]:");
-                        if (_listData[i].Expanded[2])
+                        _listPrograms[i].Expanded[2] = EditorGUILayout.Foldout(_listPrograms[i].Expanded[2] && _listPrograms[i].Variables.Count > 0, $"Variable Names [{_listPrograms[i].Variables.Count}]:");
+                        if (_listPrograms[i].Expanded[2])
                         {
                             EditorGUI.indentLevel++;
 
-                            DrawStringList(_listData[i].Variables, i, "Variable:");
+                            DrawStringList(_listPrograms[i].Variables, i, "Variable:");
 
                             EditorGUI.indentLevel--;
                         }
                     }
 
-                    using (new EditorGUI.DisabledScope(_listData[i].Events.Count < 1))
+                    using (new EditorGUI.DisabledScope(_listPrograms[i].Events.Count < 1))
                     {
-                        _listData[i].Expanded[3] = EditorGUILayout.Foldout(_listData[i].Expanded[3] && _listData[i].Events.Count > 0, $"Event Names [{_listData[i].Events.Count}]:");
-                        if (_listData[i].Expanded[3])
+                        _listPrograms[i].Expanded[3] = EditorGUILayout.Foldout(_listPrograms[i].Expanded[3] && _listPrograms[i].Events.Count > 0, $"Event Names [{_listPrograms[i].Events.Count}]:");
+                        if (_listPrograms[i].Expanded[3])
                         {
                             EditorGUI.indentLevel++;
 
-                            DrawStringList(_listData[i].Events, i, "Event:");
+                            DrawStringList(_listPrograms[i].Events, i, "Event:");
 
                             EditorGUI.indentLevel--;
                         }
@@ -437,7 +338,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
                 list[i] = EditorGUILayout.TextField(string.Format(format, i), list[i]);
                 if (EditorGUI.EndChangeCheck())
                 {
-                    Undo.RecordObject(_debugUdon, "Changed data name.");
+                    Undo.RecordObject(_udonDebugger, "Changed data name.");
 
                     SetData(index);
                 }
@@ -446,7 +347,8 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
         #endregion Drawers
 
-        // Custom functions.
+        #region Data Methods
+
         private void GetAssets()
         {
             _iconVRChat = Resources.Load<Texture2D>("Nessie/Icons/VRChat-Emblem-32px");
@@ -455,104 +357,99 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
         private void GetData()
         {
-            _listData.Clear();
-
-            for (int i = 0; i < _debugUdon.ArrUdons.Length; i++)
+            try
             {
-                UdonData data = new UdonData
-                {
-                    Udon = (UdonBehaviour)_debugUdon.ArrUdons[i],
-                    Arrays = _debugUdon.ArrNames[i].ToList(),
-                    Variables = _debugUdon.VarNames[i].ToList(),
-                    Events = _debugUdon.EntNames[i].ToList(),
-                    Expanded = new bool[4]
-                };
+                _listData.Clear();
 
-                _listData.Add(data);
+                for (int i = 0; i < _udonDebugger.DataUdons.Length; i++)
+                {
+                    UdonData data = new UdonData
+                    {
+                        Udon = (UdonBehaviour)_udonDebugger.DataUdons[i],
+                        ProgramIndex = _udonDebugger.ProgramIndecies[i]
+                    };
+
+                    _listData.Add(data);
+                }
+
+                List<ProgramData> oldPrograms = _listPrograms.ToList();
+
+                _listPrograms.Clear();
+
+                for (int i = 0; i < _udonDebugger.ProgramNames.Length; i++)
+                {
+                    ProgramData program = new ProgramData
+                    {
+                        Name = _udonDebugger.ProgramNames[i],
+                        Arrays = _udonDebugger.DataArrays[i].ToList(),
+                        Variables = _udonDebugger.DataVariables[i].ToList(),
+                        Events = _udonDebugger.DataEvents[i].ToList(),
+                    };
+
+                    if (i < oldPrograms.Count)
+                        program.Expanded = oldPrograms[i].Expanded;
+                    else
+                        program.Expanded = new bool[4];
+
+                    _listPrograms.Add(program);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Unable to retrieve data.\n{e}");
             }
         }
         private void GetData(int index)
         {
-            _listData[index].Udon = (UdonBehaviour)_debugUdon.ArrUdons[index];
-            _listData[index].Arrays = _debugUdon.ArrNames[index].ToList();
-            _listData[index].Variables = _debugUdon.VarNames[index].ToList();
-            _listData[index].Events = _debugUdon.EntNames[index].ToList();
+            try
+            {
+                _listData[index].Udon = (UdonBehaviour)_udonDebugger.DataUdons[index];
+                _listData[index].ProgramIndex = _udonDebugger.ProgramIndecies[index];
+
+                _listPrograms[index].Name = _udonDebugger.ProgramNames[index];
+                _listPrograms[index].Arrays = _udonDebugger.DataArrays[index].ToList();
+                _listPrograms[index].Variables = _udonDebugger.DataVariables[index].ToList();
+                _listPrograms[index].Events = _udonDebugger.DataEvents[index].ToList();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Unable to retrieve data.\n{e}");
+            }
         }
 
         private void SetData()
         {
             Component[] newUdons = new Component[_listData.Count];
-            string[][] newArrs = new string[_listData.Count][];
-            string[][] newVars = new string[_listData.Count][];
-            string[][] newEnts = new string[_listData.Count][];
+            int[] newProgramIDs = new int[_listData.Count];
 
             for (int i = 0; i < _listData.Count; i++)
             {
                 newUdons[i] = _listData[i].Udon;
-                newArrs[i] = _listData[i].Arrays.ToArray();
-                newVars[i] = _listData[i].Variables.ToArray();
-                newEnts[i] = _listData[i].Events.ToArray();
+                newProgramIDs[i] = _listData[i].ProgramIndex;
             }
 
-            _debugUdon.ArrUdons = newUdons;
-            _debugUdon.ArrNames = newArrs;
-            _debugUdon.VarNames = newVars;
-            _debugUdon.EntNames = newEnts;
+            _udonDebugger.DataUdons = newUdons;
+            _udonDebugger.ProgramIndecies = newProgramIDs;
+
+            _udonDebugger.ProgramNames = _listPrograms.Select(a => a.Name).ToArray();
+            _udonDebugger.DataArrays = _listPrograms.Select(a => a.Arrays.ToArray()).ToArray();
+            _udonDebugger.DataVariables = _listPrograms.Select(a => a.Variables.ToArray()).ToArray();
+            _udonDebugger.DataEvents = _listPrograms.Select(a => a.Events.ToArray()).ToArray();
         }
         private void SetData(int index)
         {
-            _debugUdon.ArrUdons[index] = _listData[index].Udon;
-            _debugUdon.ArrNames[index] = _listData[index].Arrays.ToArray();
-            _debugUdon.VarNames[index] = _listData[index].Variables.ToArray();
-            _debugUdon.EntNames[index] = _listData[index].Events.ToArray();
+            _udonDebugger.DataUdons[index] = _listData[index].Udon;
+            _udonDebugger.ProgramIndecies[index] = _listData[index].ProgramIndex;
+
+            _udonDebugger.ProgramNames[index] = _listPrograms[index].Name;
+            _udonDebugger.DataArrays[index] = _listPrograms[index].Arrays.ToArray();
+            _udonDebugger.DataVariables[index] = _listPrograms[index].Variables.ToArray();
+            _udonDebugger.DataEvents[index] = _listPrograms[index].Events.ToArray();
         }
 
-        private void GetProperties(UdonBehaviour udon, out List<string> arrayNames, out List<string> variableNames)
-        {
-            VRC.Udon.Common.Interfaces.IUdonSymbolTable symbolTable = udon.programSource.SerializedProgramAsset.RetrieveProgram().SymbolTable;
+        #endregion Data Methods
 
-            arrayNames = new List<string>();
-            variableNames = new List<string>();
-
-            string[] propertyNames = symbolTable.GetSymbols().ToArray();
-
-            foreach (string name in propertyNames)
-            {
-                bool isArray = symbolTable.GetSymbolType(name).IsArray;
-
-                // Check to see if the property is internal so it doesn't clog the debugger.
-                bool storeProperty = true;
-
-                if (_filterType == FilterType.Public)
-                {
-                    bool isProperty = symbolTable.HasExportedSymbol(name);
-                    storeProperty = isProperty;
-                }
-                else if (_filterType == FilterType.Smart) // Ignore property names that start with "__" or end with "_number/letter". Internal variables now start with "__", so eventually this can be switched out to String.StartsWith().
-                {
-                    Group result = Regex.Match(name, @"(^__|_(\d+|\w)$)");
-                    storeProperty = !result.Success;
-                }
-
-                if (storeProperty)
-                {
-                    if (isArray)
-                        arrayNames.Add(name);
-                    else
-                        variableNames.Add(name);
-                }
-            }
-        }
-
-        private void GetMethods(UdonBehaviour target, out List<string> methodNames)
-        {
-            // Thank you Vowgan and Varneon for pointing me in the right direction when I was trying to getting Udon methods. ^^
-            methodNames = target.programSource.SerializedProgramAsset.RetrieveProgram().EntryPoints.GetExportedSymbols().ToList();
-        }
-
-
-
-
+        #region Udon Methods
 
         private void GetUdonBehaviourDependencies(List<UdonBehaviour> udonBehaviours, out List<UdonGraphProgramAsset> graphAssets, out List<UdonSharpProgramAsset> sharpAssets)
         {
@@ -597,7 +494,6 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             udonGraphIDs = GetSolutions(udonGraphSymbols);
         }
-
         private void GetUdonAssetIDs(List<UdonSharpProgramAsset> sharpAssets, out List<long> udonSharpIDs)
         {
             udonSharpIDs = new List<long>();
@@ -605,7 +501,6 @@ namespace UdonSharp.Nessie.Debugger.Internal
             {
                 long typeID = UdonSharp.Internal.UdonSharpInternalUtility.GetTypeID(asset.sourceCsScript.GetClass());
                 udonSharpIDs.Add(typeID);
-                Debug.Log($"{asset} type ID: {typeID}", asset);
             }
         }
 
@@ -674,5 +569,155 @@ namespace UdonSharp.Nessie.Debugger.Internal
             }
             return solutions;
         }
+
+        private void CacheUdonPrograms()
+        {
+            List<UdonBehaviour> udonBehaviours = GetUdonBehavioursInScene();
+            GetUdonBehaviourDependencies(udonBehaviours, out List<UdonGraphProgramAsset> graphAssets, out List<UdonSharpProgramAsset> sharpAssets);
+            GetUdonAssetIDs(graphAssets, out List<UniqueSolution> graphIDs);
+            GetUdonAssetIDs(sharpAssets, out List<long> sharpIDs);
+
+            ProgramData[] newPrograms = new ProgramData[graphAssets.Count + sharpAssets.Count];
+
+            for (int i = 0; i < newPrograms.Length; i++)
+            {
+                EditorUtility.DisplayProgressBar("NUDebugger", $"Caching Program Data... ({i}/{newPrograms.Length})", (float)i / newPrograms.Length);
+
+                AbstractUdonProgramSource udonProgram;
+                if (i < graphAssets.Count)
+                    udonProgram = graphAssets[i];
+                else
+                    udonProgram = sharpAssets[i - graphAssets.Count];
+
+                GetProperties(udonProgram, out List<string> arrayNames, out List<string> variableNames);
+                GetMethods(udonProgram, out List<string> eventNames);
+
+                arrayNames.Sort();
+                variableNames.Sort();
+                eventNames.Sort();
+
+                ProgramData newProgram = new ProgramData
+                {
+                    Name = udonProgram.name,
+                    Arrays = arrayNames,
+                    Variables = variableNames,
+                    Events = eventNames,
+                    Expanded = new bool[4]
+                };
+
+                newPrograms[i] = newProgram;
+            }
+
+            _listPrograms = newPrograms.ToList();
+
+            string[][] graphSolutions = new string[graphIDs.Count][];
+            bool[][] graphConditions = new bool[graphIDs.Count][];
+            long[] sharpSolutions = sharpIDs.ToArray();
+
+            for (int i = 0; i < graphIDs.Count; i++)
+            {
+                graphSolutions[i] = graphIDs[i].SolutionStrings.ToArray();
+                graphConditions[i] = graphIDs[i].SolutionConditions.ToArray();
+            }
+
+            _udonDebugger.GraphSolutions = graphSolutions;
+            _udonDebugger.GraphConditions = graphConditions;
+            _udonDebugger.SharpIDs = sharpSolutions;
+
+            List<UdonData> newData = new List<UdonData>();
+
+            int[] programIndecies = new int[udonBehaviours.Count];
+            for (int i = 0; i < udonBehaviours.Count; i++)
+            {
+                EditorUtility.DisplayProgressBar("NUDebugger", $"Setting up Program references... ({i}/{udonBehaviours.Count})", (float)i / udonBehaviours.Count);
+
+                try
+                {
+                    int programIndex = -1;
+                    AbstractUdonProgramSource program = udonBehaviours[i].programSource;
+                    if (program is UdonGraphProgramAsset)
+                        programIndex = graphAssets.IndexOf((UdonGraphProgramAsset)program);
+                    else if (program is UdonSharpProgramAsset)
+                        programIndex = sharpAssets.IndexOf((UdonSharpProgramAsset)program) + graphAssets.Count;
+                    else
+                        programIndex = -1;
+
+                    UdonData data = new UdonData
+                    {
+                        Udon = udonBehaviours[i],
+                        ProgramIndex = programIndex
+                    };
+
+                    newData.Add(data);
+                }
+                catch (Exception e)
+                {
+                    if (udonBehaviours[i].programSource == null)
+                        Debug.LogWarning($"[<color=#00FF9F>NUDebugger</color>] Missing program source on: {udonBehaviours[i].name}", udonBehaviours[i]);
+                    else
+                        Debug.LogWarning($"[<color=#00FF9F>NUDebugger</color>] Couldn't cache: {udonBehaviours[i].name}\n{e}", udonBehaviours[i]);
+                }
+            }
+
+            _udonDebugger.ProgramIndecies = programIndecies;
+
+            EditorUtility.DisplayProgressBar("NUDebugger", "Storing Data...", 1);
+
+            newData.Sort();
+
+            Undo.RecordObject(_udonDebugger, "Cached all the active Udon Behaviours in the scene.");
+
+            _listData = newData;
+            _foldoutData = _listData.Count < 20;
+
+            SetData();
+
+            EditorUtility.ClearProgressBar();
+        }
+
+        private void GetProperties(AbstractUdonProgramSource udonProgram, out List<string> arrayNames, out List<string> variableNames)
+        {
+            VRC.Udon.Common.Interfaces.IUdonSymbolTable symbolTable = udonProgram.SerializedProgramAsset.RetrieveProgram().SymbolTable;
+
+            arrayNames = new List<string>();
+            variableNames = new List<string>();
+
+            string[] propertyNames = symbolTable.GetSymbols().ToArray();
+
+            foreach (string name in propertyNames)
+            {
+                bool isArray = symbolTable.GetSymbolType(name).IsArray;
+
+                // Check to see if the property is internal so it doesn't clog the debugger.
+                bool storeProperty = true;
+
+                if (_filterType == FilterType.Public)
+                {
+                    bool isProperty = symbolTable.HasExportedSymbol(name);
+                    storeProperty = isProperty;
+                }
+                else if (_filterType == FilterType.Smart) // Ignore property names that start with "__" or end with "_number/letter". Internal variables now start with "__", so eventually this can be switched out to String.StartsWith().
+                {
+                    Group result = Regex.Match(name, @"(^__|_(\d+|\w)$)");
+                    storeProperty = !result.Success;
+                }
+
+                if (storeProperty)
+                {
+                    if (isArray)
+                        arrayNames.Add(name);
+                    else
+                        variableNames.Add(name);
+                }
+            }
+        }
+
+        private void GetMethods(AbstractUdonProgramSource udonProgram, out List<string> methodNames)
+        {
+            // Thank you Vowgan and Varneon for pointing me in the right direction when I was trying to getting Udon methods. ^^
+            methodNames = udonProgram.SerializedProgramAsset.RetrieveProgram().EntryPoints.GetExportedSymbols().ToList();
+        }
+
+        #endregion Udon Methods
     }
 }
