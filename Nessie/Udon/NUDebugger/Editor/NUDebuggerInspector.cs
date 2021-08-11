@@ -521,6 +521,8 @@ namespace UdonSharp.Nessie.Debugger.Internal
                 List<string> occurrencesFiltered = occurrences.Intersect(data[listIndex]).Reverse().ToList();
                 List<string> occurrencesOthersFiltered = occurrences.Except(data[listIndex]).ToList();
 
+                #pragma warning disable CS0162
+
                 for (int stringIndex = 0; stringIndex < occurrencesFiltered.Count; stringIndex++)
                 {
                     List<string> solution = new List<string>() { occurrencesFiltered[stringIndex] };
@@ -566,6 +568,8 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
                     break;
                 }
+
+                #pragma warning restore CS0162
             }
             return solutions;
         }
@@ -665,7 +669,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             newData.Sort();
 
-            Undo.RecordObject(_udonDebugger, "Cached all the active Udon Behaviours in the scene.");
+            Undo.RecordObject(_udonDebugger, "Cached all the Udon program dependencies of the scene.");
 
             _listData = newData;
             _foldoutData = _listData.Count < 20;
