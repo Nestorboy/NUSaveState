@@ -33,8 +33,8 @@ namespace UdonSharp.Nessie.Debugger
         [Tooltip("Transform used as parent for all DebugButton objects.")]
         [SerializeField] private Transform _buttonContainer = null;
 
-        [Tooltip("Prefab used to instantiate new DebugButton objects.")]
-        [SerializeField] private GameObject _buttonPrefab = null;
+        [Tooltip("GameObject used to instantiate new DebugButton objects.")]
+        [SerializeField] private GameObject _buttonGameObject = null;
 
 
 
@@ -111,35 +111,35 @@ namespace UdonSharp.Nessie.Debugger
         private int _buttonCount = 0;
 
         private NUDebuggerText[] _poolDebugText;
-        private NUDebuggerButton[] _poolDebugButton;
 
         private GameObject[] _poolSettingButton;
-        private Button[] _poolButtonDebug;
+
+        private GameObject[] _poolButtonGOs;
+        private Button[] _poolButtonButtons;
+        private TextMeshProUGUI[] _poolButtonTMPs;
 
         #endregion PrivateFields
 
         private void Start()
         {
             _poolDebugText = new NUDebuggerText[0];
-            _poolDebugButton = new NUDebuggerButton[0];
 
-            _poolButtonDebug = _buttonContainer.GetComponentsInChildren<Button>();
-            _poolSettingButton = new GameObject[_buttonContainer.childCount - _poolButtonDebug.Length];
+            _poolButtonGOs = new GameObject[] { _buttonGameObject };
+            _poolButtonButtons = new Button[] { _buttonGameObject.GetComponent<Button>() };
+            _poolButtonTMPs = new TextMeshProUGUI[] { _buttonGameObject.GetComponentInChildren<TextMeshProUGUI>() };
+
+            _poolSettingButton = new GameObject[_buttonContainer.childCount - _poolButtonButtons.Length];
 
             int settingButtonIndex = 0;
-            int debugButtonIndex = 0;
-            for (int i = 0; i < _poolSettingButton.Length + _poolButtonDebug.Length; i++)
+            for (int i = 0; settingButtonIndex < _poolSettingButton.Length; i++)
             {
-                Transform childTransform = _buttonContainer.GetChild(i);
-                Button childButton = childTransform.GetComponent<Button>();
-                if (childButton == null)
-                    _poolSettingButton[settingButtonIndex++] = childTransform.gameObject;
-                else
-                    _poolButtonDebug[debugButtonIndex++] = childTransform.GetComponent<Button>();
+                GameObject childGameObject = _buttonContainer.GetChild(i).gameObject;
+                if (!childGameObject.activeSelf)
+                    _poolSettingButton[settingButtonIndex++] = childGameObject;
             }
 
             _SetColor(gameObject);
-            _SetColor(_buttonPrefab);
+            _SetColor(_buttonGameObject);
             _SetColor(_textPrefab);
 
             _UpdateButtons();
@@ -203,9 +203,8 @@ namespace UdonSharp.Nessie.Debugger
             SendCustomEventDelayedSeconds(nameof(_UpdateLoop), UpdateRate);
         }
 
+        #region Menu Methods
 
-
-        // Menu interaction functions.
         private void _UpdateButtons()
         {
             // Avoid turning on buttons for custom Udon target, or settings menu.
@@ -213,7 +212,7 @@ namespace UdonSharp.Nessie.Debugger
             {
                 for (int i = 0; i < _buttonCount; i++)
                 {
-                    _poolDebugButton[i].gameObject.SetActive(false);
+                    _poolButtonGOs[i].SetActive(false);
                 }
                 _buttonCount = 0;
 
@@ -298,28 +297,30 @@ namespace UdonSharp.Nessie.Debugger
             int buttonCountNew = _currentArray == null ? 0 : _currentArray.Length;
 
             // Prepare buttons.
-            if (_poolDebugButton.Length < buttonCountNew)
+            if (_poolButtonGOs.Length < buttonCountNew)
             {
-                NUDebuggerButton[] newPool = new NUDebuggerButton[buttonCountNew];
-                Button[] newButtonPool = new Button[buttonCountNew];
+                GameObject[] newPoolGOs = new GameObject[buttonCountNew];
+                Button[] newPoolButtons = new Button[buttonCountNew];
+                TextMeshProUGUI[] newPoolTMPS = new TextMeshProUGUI[buttonCountNew];
 
-                _poolDebugButton.CopyTo(newPool, 0);
-                _poolButtonDebug.CopyTo(newButtonPool, 0);
+                _poolButtonGOs.CopyTo(newPoolGOs, 0);
+                _poolButtonButtons.CopyTo(newPoolButtons, 0);
+                _poolButtonTMPs.CopyTo(newPoolTMPS, 0);
 
-                for (int i = _poolDebugButton.Length; i < buttonCountNew; i++)
+                for (int i = _poolButtonGOs.Length; i < buttonCountNew; i++)
                 {
-                    GameObject newObject = VRCInstantiate(_buttonPrefab);
+                    GameObject newObject = VRCInstantiate(_buttonGameObject);
 
                     newObject.transform.SetParent(_buttonContainer, false);
 
-                    newPool[i] = newObject.GetComponent<NUDebuggerButton>();
-                    newButtonPool[i] = newObject.GetComponent<Button>();
-                    newPool[i].TargetUdon = this;
-                    newPool[i].ButtonID = i;
+                    newPoolGOs[i] = newObject;
+                    newPoolButtons[i] = newObject.GetComponent<Button>();
+                    newPoolTMPS[i] = newObject.GetComponentInChildren<TextMeshProUGUI>();
                 }
 
-                _poolDebugButton = newPool;
-                _poolButtonDebug = newButtonPool;
+                _poolButtonGOs = newPoolGOs;
+                _poolButtonButtons = newPoolButtons;
+                _poolButtonTMPs = newPoolTMPS;
             }
 
             for (int i = 0; i < (buttonCountNew > _buttonCount ? buttonCountNew : _buttonCount); i++)
@@ -361,13 +362,13 @@ namespace UdonSharp.Nessie.Debugger
                         }
                     }
 
-                    _poolDebugButton[i].TargetText.color = textColor;
-                    _poolDebugButton[i].TargetText.text = textName;
+                    _poolButtonTMPs[i].color = textColor;
+                    _poolButtonTMPs[i].text = textName;
                 }
 
                 // Only toggle buttons if necessary.
                 if (i >= (buttonCountNew < _buttonCount ? buttonCountNew : _buttonCount))
-                    _poolDebugButton[i].gameObject.SetActive(i < buttonCountNew);
+                    _poolButtonGOs[i].SetActive(i < buttonCountNew);
             }
 
             _buttonCount = buttonCountNew;
@@ -410,6 +411,20 @@ namespace UdonSharp.Nessie.Debugger
             return $"<sprite name={spriteName}\" tint>";
         }
 
+        private int _GetButtonIndex()
+        {
+            for (int i = 0; i < _poolButtonButtons.Length; i++)
+            {
+                if (!_poolButtonButtons[i].interactable)
+                {
+                    _poolButtonButtons[i].interactable = true;
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
         private void _CheckSelected()
         {
             if (UdonID < 0)
@@ -420,6 +435,10 @@ namespace UdonSharp.Nessie.Debugger
 
         public void _SelectID()
         {
+            ButtonID = _GetButtonIndex();
+
+            if (ButtonID < 0) return;
+
             switch (MenuID)
             {
                 case 0: // Udon selection.
@@ -644,9 +663,9 @@ namespace UdonSharp.Nessie.Debugger
             _UpdateButtons();
         }
 
+        #endregion Menu Methods
 
-
-        // Some slightly cursed array functions.
+        #region Misc Methods
 
         private object[] ArrayAdd(object[] list, object value)
         {
@@ -675,10 +694,6 @@ namespace UdonSharp.Nessie.Debugger
 
             return newArr;
         }
-
-
-
-        // Udon functions.
 
         private void _SetColor(GameObject target)
         {
@@ -753,6 +768,10 @@ namespace UdonSharp.Nessie.Debugger
 
             _UpdateButtons();
         }
+
+        #endregion Misc Methods
+
+        #region Debug Methods
 
         private void _DebugArray(UdonBehaviour udon, string name)
         {
@@ -879,5 +898,7 @@ namespace UdonSharp.Nessie.Debugger
             else
                 udon.SendCustomEvent(name);
         }
+
+        #endregion Debug Methods
     }
 }
