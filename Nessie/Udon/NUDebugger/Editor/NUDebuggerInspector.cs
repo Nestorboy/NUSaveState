@@ -89,7 +89,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             GetData();
 
-            _foldoutData = _listData.Count < 20;
+            _foldoutData = _listData.Count > 0 && _listData.Count < 20;
         }
 
         public override void OnInspectorGUI()
@@ -244,7 +244,23 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             EditorGUI.indentLevel++;
 
-            _foldoutData = EditorGUILayout.Foldout(_foldoutData, new GUIContent($"Cached Programs [{_listPrograms.Count}]", "Display cached data. (Might be laggy with too many Programs.)"));
+            GUILayout.BeginHorizontal();
+
+            using (new EditorGUI.DisabledScope(_listPrograms.Count < 1))
+            {
+                _foldoutData = EditorGUILayout.Foldout(_foldoutData && _listPrograms.Count > 0, new GUIContent($"Cached Programs [{_listPrograms.Count}]", "Display cached data. (Might be laggy with too many Programs.)"));
+            }
+
+            if (GUILayout.Button(new GUIContent("Clear Data", "Remove all the data stored in the Udon Debugger.")))
+            {
+                _listPrograms.Clear();
+                _listData.Clear();
+
+                SetData();
+            }
+
+            GUILayout.EndHorizontal();
+
             if (_foldoutData)
                 DrawData();
 
@@ -484,7 +500,6 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
         private void GetUdonAssetIDs(List<UdonGraphProgramAsset> graphAssets, out List<UniqueSolution> udonGraphIDs)
         {
-            udonGraphIDs = new List<UniqueSolution>();
             List<List<string>> udonGraphSymbols = new List<List<string>>();
             for (int i = 0; i < graphAssets.Count; i++)
             {
@@ -630,21 +645,20 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             List<UdonData> newData = new List<UdonData>();
 
-            int[] programIndecies = new int[udonBehaviours.Count];
             for (int i = 0; i < udonBehaviours.Count; i++)
             {
                 EditorUtility.DisplayProgressBar("NUDebugger", $"Setting up Program references... ({i}/{udonBehaviours.Count})", (float)i / udonBehaviours.Count);
 
                 try
                 {
-                    int programIndex = -1;
+                    int programIndex;
                     AbstractUdonProgramSource program = udonBehaviours[i].programSource;
                     if (program is UdonGraphProgramAsset)
                         programIndex = graphAssets.IndexOf((UdonGraphProgramAsset)program);
                     else if (program is UdonSharpProgramAsset)
                         programIndex = sharpAssets.IndexOf((UdonSharpProgramAsset)program) + graphAssets.Count;
                     else
-                        programIndex = -1;
+                        continue;
 
                     UdonData data = new UdonData
                     {
@@ -662,8 +676,6 @@ namespace UdonSharp.Nessie.Debugger.Internal
                         Debug.LogWarning($"[<color=#00FF9F>NUDebugger</color>] Couldn't cache: {udonBehaviours[i].name}\n{e}", udonBehaviours[i]);
                 }
             }
-
-            _udonDebugger.ProgramIndecies = programIndecies;
 
             EditorUtility.DisplayProgressBar("NUDebugger", "Storing Data...", 1);
 

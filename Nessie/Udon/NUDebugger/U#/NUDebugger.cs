@@ -413,12 +413,28 @@ namespace UdonSharp.Nessie.Debugger
 
         private int _GetButtonIndex()
         {
-            for (int i = 0; i < _poolButtonButtons.Length; i++)
+            if (MenuID == 2)
             {
-                if (!_poolButtonButtons[i].interactable)
+                if (!_settingUpdateRate.interactable)
                 {
-                    _poolButtonButtons[i].interactable = true;
-                    return i;
+                    _settingUpdateRate.interactable = true;
+                    return 0;
+                }
+                else if (!_settingNetworked.interactable)
+                {
+                    _settingNetworked.interactable = true;
+                    return 1;
+                }
+            }
+            else
+            {
+                for (int i = 0; i < _poolButtonButtons.Length; i++)
+                {
+                    if (!_poolButtonButtons[i].interactable)
+                    {
+                        _poolButtonButtons[i].interactable = true;
+                        return i;
+                    }
                 }
             }
 
