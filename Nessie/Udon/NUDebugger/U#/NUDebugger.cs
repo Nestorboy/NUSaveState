@@ -93,9 +93,16 @@ namespace UdonSharp.Nessie.Debugger
         [HideInInspector] public int ButtonID = 0;
 
         // Settings. (Yes, I was too lazy to make the settings modular.)
+        [Tooltip("Color used for UI text and icon elements.")]
         [HideInInspector] public Color MainColor = new Color(0f, 1f, 0.6235294f, 1f);
+
+        [Tooltip("Color used to indicate that an UdonBehaviour has crashed.")]
         [HideInInspector] public Color CrashColor = new Color(1f, 0.2705882f, 0.5294118f, 1f);
+
+        [Tooltip("Delay in seconds between debugger updates.")]
         [HideInInspector] public float UpdateRate = 0.2f;
+
+        [Tooltip("Boolean used to decide if an event call should be networked or not.")]
         [HideInInspector] public bool Networked = false;
 
         #endregion PublicFields
@@ -110,6 +117,8 @@ namespace UdonSharp.Nessie.Debugger
 
         private int _buttonCount = 0;
 
+        private bool _pressedEnter = false;
+
         private NUDebuggerText[] _poolDebugText;
 
         private GameObject[] _poolSettingButton;
@@ -117,6 +126,7 @@ namespace UdonSharp.Nessie.Debugger
         private GameObject[] _poolButtonGOs;
         private Button[] _poolButtonButtons;
         private TextMeshProUGUI[] _poolButtonTMPs;
+        private string[] _poolButtonTypes;
 
         #endregion PrivateFields
 
@@ -321,6 +331,7 @@ namespace UdonSharp.Nessie.Debugger
                 _poolButtonGOs = newPoolGOs;
                 _poolButtonButtons = newPoolButtons;
                 _poolButtonTMPs = newPoolTMPS;
+                _poolButtonTypes = new string[buttonCountNew];
             }
 
             for (int i = 0; i < (buttonCountNew > _buttonCount ? buttonCountNew : _buttonCount); i++)
@@ -329,6 +340,7 @@ namespace UdonSharp.Nessie.Debugger
                 {
                     Color textColor;
                     string textName;
+                    string textType = "";
 
                     if (MenuID == 0)
                     {
@@ -338,9 +350,15 @@ namespace UdonSharp.Nessie.Debugger
                         textName = ((UdonBehaviour)_currentArray[i]).name;
                         string typeName = ((UdonSharpBehaviour)_currentArray[i]).GetUdonTypeName();
                         if (typeName != "UnknownType")
-                            textName += $" (U# {typeName})";
+                        {
+                            textType = typeName;
+                            textName += $" (U# {textType})";
+                        }
                         else
-                            textName += $" ({ProgramNames[ProgramIndecies[i]]})";
+                        {
+                            textType = ProgramNames[ProgramIndecies[i]];
+                            textName += $" ({textType})";
+                        }
                     }
                     else
                     {
@@ -358,12 +376,15 @@ namespace UdonSharp.Nessie.Debugger
                             else
                                 iconType = _currentUdon.GetProgramVariableType((string)_currentArray[i]);
 
-                            textName = $"{_CheckType(iconType)} {textName}";
+                            if (iconType != null)
+                                textType = iconType.Name;
+                            textName = $"<sprite name={_CheckType(iconType)}\" tint> {textName}";
                         }
                     }
 
                     _poolButtonTMPs[i].color = textColor;
                     _poolButtonTMPs[i].text = textName;
+                    _poolButtonTypes[i] = textType;
                 }
 
                 // Only toggle buttons if necessary.
@@ -373,6 +394,8 @@ namespace UdonSharp.Nessie.Debugger
 
             _buttonCount = buttonCountNew;
 
+            _SearchButton();
+
             _targetAnimator.SetInteger("MenuID", MenuID);
         }
 
@@ -380,7 +403,7 @@ namespace UdonSharp.Nessie.Debugger
         {
             // Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Type: {type}\nName: {type.Name}\nFullName: {type.FullName}\nNamespace: {type.Namespace}\nAssembly: {type.AssemblyQualifiedName}\nGUID: {type.GUID}\nHash: {type.GetHashCode()}");
 
-            if (type == null) return "<sprite name=Object\" tint>";
+            if (type == null) return "Object";
 
             string name = type.Name;
             string space = type.Namespace;
@@ -392,6 +415,10 @@ namespace UdonSharp.Nessie.Debugger
                 else if (name.Contains("Int")) spriteName = "Int";
                 else if (name.Contains("Single") || name.Contains("Double")) spriteName = "Float";
                 else if (name.Contains("String")) spriteName = "String";
+            }
+            else if (space == "TMPro")
+            {
+
             }
             else
             { 
@@ -408,7 +435,7 @@ namespace UdonSharp.Nessie.Debugger
                 else if (name.Contains("PlayerApi")) spriteName = "Player";
             }
 
-            return $"<sprite name={spriteName}\" tint>";
+            return spriteName;
         }
 
         private int _GetButtonIndex()
@@ -523,8 +550,6 @@ namespace UdonSharp.Nessie.Debugger
 
                 case 3: // Array selection.
 
-                    _textField.text = DataArrays[ProgramID][ButtonID];
-
                     _targetAnimator.SetTrigger("Button/Name");
 
                     _SelectName();
@@ -533,8 +558,6 @@ namespace UdonSharp.Nessie.Debugger
 
                 case 4: // Variable selection
 
-                    _textField.text = DataVariables[ProgramID][ButtonID];
-
                     _targetAnimator.SetTrigger("Button/Name");
 
                     _SelectName();
@@ -542,8 +565,6 @@ namespace UdonSharp.Nessie.Debugger
                     break;
 
                 case 5: // Event selection
-
-                    _textField.text = DataEvents[ProgramID][ButtonID];
 
                     _targetAnimator.SetTrigger("Button/Name");
 
@@ -596,6 +617,12 @@ namespace UdonSharp.Nessie.Debugger
             _UpdateButtons();
         }
 
+        public void _SelectEnter()
+        {
+            _pressedEnter = true;
+            _SelectName();
+        }
+
         public void _SelectName()
         {
             if (MenuID == 0)
@@ -632,19 +659,37 @@ namespace UdonSharp.Nessie.Debugger
                 {
                     case 0:
 
-                        _DebugArray(_currentUdon, _textField.text);
+                        if (_pressedEnter)
+                        {
+                            _DebugArray(_currentUdon, _textField.text);
+                            _pressedEnter = false;
+                        }
+                        else
+                            _DebugArray(_currentUdon, DataArrays[ProgramID][ButtonID]);
 
                         break;
 
                     case 1:
 
-                        _DebugVariable(_currentUdon, _textField.text);
+                        if (_pressedEnter)
+                        {
+                            _DebugVariable(_currentUdon, _textField.text);
+                            _pressedEnter = false;
+                        }
+                        else
+                            _DebugVariable(_currentUdon, DataVariables[ProgramID][ButtonID]);
 
                         break;
 
                     case 2:
 
-                        _DebugEvent(_currentUdon, _textField.text);
+                        if (_pressedEnter)
+                        {
+                            _DebugEvent(_currentUdon, _textField.text);
+                            _pressedEnter = false;
+                        }
+                        else
+                            _DebugEvent(_currentUdon, DataEvents[ProgramID][ButtonID]);
 
                         break;
                 }
@@ -677,6 +722,72 @@ namespace UdonSharp.Nessie.Debugger
 
             _CheckSelected();
             _UpdateButtons();
+        }
+
+        public void _SearchButton()
+        {
+            string term;
+            string type = "";
+
+            // Deny searching when selecting type or in settings.
+            if (MenuID == 1)
+                term = "";
+            else if (MenuID == 2)
+                return;
+            else
+                term = _textField.text.Trim();
+
+
+            // Search by type using sprite.
+            if (term.StartsWith("t:"))
+            {
+                term = term.Substring(2).Trim();
+
+                if (term.Length > 0)
+                {
+                    int separator = term.IndexOf(" ");
+                    if (separator >= 0)
+                    {
+                        type = term.Substring(0, separator);
+                        term = term.Substring(separator, term.Length - separator);
+                    }
+                    else
+                    { 
+                        type = term;
+                        term = "";
+                    }
+
+                    // Debug.Log($"search for type: {type}, name: {term}");
+                }
+            }
+
+            int j = 0;
+            for (int i = 0; i < _currentArray.Length; i++)
+            {
+                string buttonType = _poolButtonTypes[i];
+                string buttonTerm;
+                if (MenuID == 0)
+                    buttonTerm = ((UdonBehaviour)_currentArray[i]).name;
+                else
+                    buttonTerm = (string)_currentArray[i];
+
+                if (buttonType.StartsWith(type, StringComparison.CurrentCultureIgnoreCase) && buttonTerm.IndexOf(term, StringComparison.CurrentCultureIgnoreCase) > -1)
+                {
+                    ColorBlock colors = _poolButtonButtons[i].colors;
+                    colors.colorMultiplier = 1f;
+                    _poolButtonButtons[i].colors = colors;
+
+                    _poolButtonButtons[i].transform.SetSiblingIndex(j++);
+                }
+                else
+                {
+                    ColorBlock colors = _poolButtonButtons[i].colors;
+                    colors.colorMultiplier = 0.75f;
+                    _poolButtonButtons[i].colors = colors;
+
+                    _poolButtonButtons[i].transform.SetAsLastSibling();
+                }
+            }
         }
 
         #endregion Menu Methods
@@ -740,13 +851,14 @@ namespace UdonSharp.Nessie.Debugger
                 for (int i = 0; i < GraphSolutions.Length; i++)
                 {
                     for (int j = 0; j < GraphSolutions[i].Length; j++)
-                    { 
+                    {
                         bool hasVariable = udon.GetProgramVariableType(GraphSolutions[i][j]) != null;
                         if (hasVariable == GraphConditions[i][j])
                         {
                             if (i + 1 >= GraphSolutions[i].Length)
                             { 
                                 programIndex = i;
+
                                 break;
                             }
                         }
