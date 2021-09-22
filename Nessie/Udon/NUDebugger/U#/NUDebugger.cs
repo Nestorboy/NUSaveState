@@ -63,7 +63,7 @@ namespace UdonSharp.Nessie.Debugger
         [SerializeField] private TextMeshProUGUI _typeField = null;
 
         [Tooltip("Text field used for displaying variable name.")]
-        [SerializeField] private InputField _textField = null;
+        [SerializeField] private TextMeshProUGUI _textField = null;
 
 
 
@@ -92,7 +92,7 @@ namespace UdonSharp.Nessie.Debugger
         [HideInInspector] public int MenuID = 0;
         [HideInInspector] public int ButtonID = 0;
 
-        // Settings. (Yes, I was too lazy to make the settings modular.)
+        // Settings.
         [Tooltip("Color used for UI text and icon elements.")]
         [HideInInspector] public Color MainColor = new Color(0f, 1f, 0.6235294f, 1f);
 
@@ -550,23 +550,17 @@ namespace UdonSharp.Nessie.Debugger
 
                 case 3: // Array selection.
 
-                    _targetAnimator.SetTrigger("Button/Name");
-
                     _SelectName();
 
                     break;
 
                 case 4: // Variable selection
 
-                    _targetAnimator.SetTrigger("Button/Name");
-
                     _SelectName();
 
                     break;
 
                 case 5: // Event selection
-
-                    _targetAnimator.SetTrigger("Button/Name");
 
                     _SelectName();
 
@@ -619,6 +613,9 @@ namespace UdonSharp.Nessie.Debugger
 
         public void _SelectEnter()
         {
+            _targetAnimator.SetTrigger("Button/Enter");
+            _targetAnimator.SetTrigger("Button/Name");
+
             _pressedEnter = true;
             _SelectName();
         }
@@ -627,7 +624,7 @@ namespace UdonSharp.Nessie.Debugger
         {
             if (MenuID == 0)
             {
-                GameObject newGameObject = GameObject.Find(_textField.text);
+                GameObject newGameObject = GameObject.Find(_textField.text.Replace("\u200B", ""));
 
                 if (Utilities.IsValid(newGameObject))
                 {
@@ -661,7 +658,7 @@ namespace UdonSharp.Nessie.Debugger
 
                         if (_pressedEnter)
                         {
-                            _DebugArray(_currentUdon, _textField.text);
+                            _DebugArray(_currentUdon, _textField.text.Replace("\u200B", ""));
                             _pressedEnter = false;
                         }
                         else
@@ -673,7 +670,7 @@ namespace UdonSharp.Nessie.Debugger
 
                         if (_pressedEnter)
                         {
-                            _DebugVariable(_currentUdon, _textField.text);
+                            _DebugVariable(_currentUdon, _textField.text.Replace("\u200B", ""));
                             _pressedEnter = false;
                         }
                         else
@@ -685,7 +682,7 @@ namespace UdonSharp.Nessie.Debugger
 
                         if (_pressedEnter)
                         {
-                            _DebugEvent(_currentUdon, _textField.text);
+                            _DebugEvent(_currentUdon, _textField.text.Replace("\u200B", ""));
                             _pressedEnter = false;
                         }
                         else
@@ -693,8 +690,6 @@ namespace UdonSharp.Nessie.Debugger
 
                         break;
                 }
-
-                _targetAnimator.SetTrigger("Button/Enter");
             }
         }
 
@@ -712,8 +707,9 @@ namespace UdonSharp.Nessie.Debugger
             // Update the UdonTarget label.
             string textName = _currentUdon.name;
             string typeName = ((UdonSharpBehaviour)(Component)_currentUdon).GetUdonTypeName();
-
-            if (typeName != "UnknownType")
+            if (ProgramID < 0)
+                textName = " (Unknown)";
+            else if (typeName != "UnknownType")
                 textName += $" (U# {typeName})";
             else
                 textName += $" ({ProgramNames[ProgramID]})";
@@ -735,8 +731,7 @@ namespace UdonSharp.Nessie.Debugger
             else if (MenuID == 2)
                 return;
             else
-                term = _textField.text.Trim();
-
+                term = _textField.text.Replace("\u200B", "").Trim();
 
             // Search by type using sprite.
             if (term.StartsWith("t:"))
@@ -757,9 +752,10 @@ namespace UdonSharp.Nessie.Debugger
                         term = "";
                     }
 
-                    // Debug.Log($"search for type: {type}, name: {term}");
                 }
             }
+            
+            //Debug.Log($"search for type: {type}, term: {term}");
 
             int j = 0;
             for (int i = 0; i < _currentArray.Length; i++)
@@ -813,11 +809,10 @@ namespace UdonSharp.Nessie.Debugger
             }
 
             object[] newArr = new object[list.Length - 1];
-
             Array.Copy(list, newArr, index);
 
             if (index < newArr.Length)
-                Array.Copy(list, index + 1, newArr, index, list.Length - index + 1);
+                Array.Copy(list, index + 1, newArr, index, newArr.Length - index);
 
             return newArr;
         }
@@ -869,7 +864,7 @@ namespace UdonSharp.Nessie.Debugger
             }
             else
             {
-                programIndex = Array.IndexOf(SharpIDs, (long)typeID);
+                programIndex = Array.IndexOf(SharpIDs, typeID);
                 if (programIndex >= 0)
                     programIndex += GraphSolutions.Length;
             }
@@ -879,20 +874,26 @@ namespace UdonSharp.Nessie.Debugger
 
         private void _RemoveUdon(int index)
         {
-            Debug.LogError("[<color=#00FF9F>NUDebugger</color>] Removing missing UdonBehaviour from UdonDebugger.");
+            Debug.LogError($"[<color=#00FF9F>NUDebugger</color>] Removing missing UdonBehaviour: {index} from UdonDebugger.");
 
             DataUdons = (Component[])ArrayRemove(DataUdons, index);
 
             int[] newIndecies = new int[ProgramIndecies.Length - 1];
+
+            Array.Copy(ProgramIndecies, newIndecies, index);
             if (index < newIndecies.Length)
-                Array.Copy(ProgramIndecies, index + 1, newIndecies, index, ProgramIndecies.Length - index + 1);
+                Array.Copy(ProgramIndecies, index + 1, newIndecies, index, newIndecies.Length - index);
+
             ProgramIndecies = newIndecies;
 
-            UdonID = -1;
-            MenuID = 0;
+            if (index == UdonID)
+            {
+                UdonID = -1;
+                MenuID = 0;
 
-            _udonField.text = "[Removed]";
-            _udonField.color = CrashColor;
+                _udonField.text = "[Removed]";
+                _udonField.color = CrashColor;
+            }
 
             _UpdateButtons();
         }

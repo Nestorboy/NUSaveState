@@ -51,9 +51,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.r
-    path: DebuggerCanvas/Bot/Enter
+    path: Debugger-Canvas/Debugger-Bot/EnterButton
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -88,9 +88,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.g
-    path: DebuggerCanvas/Bot/Enter
+    path: Debugger-Canvas/Debugger-Bot/EnterButton
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -125,46 +125,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.b
-    path: DebuggerCanvas/Bot/Enter
+    path: Debugger-Canvas/Debugger-Bot/EnterButton
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
-  - curve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 136
-        weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0.33333334
-      - serializedVersion: 3
-        time: 0.05
-        value: -10
-        inSlope: -610.10077
-        outSlope: 120.443085
-        tangentMode: 1
-        weightedMode: 0
-        inWeight: 0.15651576
-        outWeight: 0.09885801
-      - serializedVersion: 3
-        time: 0.33333334
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 136
-        weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0.33333334
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    attribute: m_SizeDelta.y
-    path: DebuggerCanvas/Bot/Enter/Icon-Caret
-    classID: 224
-    script: {fileID: 0}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -199,7 +162,44 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_SizeDelta.x
-    path: DebuggerCanvas/Bot/Enter/Icon-Caret
+    path: Debugger-Canvas/Debugger-Bot/EnterButton/EnterButton-Image
+    classID: 224
+    script: {fileID: 0}
+  - curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 136
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.05
+        value: -10
+        inSlope: -610.10077
+        outSlope: 120.443085
+        tangentMode: 1
+        weightedMode: 0
+        inWeight: 0.15651576
+        outWeight: 0.09885801
+      - serializedVersion: 3
+        time: 0.33333334
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 136
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    attribute: m_SizeDelta.y
+    path: Debugger-Canvas/Debugger-Bot/EnterButton/EnterButton-Image
     classID: 224
     script: {fileID: 0}
   m_PPtrCurves: []
@@ -211,36 +211,36 @@ AnimationClip:
   m_ClipBindingConstant:
     genericBindings:
     - serializedVersion: 2
-      path: 2275143354
+      path: 3556675707
       attribute: 988768964
-      script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+      script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
       typeID: 114
       customType: 0
       isPPtrCurve: 0
     - serializedVersion: 2
-      path: 2275143354
+      path: 3556675707
       attribute: 1462930991
-      script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+      script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
       typeID: 114
       customType: 0
       isPPtrCurve: 0
     - serializedVersion: 2
-      path: 2275143354
+      path: 3556675707
       attribute: 660109984
-      script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+      script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
       typeID: 114
       customType: 0
       isPPtrCurve: 0
     - serializedVersion: 2
-      path: 297641810
-      attribute: 38095219
+      path: 1669987044
+      attribute: 1967290853
       script: {fileID: 0}
       typeID: 224
       customType: 28
       isPPtrCurve: 0
     - serializedVersion: 2
-      path: 297641810
-      attribute: 1967290853
+      path: 1669987044
+      attribute: 38095219
       script: {fileID: 0}
       typeID: 224
       customType: 28
@@ -301,9 +301,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.r
-    path: DebuggerCanvas/Bot/Enter
+    path: Debugger-Canvas/Debugger-Bot/EnterButton
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -338,9 +338,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.g
-    path: DebuggerCanvas/Bot/Enter
+    path: Debugger-Canvas/Debugger-Bot/EnterButton
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -375,46 +375,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.b
-    path: DebuggerCanvas/Bot/Enter
+    path: Debugger-Canvas/Debugger-Bot/EnterButton
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
-  - curve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 136
-        weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0.33333334
-      - serializedVersion: 3
-        time: 0.05
-        value: -10
-        inSlope: -610.10077
-        outSlope: 120.443085
-        tangentMode: 1
-        weightedMode: 0
-        inWeight: 0.15651576
-        outWeight: 0.09885801
-      - serializedVersion: 3
-        time: 0.33333334
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 136
-        weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0.33333334
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    attribute: m_SizeDelta.y
-    path: DebuggerCanvas/Bot/Enter/Icon-Caret
-    classID: 224
-    script: {fileID: 0}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -449,7 +412,44 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_SizeDelta.x
-    path: DebuggerCanvas/Bot/Enter/Icon-Caret
+    path: Debugger-Canvas/Debugger-Bot/EnterButton/EnterButton-Image
+    classID: 224
+    script: {fileID: 0}
+  - curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 136
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.05
+        value: -10
+        inSlope: -610.10077
+        outSlope: 120.443085
+        tangentMode: 1
+        weightedMode: 0
+        inWeight: 0.15651576
+        outWeight: 0.09885801
+      - serializedVersion: 3
+        time: 0.33333334
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 136
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    attribute: m_SizeDelta.y
+    path: Debugger-Canvas/Debugger-Bot/EnterButton/EnterButton-Image
     classID: 224
     script: {fileID: 0}
   m_EulerEditorCurves: []

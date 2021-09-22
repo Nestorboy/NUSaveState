@@ -4,6 +4,7 @@ using VRC.Udon;
 using VRC.Udon.Editor.ProgramSources.UdonGraphProgram;
 using System;
 using UnityEditor;
+using UnityEditorInternal;
 using UdonSharpEditor;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -26,6 +27,12 @@ namespace UdonSharp.Nessie.Debugger.Internal
         private Texture2D _iconGitHub;
         private Texture2D _iconVRChat;
 
+        private SerializedObject so;
+        private SerializedProperty settingMainColor;
+        private SerializedProperty settingCrashColor;
+        private SerializedProperty settingUpdateRate;
+        private SerializedProperty settingNetworked;
+
         [Flags]
         public enum FilterType
         {
@@ -34,6 +41,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
             Smart
         }
 
+        [Serializable]
         public class ProgramData
         {
             public string Name;
@@ -89,7 +97,11 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             GetData();
 
-            _foldoutData = _listData.Count > 0 && _listData.Count < 20;
+            so = new SerializedObject(target);
+            settingMainColor = so.FindProperty(nameof(NUDebugger.MainColor));
+            settingCrashColor = so.FindProperty(nameof(NUDebugger.CrashColor));
+            settingUpdateRate = so.FindProperty(nameof(NUDebugger.UpdateRate));
+            settingNetworked = so.FindProperty(nameof(NUDebugger.Networked));
         }
 
         public override void OnInspectorGUI()
@@ -98,6 +110,8 @@ namespace UdonSharp.Nessie.Debugger.Internal
             if (UdonSharpGUI.DrawDefaultUdonSharpBehaviourHeader(target)) return;
 
             GetData();
+
+            so.Update();
 
             GUILayout.BeginVertical(EditorStyles.helpBox);
 
@@ -116,6 +130,8 @@ namespace UdonSharp.Nessie.Debugger.Internal
             DrawBehaviours();
 
             GUILayout.EndVertical();
+
+            so.ApplyModifiedProperties();
         }
 
         #region Drawers
@@ -168,40 +184,10 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             EditorGUILayout.LabelField("Debugger Settings", EditorStyles.boldLabel);
 
-            EditorGUI.BeginChangeCheck();
-            Color mainColor = EditorGUILayout.ColorField(new GUIContent("Main Color", "Color used for UI text and icon elements."), _udonDebugger.MainColor);
-            if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(_udonDebugger, "Changed Main Color.");
-                _udonDebugger.MainColor = mainColor;
-            }
-
-            EditorGUI.BeginChangeCheck();
-            Color crashColor = EditorGUILayout.ColorField(new GUIContent("Crash Color", "Color used to indicate if an UdonBehaviour has crashed."), _udonDebugger.CrashColor);
-            if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(_udonDebugger, "Changed Crash Color.");
-                _udonDebugger.CrashColor = crashColor;
-            }
-
-            EditorGUI.BeginChangeCheck();
-            float updateRate = EditorGUILayout.FloatField(new GUIContent("Update Rate", "Delay in seconds between debugger updates."), _udonDebugger.UpdateRate);
-            if (EditorGUI.EndChangeCheck())
-            {
-                if (updateRate <= 0)
-                    updateRate = 0;
-
-                Undo.RecordObject(_udonDebugger, "Changed Update Rate.");
-                _udonDebugger.UpdateRate = updateRate;
-            }
-
-            EditorGUI.BeginChangeCheck();
-            bool networked = EditorGUILayout.Toggle(new GUIContent("Networked", "Boolean used to decide if an event call should be networked or not."), _udonDebugger.Networked);
-            if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(_udonDebugger, "Changed Update Rate.");
-                _udonDebugger.Networked = networked;
-            }
+            EditorGUILayout.PropertyField(settingMainColor);
+            EditorGUILayout.PropertyField(settingCrashColor);
+            EditorGUILayout.PropertyField(settingUpdateRate);
+            EditorGUILayout.PropertyField(settingNetworked);
 
             EditorGUILayout.Space();
 
@@ -222,13 +208,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             if (GUILayout.Button(new GUIContent("Cache Udon Programs", "Cache all Udon Program dependencies of the scene.")))
             {
-                System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
-                timer.Start();
-
                 CacheUdonPrograms();
-
-                timer.Stop();
-                Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Cached {_listPrograms.Count} Programs: {timer.Elapsed:mm\\:ss\\.fff}");
             }
 
             _filterType = (FilterType)EditorGUILayout.EnumPopup(new GUIContent("Filter Type", "Filter used when storing Program data.\nNone = Store everything.\nPublic = Store data set to public.\nSmart = Try to store user-defined data."), _filterType);
@@ -249,14 +229,18 @@ namespace UdonSharp.Nessie.Debugger.Internal
             using (new EditorGUI.DisabledScope(_listPrograms.Count < 1))
             {
                 _foldoutData = EditorGUILayout.Foldout(_foldoutData && _listPrograms.Count > 0, new GUIContent($"Cached Programs [{_listPrograms.Count}]", "Display cached data. (Might be laggy with too many Programs.)"));
-            }
 
-            if (GUILayout.Button(new GUIContent("Clear Data", "Remove all the data stored in the Udon Debugger.")))
-            {
-                _listPrograms.Clear();
-                _listData.Clear();
+                if (GUILayout.Button(new GUIContent("Clear Data", "Remove all the data stored in the Udon Debugger.")))
+                {
+                    Undo.RecordObject(_udonDebugger, "Cleared all the cached Program data.");
 
-                SetData();
+                    _listPrograms.Clear();
+                    _listData.Clear();
+
+                    SetData();
+
+                    Debug.Log("[<color=#00FF9F>NUDebugger</color>] Cleared cached Program data.");
+                }
             }
 
             GUILayout.EndHorizontal();
@@ -536,7 +520,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
                 List<string> occurrencesFiltered = occurrences.Intersect(data[listIndex]).Reverse().ToList();
                 List<string> occurrencesOthersFiltered = occurrences.Except(data[listIndex]).ToList();
 
-                #pragma warning disable CS0162
+                #pragma warning disable CS0162 // Account for early break.
 
                 for (int stringIndex = 0; stringIndex < occurrencesFiltered.Count; stringIndex++)
                 {
@@ -550,9 +534,9 @@ namespace UdonSharp.Nessie.Debugger.Internal
                             List<string> include = occurrencesFiltered.Except(data[againstIndex]).ToList();
                             List<string> exclude = occurrencesOthersFiltered.Intersect(data[againstIndex]).ToList();
 
-                            string conditions = exclude.Count > 0 ? exclude[0] : include[0];
+                            string conditionStrings = exclude.Count > 0 ? exclude[0] : include[0];
 
-                            solution.Add(conditions);
+                            solution.Add(conditionStrings);
                         }
                     }
 
@@ -581,7 +565,8 @@ namespace UdonSharp.Nessie.Debugger.Internal
                     newSolution.SolutionConditions = solutionConditions;
                     solutions.Add(newSolution);
 
-                    break;
+                    break; // Early break since we only need the first/simplest solution.
+                    Debug.Log(log);
                 }
 
                 #pragma warning restore CS0162
@@ -591,6 +576,9 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
         private void CacheUdonPrograms()
         {
+            System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+            timer.Start();
+
             List<UdonBehaviour> udonBehaviours = GetUdonBehavioursInScene();
             GetUdonBehaviourDependencies(udonBehaviours, out List<UdonGraphProgramAsset> graphAssets, out List<UdonSharpProgramAsset> sharpAssets);
             GetUdonAssetIDs(graphAssets, out List<UniqueSolution> graphIDs);
@@ -627,8 +615,6 @@ namespace UdonSharp.Nessie.Debugger.Internal
                 newPrograms[i] = newProgram;
             }
 
-            _listPrograms = newPrograms.ToList();
-
             string[][] graphSolutions = new string[graphIDs.Count][];
             bool[][] graphConditions = new bool[graphIDs.Count][];
             long[] sharpSolutions = sharpIDs.ToArray();
@@ -638,10 +624,6 @@ namespace UdonSharp.Nessie.Debugger.Internal
                 graphSolutions[i] = graphIDs[i].SolutionStrings.ToArray();
                 graphConditions[i] = graphIDs[i].SolutionConditions.ToArray();
             }
-
-            _udonDebugger.GraphSolutions = graphSolutions;
-            _udonDebugger.GraphConditions = graphConditions;
-            _udonDebugger.SharpIDs = sharpSolutions;
 
             List<UdonData> newData = new List<UdonData>();
 
@@ -683,10 +665,17 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             Undo.RecordObject(_udonDebugger, "Cached all the Udon program dependencies of the scene.");
 
+            _listPrograms = newPrograms.ToList();
             _listData = newData;
-            _foldoutData = _listData.Count < 20;
+
+            _udonDebugger.GraphSolutions = graphSolutions;
+            _udonDebugger.GraphConditions = graphConditions;
+            _udonDebugger.SharpIDs = sharpSolutions;
 
             SetData();
+
+            timer.Stop();
+            Debug.Log($"[<color=#00FF9F>NUDebugger</color>] Cached {_listPrograms.Count} Programs: {timer.Elapsed:mm\\:ss\\.fff}");
 
             EditorUtility.ClearProgressBar();
         }

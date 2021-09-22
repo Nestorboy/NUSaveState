@@ -400,7 +400,7 @@ AnimatorStateTransition:
   m_CanTransitionToSelf: 1
 --- !u!1101 &1101746398351951872
 AnimatorStateTransition:
-  m_ObjectHideFlags: 3
+  m_ObjectHideFlags: 1
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
@@ -730,7 +730,7 @@ AnimatorState:
 --- !u!1102 &1102330029267811038
 AnimatorState:
   serializedVersion: 5
-  m_ObjectHideFlags: 3
+  m_ObjectHideFlags: 1
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}

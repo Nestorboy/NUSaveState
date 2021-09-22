@@ -42,9 +42,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.r
-    path: DebuggerCanvas/Top/Udon
+    path: Debugger-Canvas/Debugger-Top/UdonField
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -70,9 +70,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.g
-    path: DebuggerCanvas/Top/Udon
+    path: Debugger-Canvas/Debugger-Top/UdonField
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -98,9 +98,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.b
-    path: DebuggerCanvas/Top/Udon
+    path: Debugger-Canvas/Debugger-Top/UdonField
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve: []
@@ -108,7 +108,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_AnchoredPosition.x
-    path: DebuggerCanvas/Top/Udon/TextContainer
+    path: Debugger-Canvas/Debugger-Top/UdonField/UdonField-Container
     classID: 224
     script: {fileID: 0}
   - curve:
@@ -145,7 +145,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_AnchoredPosition.y
-    path: DebuggerCanvas/Top/Udon/TextContainer
+    path: Debugger-Canvas/Debugger-Top/UdonField/UdonField-Container
     classID: 224
     script: {fileID: 0}
   - curve:
@@ -155,7 +155,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_AnchoredPosition.z
-    path: DebuggerCanvas/Top/Udon/TextContainer
+    path: Debugger-Canvas/Debugger-Top/UdonField/UdonField-Container
     classID: 224
     script: {fileID: 0}
   m_PPtrCurves: []
@@ -167,28 +167,28 @@ AnimationClip:
   m_ClipBindingConstant:
     genericBindings:
     - serializedVersion: 2
-      path: 3725107748
+      path: 904299719
       attribute: 988768964
-      script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+      script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
       typeID: 114
       customType: 0
       isPPtrCurve: 0
     - serializedVersion: 2
-      path: 3725107748
+      path: 904299719
       attribute: 1462930991
-      script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+      script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
       typeID: 114
       customType: 0
       isPPtrCurve: 0
     - serializedVersion: 2
-      path: 3725107748
+      path: 904299719
       attribute: 660109984
-      script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+      script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
       typeID: 114
       customType: 0
       isPPtrCurve: 0
     - serializedVersion: 2
-      path: 3610609277
+      path: 50276148
       attribute: 538195251
       script: {fileID: 0}
       typeID: 224
@@ -241,9 +241,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.r
-    path: DebuggerCanvas/Top/Udon
+    path: Debugger-Canvas/Debugger-Top/UdonField
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -269,9 +269,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.g
-    path: DebuggerCanvas/Top/Udon
+    path: Debugger-Canvas/Debugger-Top/UdonField
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -297,9 +297,9 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Colors.m_NormalColor.b
-    path: DebuggerCanvas/Top/Udon
+    path: Debugger-Canvas/Debugger-Top/UdonField
     classID: 114
-    script: {fileID: 1392445389, guid: f70555f144d8491a825f0804e09c671c, type: 3}
+    script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   - curve:
       serializedVersion: 2
       m_Curve: []
@@ -307,7 +307,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_AnchoredPosition.x
-    path: DebuggerCanvas/Top/Udon/TextContainer
+    path: Debugger-Canvas/Debugger-Top/UdonField/UdonField-Container
     classID: 224
     script: {fileID: 0}
   - curve:
@@ -344,7 +344,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_AnchoredPosition.y
-    path: DebuggerCanvas/Top/Udon/TextContainer
+    path: Debugger-Canvas/Debugger-Top/UdonField/UdonField-Container
     classID: 224
     script: {fileID: 0}
   - curve:
@@ -354,7 +354,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_AnchoredPosition.z
-    path: DebuggerCanvas/Top/Udon/TextContainer
+    path: Debugger-Canvas/Debugger-Top/UdonField/UdonField-Container
     classID: 224
     script: {fileID: 0}
   m_EulerEditorCurves: []
