@@ -3,22 +3,20 @@ using UnityEngine;
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditor.Animations;
-using VRC.Udon;
 using VRC.SDKBase;
+using VRC.Udon;
+using UdonSharpEditor;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDK3.Avatars.ScriptableObjects;
-using VRC.Udon.Editor.ProgramSources.UdonGraphProgram;
-using UdonSharpEditor;
 
 namespace UdonSharp.Nessie.SaveState.Internal
 {
-    [CustomEditor(typeof(SaveState))]
-    internal class SaveStateInspector : UnityEditor.Editor
+    [CustomEditor(typeof(NUSaveState))]
+    internal class NUSaveStateInspector : Editor
     {
-        private SaveState _behaviour;
+        private NUSaveState _behaviour;
 
         private string[] muscleNames = new string[]
         {
@@ -147,7 +145,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
             GetAnimatorFolders();
 
-            _behaviour = (SaveState)target;
+            _behaviour = (NUSaveState)target;
 
             GetSaveStateData();
         }
@@ -574,19 +572,19 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
         private void GetSaveStateData()
         {
-            UdonBehaviour[] newUdonBehaviours = _behaviour.bufferUdonBehaviours == null ? new UdonBehaviour[0] : new UdonBehaviour[_behaviour.bufferUdonBehaviours.Length];
-            string[] newVariableNames = _behaviour.bufferVariables == null ? new string[0] : new string[_behaviour.bufferUdonBehaviours.Length];
-            Type[] newVariableTypes = _behaviour.bufferTypes == null ? new Type[0] : new Type[_behaviour.bufferUdonBehaviours.Length];
-            int[] newVariableIndecies = _behaviour.bufferVariables == null ? new int[0] : new int[_behaviour.bufferUdonBehaviours.Length];
+            UdonBehaviour[] newUdonBehaviours = _behaviour.BufferUdonBehaviours == null ? new UdonBehaviour[0] : new UdonBehaviour[_behaviour.BufferUdonBehaviours.Length];
+            string[] newVariableNames = _behaviour.BufferVariables == null ? new string[0] : new string[_behaviour.BufferUdonBehaviours.Length];
+            Type[] newVariableTypes = _behaviour.BufferTypes == null ? new Type[0] : new Type[_behaviour.BufferUdonBehaviours.Length];
+            int[] newVariableIndecies = _behaviour.BufferVariables == null ? new int[0] : new int[_behaviour.BufferUdonBehaviours.Length];
 
             if (newUdonBehaviours.Length > 0)
-                _behaviour.bufferUdonBehaviours.CopyTo(newUdonBehaviours, 0);
+                _behaviour.BufferUdonBehaviours.CopyTo(newUdonBehaviours, 0);
 
             if (newVariableNames.Length > 0)
-                _behaviour.bufferVariables.CopyTo(newVariableNames, 0);
+                _behaviour.BufferVariables.CopyTo(newVariableNames, 0);
 
             if (newVariableTypes.Length > 0)
-                _behaviour.bufferTypes.CopyTo(newVariableTypes, 0);
+                _behaviour.BufferTypes.CopyTo(newVariableTypes, 0);
 
             string[][] validVars = new string[newUdonBehaviours.Length][];
             string[][] validVarsAndBits = new string[newUdonBehaviours.Length][];
@@ -640,9 +638,9 @@ namespace UdonSharp.Nessie.SaveState.Internal
             _behaviour.MaxByteCount = Mathf.CeilToInt(CalculateBitCount(dataVariableTypes) / 8);
             _behaviour.DataAvatarIDs = dataAvatarIDs;
 
-            _behaviour.bufferUdonBehaviours = dataUdonBehaviours;
-            _behaviour.bufferVariables = newVarNames;
-            _behaviour.bufferTypes = dataVariableTypes;
+            _behaviour.BufferUdonBehaviours = dataUdonBehaviours;
+            _behaviour.BufferVariables = newVarNames;
+            _behaviour.BufferTypes = dataVariableTypes;
         }
 
         private int CalculateBitCount(Type[] types)
@@ -700,7 +698,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
             UnityEngine.Random.InitState((int)DateTime.Now.Ticks);
 
             Undo.RecordObject(_behaviour, "Apply encryption keys");
-            _behaviour.keyCoordinates = keyCoordinates;
+            _behaviour.KeyCoordinates = keyCoordinates;
         }
 
         private void PrepareWorldAnimators()

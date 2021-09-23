@@ -1,14 +1,13 @@
 ﻿
 using UnityEngine;
-using VRC.Udon;
-using VRC.Udon.Editor.ProgramSources.UdonGraphProgram;
 using System;
-using UnityEditor;
-using UnityEditorInternal;
-using UdonSharpEditor;
+using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.Linq;
+using UnityEditor;
+using VRC.Udon;
+using VRC.Udon.Editor.ProgramSources.UdonGraphProgram;
+using UdonSharpEditor;
 
 namespace UdonSharp.Nessie.Debugger.Internal
 {

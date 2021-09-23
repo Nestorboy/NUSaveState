@@ -49,7 +49,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: keyCoordinates
+      Data: localPlayer
     - Name: $v
       Entry: 7
       Data: 2|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -61,25 +61,25 @@ MonoBehaviour:
       Data: 4|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: UnityEngine.Vector3[], UnityEngine.CoreModule
+      Data: VRC.SDKBase.VRCPlayerApi, VRCSDKBase
     - Name: 
       Entry: 8
       Data: 
     - Name: declarationType
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: syncMode
       Entry: 3
       Data: 0
     - Name: symbolResolvedTypeName
       Entry: 1
-      Data: UnityEngineVector3Array
+      Data: VRCSDKBaseVRCPlayerApi
     - Name: symbolOriginalName
       Entry: 1
-      Data: keyCoordinates
+      Data: localPlayer
     - Name: symbolUniqueName
       Entry: 1
-      Data: keyCoordinates
+      Data: localPlayer
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -112,7 +112,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: keyListener
+      Data: BufferEventReciever
     - Name: $v
       Entry: 7
       Data: 6|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -124,25 +124,25 @@ MonoBehaviour:
       Data: 8|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: UnityEngine.BoxCollider, UnityEngine.PhysicsModule
+      Data: VRC.Udon.UdonBehaviour, VRC.Udon
     - Name: 
       Entry: 8
       Data: 
     - Name: declarationType
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: syncMode
       Entry: 3
       Data: 0
     - Name: symbolResolvedTypeName
       Entry: 1
-      Data: UnityEngineBoxCollider
+      Data: VRCUdonUdonBehaviour
     - Name: symbolOriginalName
       Entry: 1
-      Data: keyListener
+      Data: BufferEventReciever
     - Name: symbolUniqueName
       Entry: 1
-      Data: keyListener
+      Data: BufferEventReciever
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -175,7 +175,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: localPlayer
+      Data: FallbackAvatarID
     - Name: $v
       Entry: 7
       Data: 10|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -187,25 +187,25 @@ MonoBehaviour:
       Data: 12|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: VRC.SDKBase.VRCPlayerApi, VRCSDKBase
+      Data: System.String, mscorlib
     - Name: 
       Entry: 8
       Data: 
     - Name: declarationType
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: syncMode
       Entry: 3
       Data: 0
     - Name: symbolResolvedTypeName
       Entry: 1
-      Data: VRCSDKBaseVRCPlayerApi
+      Data: SystemString
     - Name: symbolOriginalName
       Entry: 1
-      Data: localPlayer
+      Data: FallbackAvatarID
     - Name: symbolUniqueName
       Entry: 1
-      Data: localPlayer
+      Data: FallbackAvatarID
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -238,7 +238,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: pedestalPrefab
+      Data: MaxByteCount
     - Name: $v
       Entry: 7
       Data: 14|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -248,6 +248,132 @@ MonoBehaviour:
     - Name: internalType
       Entry: 7
       Data: 16|System.RuntimeType, mscorlib
+    - Name: 
+      Entry: 1
+      Data: System.Int32, mscorlib
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: declarationType
+      Entry: 3
+      Data: 1
+    - Name: syncMode
+      Entry: 3
+      Data: 0
+    - Name: symbolResolvedTypeName
+      Entry: 1
+      Data: SystemInt32
+    - Name: symbolOriginalName
+      Entry: 1
+      Data: MaxByteCount
+    - Name: symbolUniqueName
+      Entry: 1
+      Data: MaxByteCount
+    - Name: symbolDefaultValue
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: fieldAttributes
+      Entry: 7
+      Data: 17|System.Collections.Generic.List`1[[System.Attribute, mscorlib]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: userBehaviourSource
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 
+    - Name: $k
+      Entry: 1
+      Data: DataAvatarIDs
+    - Name: $v
+      Entry: 7
+      Data: 18|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
+    - Name: fieldSymbol
+      Entry: 7
+      Data: 19|UdonSharp.Compiler.SymbolDefinition, UdonSharp.Editor
+    - Name: internalType
+      Entry: 7
+      Data: 20|System.RuntimeType, mscorlib
+    - Name: 
+      Entry: 1
+      Data: System.String[], mscorlib
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: declarationType
+      Entry: 3
+      Data: 1
+    - Name: syncMode
+      Entry: 3
+      Data: 0
+    - Name: symbolResolvedTypeName
+      Entry: 1
+      Data: SystemStringArray
+    - Name: symbolOriginalName
+      Entry: 1
+      Data: DataAvatarIDs
+    - Name: symbolUniqueName
+      Entry: 1
+      Data: DataAvatarIDs
+    - Name: symbolDefaultValue
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: fieldAttributes
+      Entry: 7
+      Data: 21|System.Collections.Generic.List`1[[System.Attribute, mscorlib]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: userBehaviourSource
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 
+    - Name: $k
+      Entry: 1
+      Data: pedestalPrefab
+    - Name: $v
+      Entry: 7
+      Data: 22|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
+    - Name: fieldSymbol
+      Entry: 7
+      Data: 23|UdonSharp.Compiler.SymbolDefinition, UdonSharp.Editor
+    - Name: internalType
+      Entry: 7
+      Data: 24|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
       Data: UnityEngine.GameObject, UnityEngine.CoreModule
@@ -277,13 +403,13 @@ MonoBehaviour:
       Data: 
     - Name: fieldAttributes
       Entry: 7
-      Data: 17|System.Collections.Generic.List`1[[System.Attribute, mscorlib]], mscorlib
+      Data: 25|System.Collections.Generic.List`1[[System.Attribute, mscorlib]], mscorlib
     - Name: 
       Entry: 12
       Data: 1
     - Name: 
       Entry: 7
-      Data: 18|UnityEngine.SerializeField, UnityEngine.CoreModule
+      Data: 26|UnityEngine.SerializeField, UnityEngine.CoreModule
     - Name: 
       Entry: 8
       Data: 
@@ -310,13 +436,13 @@ MonoBehaviour:
       Data: pedestalContainer
     - Name: $v
       Entry: 7
-      Data: 19|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
+      Data: 27|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
     - Name: fieldSymbol
       Entry: 7
-      Data: 20|UdonSharp.Compiler.SymbolDefinition, UdonSharp.Editor
+      Data: 28|UdonSharp.Compiler.SymbolDefinition, UdonSharp.Editor
     - Name: internalType
       Entry: 7
-      Data: 21|System.RuntimeType, mscorlib
+      Data: 29|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
       Data: UnityEngine.Transform, UnityEngine.CoreModule
@@ -346,13 +472,13 @@ MonoBehaviour:
       Data: 
     - Name: fieldAttributes
       Entry: 7
-      Data: 22|System.Collections.Generic.List`1[[System.Attribute, mscorlib]], mscorlib
+      Data: 30|System.Collections.Generic.List`1[[System.Attribute, mscorlib]], mscorlib
     - Name: 
       Entry: 12
       Data: 1
     - Name: 
       Entry: 7
-      Data: 23|UnityEngine.SerializeField, UnityEngine.CoreModule
+      Data: 31|UnityEngine.SerializeField, UnityEngine.CoreModule
     - Name: 
       Entry: 8
       Data: 
@@ -376,133 +502,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: dataWriter
-    - Name: $v
-      Entry: 7
-      Data: 24|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
-    - Name: fieldSymbol
-      Entry: 7
-      Data: 25|UdonSharp.Compiler.SymbolDefinition, UdonSharp.Editor
-    - Name: internalType
-      Entry: 7
-      Data: 26|System.RuntimeType, mscorlib
-    - Name: 
-      Entry: 1
-      Data: VRC.SDKBase.VRCStation, VRCSDKBase
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: declarationType
-      Entry: 3
-      Data: 2
-    - Name: syncMode
-      Entry: 3
-      Data: 0
-    - Name: symbolResolvedTypeName
-      Entry: 1
-      Data: VRCSDK3ComponentsVRCStation
-    - Name: symbolOriginalName
-      Entry: 1
-      Data: dataWriter
-    - Name: symbolUniqueName
-      Entry: 1
-      Data: dataWriter
-    - Name: symbolDefaultValue
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: fieldAttributes
-      Entry: 7
-      Data: 27|System.Collections.Generic.List`1[[System.Attribute, mscorlib]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 0
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: userBehaviourSource
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 
-    - Name: $k
-      Entry: 1
-      Data: dataAvatarPedestals
-    - Name: $v
-      Entry: 7
-      Data: 28|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
-    - Name: fieldSymbol
-      Entry: 7
-      Data: 29|UdonSharp.Compiler.SymbolDefinition, UdonSharp.Editor
-    - Name: internalType
-      Entry: 7
-      Data: 30|System.RuntimeType, mscorlib
-    - Name: 
-      Entry: 1
-      Data: VRC.SDKBase.VRC_AvatarPedestal[], VRCSDKBase
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: declarationType
-      Entry: 3
-      Data: 2
-    - Name: syncMode
-      Entry: 3
-      Data: 0
-    - Name: symbolResolvedTypeName
-      Entry: 1
-      Data: VRCSDK3ComponentsVRCAvatarPedestalArray
-    - Name: symbolOriginalName
-      Entry: 1
-      Data: dataAvatarPedestals
-    - Name: symbolUniqueName
-      Entry: 1
-      Data: dataAvatarPedestals
-    - Name: symbolDefaultValue
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: fieldAttributes
-      Entry: 7
-      Data: 31|System.Collections.Generic.List`1[[System.Attribute, mscorlib]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 0
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: userBehaviourSource
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 
-    - Name: $k
-      Entry: 1
-      Data: fallbackAvatarPedestal
+      Data: KeyCoordinates
     - Name: $v
       Entry: 7
       Data: 32|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -514,25 +514,25 @@ MonoBehaviour:
       Data: 34|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: VRC.SDKBase.VRC_AvatarPedestal, VRCSDKBase
+      Data: UnityEngine.Vector3[], UnityEngine.CoreModule
     - Name: 
       Entry: 8
       Data: 
     - Name: declarationType
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: syncMode
       Entry: 3
       Data: 0
     - Name: symbolResolvedTypeName
       Entry: 1
-      Data: VRCSDK3ComponentsVRCAvatarPedestal
+      Data: UnityEngineVector3Array
     - Name: symbolOriginalName
       Entry: 1
-      Data: fallbackAvatarPedestal
+      Data: KeyCoordinates
     - Name: symbolUniqueName
       Entry: 1
-      Data: fallbackAvatarPedestal
+      Data: KeyCoordinates
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -565,7 +565,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: BufferEventReciever
+      Data: keyListener
     - Name: $v
       Entry: 7
       Data: 36|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -577,25 +577,25 @@ MonoBehaviour:
       Data: 38|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: VRC.Udon.UdonBehaviour, VRC.Udon
+      Data: UnityEngine.BoxCollider, UnityEngine.PhysicsModule
     - Name: 
       Entry: 8
       Data: 
     - Name: declarationType
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: syncMode
       Entry: 3
       Data: 0
     - Name: symbolResolvedTypeName
       Entry: 1
-      Data: VRCUdonUdonBehaviour
+      Data: UnityEngineBoxCollider
     - Name: symbolOriginalName
       Entry: 1
-      Data: BufferEventReciever
+      Data: keyListener
     - Name: symbolUniqueName
       Entry: 1
-      Data: BufferEventReciever
+      Data: keyListener
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -628,7 +628,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: FallbackAvatarID
+      Data: dataWriter
     - Name: $v
       Entry: 7
       Data: 40|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -640,25 +640,25 @@ MonoBehaviour:
       Data: 42|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: System.String, mscorlib
+      Data: VRC.SDKBase.VRCStation, VRCSDKBase
     - Name: 
       Entry: 8
       Data: 
     - Name: declarationType
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: syncMode
       Entry: 3
       Data: 0
     - Name: symbolResolvedTypeName
       Entry: 1
-      Data: SystemString
+      Data: VRCSDK3ComponentsVRCStation
     - Name: symbolOriginalName
       Entry: 1
-      Data: FallbackAvatarID
+      Data: dataWriter
     - Name: symbolUniqueName
       Entry: 1
-      Data: FallbackAvatarID
+      Data: dataWriter
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -691,7 +691,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: MaxByteCount
+      Data: dataAvatarPedestals
     - Name: $v
       Entry: 7
       Data: 44|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -703,25 +703,25 @@ MonoBehaviour:
       Data: 46|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: System.Int32, mscorlib
+      Data: VRC.SDKBase.VRC_AvatarPedestal[], VRCSDKBase
     - Name: 
       Entry: 8
       Data: 
     - Name: declarationType
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: syncMode
       Entry: 3
       Data: 0
     - Name: symbolResolvedTypeName
       Entry: 1
-      Data: SystemInt32
+      Data: VRCSDK3ComponentsVRCAvatarPedestalArray
     - Name: symbolOriginalName
       Entry: 1
-      Data: MaxByteCount
+      Data: dataAvatarPedestals
     - Name: symbolUniqueName
       Entry: 1
-      Data: MaxByteCount
+      Data: dataAvatarPedestals
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -754,7 +754,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: DataAvatarIDs
+      Data: fallbackAvatarPedestal
     - Name: $v
       Entry: 7
       Data: 48|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -766,25 +766,25 @@ MonoBehaviour:
       Data: 50|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: System.String[], mscorlib
+      Data: VRC.SDKBase.VRC_AvatarPedestal, VRCSDKBase
     - Name: 
       Entry: 8
       Data: 
     - Name: declarationType
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: syncMode
       Entry: 3
       Data: 0
     - Name: symbolResolvedTypeName
       Entry: 1
-      Data: SystemStringArray
+      Data: VRCSDK3ComponentsVRCAvatarPedestal
     - Name: symbolOriginalName
       Entry: 1
-      Data: DataAvatarIDs
+      Data: fallbackAvatarPedestal
     - Name: symbolUniqueName
       Entry: 1
-      Data: DataAvatarIDs
+      Data: fallbackAvatarPedestal
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -1069,7 +1069,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: bufferUdonBehaviours
+      Data: BufferUdonBehaviours
     - Name: $v
       Entry: 7
       Data: 68|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -1096,10 +1096,10 @@ MonoBehaviour:
       Data: UnityEngineComponentArray
     - Name: symbolOriginalName
       Entry: 1
-      Data: bufferUdonBehaviours
+      Data: BufferUdonBehaviours
     - Name: symbolUniqueName
       Entry: 1
-      Data: bufferUdonBehaviours
+      Data: BufferUdonBehaviours
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -1132,7 +1132,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: bufferVariables
+      Data: BufferVariables
     - Name: $v
       Entry: 7
       Data: 72|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -1141,7 +1141,7 @@ MonoBehaviour:
       Data: 73|UdonSharp.Compiler.SymbolDefinition, UdonSharp.Editor
     - Name: internalType
       Entry: 9
-      Data: 50
+      Data: 20
     - Name: declarationType
       Entry: 3
       Data: 1
@@ -1153,10 +1153,10 @@ MonoBehaviour:
       Data: SystemStringArray
     - Name: symbolOriginalName
       Entry: 1
-      Data: bufferVariables
+      Data: BufferVariables
     - Name: symbolUniqueName
       Entry: 1
-      Data: bufferVariables
+      Data: BufferVariables
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -1189,7 +1189,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: bufferTypes
+      Data: BufferTypes
     - Name: $v
       Entry: 7
       Data: 75|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -1216,10 +1216,10 @@ MonoBehaviour:
       Data: SystemTypeArray
     - Name: symbolOriginalName
       Entry: 1
-      Data: bufferTypes
+      Data: BufferTypes
     - Name: symbolUniqueName
       Entry: 1
-      Data: bufferTypes
+      Data: BufferTypes
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -1679,7 +1679,7 @@ MonoBehaviour:
       Data: 104|UdonSharp.Compiler.SymbolDefinition, UdonSharp.Editor
     - Name: internalType
       Entry: 9
-      Data: 46
+      Data: 16
     - Name: declarationType
       Entry: 3
       Data: 2
@@ -1737,7 +1737,7 @@ MonoBehaviour:
       Data: 107|UdonSharp.Compiler.SymbolDefinition, UdonSharp.Editor
     - Name: internalType
       Entry: 9
-      Data: 46
+      Data: 16
     - Name: declarationType
       Entry: 3
       Data: 2
@@ -1795,7 +1795,7 @@ MonoBehaviour:
       Data: 110|UdonSharp.Compiler.SymbolDefinition, UdonSharp.Editor
     - Name: internalType
       Entry: 9
-      Data: 46
+      Data: 16
     - Name: declarationType
       Entry: 3
       Data: 2
@@ -1853,7 +1853,7 @@ MonoBehaviour:
       Data: 113|UdonSharp.Compiler.SymbolDefinition, UdonSharp.Editor
     - Name: internalType
       Entry: 9
-      Data: 46
+      Data: 16
     - Name: declarationType
       Entry: 3
       Data: 2

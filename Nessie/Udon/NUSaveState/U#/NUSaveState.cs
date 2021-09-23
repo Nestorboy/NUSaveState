@@ -1,34 +1,34 @@
 ﻿
 using System;
-using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
+using UdonSharp;
 using TMPro;
 
 namespace UdonSharp.Nessie.SaveState
 {
-    [AddComponentMenu("Udon Sharp/Nessie/SaveState")]
-    public class SaveState : UdonSharpBehaviour
+    [AddComponentMenu("Udon Sharp/Nessie/NUSaveState")]
+    public class NUSaveState : UdonSharpBehaviour
     {
-        public Vector3[] keyCoordinates;
-        private BoxCollider keyListener;
-
         private VRCPlayerApi localPlayer;
-
-        // Data reading/writing.
-        [SerializeField] private GameObject pedestalPrefab;
-        [SerializeField] private Transform pedestalContainer;
-
-        private VRCStation dataWriter;
-        private VRC_AvatarPedestal[] dataAvatarPedestals;
-        private VRC_AvatarPedestal fallbackAvatarPedestal;
 
         // *Insert custom class here*
         public UdonBehaviour BufferEventReciever;
         public string FallbackAvatarID = "avtr_c38a1615-5bf5-42b4-84eb-a8b6c37cbd11";
         public int MaxByteCount;
         public string[] DataAvatarIDs;
+
+        // Data saving/loading.
+        [SerializeField] private GameObject pedestalPrefab;
+        [SerializeField] private Transform pedestalContainer;
+
+        public Vector3[] KeyCoordinates;
+        private BoxCollider keyListener;
+
+        private VRCStation dataWriter;
+        private VRC_AvatarPedestal[] dataAvatarPedestals;
+        private VRC_AvatarPedestal fallbackAvatarPedestal;
 
         public RuntimeAnimatorController[] ByteClearers;
         public RuntimeAnimatorController[] ByteWriters;
@@ -38,9 +38,9 @@ namespace UdonSharp.Nessie.SaveState
         [HideInInspector] public byte[] outputBytes;
 
         // Automatic data management.
-        public Component[] bufferUdonBehaviours;
-        public string[] bufferVariables;
-        public Type[] bufferTypes;
+        public Component[] BufferUdonBehaviours;
+        public string[] BufferVariables;
+        public Type[] BufferTypes;
 
         private object[] dataBones = new object[]
         {
@@ -84,6 +84,8 @@ namespace UdonSharp.Nessie.SaveState
 
         private void Start()
         {
+            localPlayer = Networking.LocalPlayer;
+
             inputBytes = new byte[MaxByteCount];
             outputBytes = new byte[MaxByteCount];
 
@@ -121,9 +123,9 @@ namespace UdonSharp.Nessie.SaveState
 
                 if (dataIsLoading)
                 {
-                    transform.SetPositionAndRotation(Networking.LocalPlayer.GetPosition(), Networking.LocalPlayer.GetRotation());
+                    transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
                     dataWriter.animatorController = null;
-                    Networking.LocalPlayer.UseAttachedStation();
+                    localPlayer.UseAttachedStation();
 
                     SendCustomEventDelayedFrames(nameof(_GetData), 1);
                 }
@@ -168,7 +170,7 @@ namespace UdonSharp.Nessie.SaveState
             dataByteIndex = 0;
 
             Debug.Log($"[<color=#00FF9F>SaveState</color>] Switching avatar to buffer avatar: {dataAvatarIndex}.");
-            dataAvatarPedestals[dataAvatarIndex].SetAvatarUse(Networking.LocalPlayer);
+            dataAvatarPedestals[dataAvatarIndex].SetAvatarUse(localPlayer);
 
             dataAvatarTimeout = 30;
             lookingForAvatar = true;
@@ -178,7 +180,7 @@ namespace UdonSharp.Nessie.SaveState
 
         public void _LookForAvatar()
         {
-            keyListener.center = transform.InverseTransformPoint(Networking.LocalPlayer.GetRotation() * keyCoordinates[dataAvatarIndex] + Networking.LocalPlayer.GetPosition());
+            keyListener.center = transform.InverseTransformPoint(localPlayer.GetRotation() * KeyCoordinates[dataAvatarIndex] + localPlayer.GetPosition());
 
             if (lookingForAvatar)
             {
@@ -197,9 +199,9 @@ namespace UdonSharp.Nessie.SaveState
 
         public void _PrepareData() // Reset each byte before writing to them.
         {
-            transform.SetPositionAndRotation(Networking.LocalPlayer.GetPosition(), Networking.LocalPlayer.GetRotation());
+            transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
             dataWriter.animatorController = ByteClearers[dataByteIndex];
-            Networking.LocalPlayer.UseAttachedStation();
+            localPlayer.UseAttachedStation();
 
             dataBitIndex = 0;
             SendCustomEventDelayedFrames(nameof(_SetData), 2);
@@ -207,7 +209,7 @@ namespace UdonSharp.Nessie.SaveState
 
         public void _SetData()
         {
-            dataWriter.ExitStation(Networking.LocalPlayer);
+            dataWriter.ExitStation(localPlayer);
 
             if (dataBitIndex < 8)
             {
@@ -222,7 +224,7 @@ namespace UdonSharp.Nessie.SaveState
                     else
                     {
                         dataWriter.animatorController = ByteWriters[dataBitIndex + dataByteIndex * 8 % 128];
-                        Networking.LocalPlayer.UseAttachedStation();
+                        localPlayer.UseAttachedStation();
                     }
                 }
 
@@ -242,7 +244,7 @@ namespace UdonSharp.Nessie.SaveState
                     }
                     else
                     {
-                        dataWriter.ExitStation(Networking.LocalPlayer);
+                        dataWriter.ExitStation(localPlayer);
 
                         _FinishedData();
                     }
@@ -259,8 +261,6 @@ namespace UdonSharp.Nessie.SaveState
         {
             for (; dataByteIndex < Mathf.Min(MaxByteCount - dataAvatarIndex * 16, 16); dataByteIndex++)
             {
-                VRCPlayerApi localPlayer = Networking.LocalPlayer;
-
                 Quaternion muscleTarget = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[dataByteIndex]);
                 Quaternion muscleParent = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[dataByteIndex + 8]);
 
@@ -275,7 +275,7 @@ namespace UdonSharp.Nessie.SaveState
             else
             {
                 Debug.Log("[<color=#00FF9F>SaveState</color>] Data has been loaded.");
-                dataWriter.ExitStation(Networking.LocalPlayer);
+                dataWriter.ExitStation(localPlayer);
 
                 _FinishedData();
             }
@@ -304,7 +304,7 @@ namespace UdonSharp.Nessie.SaveState
                     BufferEventReciever.SendCustomEvent("_SSSaved");
             }
 
-            fallbackAvatarPedestal.SetAvatarUse(Networking.LocalPlayer);
+            fallbackAvatarPedestal.SetAvatarUse(localPlayer);
         }
 
         private void _FailedData()
@@ -319,7 +319,7 @@ namespace UdonSharp.Nessie.SaveState
                     printBytes += b;
                 Debug.Log($"[<color=#00FF9F>SaveState</color>] Data loaded before loading failed: {printBytes}");
 
-                fallbackAvatarPedestal.SetAvatarUse(Networking.LocalPlayer);
+                fallbackAvatarPedestal.SetAvatarUse(localPlayer);
 
                 dataIsLoading = false;
             }
@@ -343,10 +343,10 @@ namespace UdonSharp.Nessie.SaveState
             byte[] bufferBytes = __PrepareWriteBuffer();
             for (int i = 0; bufferLength < bufferBytes.Length; i++)
             {
-                if (bufferUdonBehaviours[i] == null || bufferVariables[i] == null) return;
+                if (BufferUdonBehaviours[i] == null || BufferVariables[i] == null) return;
 
-                object value = ((UdonBehaviour)bufferUdonBehaviours[i]).GetProgramVariable(bufferVariables[i]);
-                bufferLength = __WriteBufferTypedObject(value, bufferTypes[i], bufferBytes, bufferLength);
+                object value = ((UdonBehaviour)BufferUdonBehaviours[i]).GetProgramVariable(BufferVariables[i]);
+                bufferLength = __WriteBufferTypedObject(value, BufferTypes[i], bufferBytes, bufferLength);
             }
 
             inputBytes = __FinalizeWriteBuffer(bufferBytes, bufferLength);
@@ -357,10 +357,10 @@ namespace UdonSharp.Nessie.SaveState
             byte[] bufferBytes = __PrepareReadBuffer(outputBytes);
             for (int i = 0; _currentBufferIndex < bufferBytes.Length; i++)
             {
-                if (bufferUdonBehaviours[i] == null || bufferVariables[i] == null) return;
+                if (BufferUdonBehaviours[i] == null || BufferVariables[i] == null) return;
 
-                object value = __ReadBufferTypedObject(bufferTypes[i], bufferBytes);
-                ((UdonBehaviour)bufferUdonBehaviours[i]).SetProgramVariable(bufferVariables[i], value);
+                object value = __ReadBufferTypedObject(BufferTypes[i], bufferBytes);
+                ((UdonBehaviour)BufferUdonBehaviours[i]).SetProgramVariable(BufferVariables[i], value);
             }
         }
 
