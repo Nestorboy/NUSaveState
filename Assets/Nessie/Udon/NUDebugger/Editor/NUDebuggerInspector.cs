@@ -350,8 +350,8 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
         private void GetAssets()
         {
-            _iconVRChat = Resources.Load<Texture2D>("Nessie/Icons/VRChat-Emblem-32px");
-            _iconGitHub = Resources.Load<Texture2D>("Nessie/Icons/GitHub-Mark-32px");
+            _iconVRChat = Resources.Load<Texture2D>("Icons/VRChat-Emblem-32px");
+            _iconGitHub = Resources.Load<Texture2D>("Icons/GitHub-Mark-32px");
         }
 
         private void GetData()

@@ -327,7 +327,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
             if (GUILayout.Button(new GUIContent(contentApplyAnimators.text + asteriskFolder, contentApplyAnimators.tooltip), styleRichTextButton))
             {
                 if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to apply the animator controllers from {animatorFolderSelected.name}?", "Yes", "No"))
-                    ApplyEncryptionKeys();
+                    SetSaveStateAnimators();
             }
             EditorGUI.EndDisabledGroup();
 
@@ -674,6 +674,35 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 }
         }
 
+        private void SetSaveStateAnimators()
+        {
+            int animatorCount = Math.Min(dataBitCount + dataBitCount / 9, 144);
+
+            string[] controllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController", new string[] { AssetDatabase.GetAssetPath(animatorFolderSelected) });
+            if (controllerGUIDs.Length < animatorCount)
+            {
+                Debug.LogWarning("[<color=#00FF9F>SaveState</color>] Couldn't find enough Animator Controllers.");
+                return;
+            }
+
+            AnimatorController[] writingControllers = new AnimatorController[Math.Min(dataBitCount, 128)];
+            AnimatorController[] clearingControllers = new AnimatorController[Math.Min(dataBitCount / 9, 16)];
+
+            int writerIndex = 0;
+            int clearerIndex = 0;
+            for (int controllerIndex = 0; controllerIndex < animatorCount; controllerIndex++)
+            {
+                if (controllerIndex % 9 == 8)
+                    clearingControllers[clearerIndex++] = (AnimatorController)AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(controllerGUIDs[controllerIndex]));
+                else
+                    writingControllers[writerIndex++] = (AnimatorController)AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(controllerGUIDs[controllerIndex]));
+            }
+
+            Undo.RecordObject(_behaviour, "Apply animator controllers");
+            _behaviour.ByteWriters = writingControllers;
+            _behaviour.ByteClearers = clearingControllers;
+        }
+
         private void ApplyEncryptionKeys()
         {
             int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
@@ -897,8 +926,8 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
         private void GetUIAssets()
         {
-            _iconVRChat = Resources.Load<Texture2D>("Nessie/Icons/VRChat-Emblem-32px");
-            _iconGitHub = Resources.Load<Texture2D>("Nessie/Icons/GitHub-Mark-32px");
+            _iconVRChat = Resources.Load<Texture2D>("Icons/VRChat-Emblem-32px");
+            _iconGitHub = Resources.Load<Texture2D>("Icons/GitHub-Mark-32px");
         }
 
         private void GetAnimatorFolders()

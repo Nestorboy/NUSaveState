@@ -1,2 +1,16 @@
+*
+!.git
+!.github
+!.gitignore
+!.LICENCE
+!.README.md
 
-LICENSE.meta
+!Assets
+Assets/*
+!Assets/Nessie
+!Assets/Nessie/**
+
+**/ToDo*
+
+Assets/Nessie/Udon/NUSaveState/AnimatorFolders/**
+Assets/Nessie/Udon/NUSaveState/ExampleTesting*

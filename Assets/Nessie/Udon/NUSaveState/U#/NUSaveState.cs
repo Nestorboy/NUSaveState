@@ -86,6 +86,9 @@ namespace UdonSharp.Nessie.SaveState
         {
             localPlayer = Networking.LocalPlayer;
 
+            // Hopefully prevent
+            transform.name = $"{localPlayer.displayName} {localPlayer.GetHashCode()}";
+
             inputBytes = new byte[MaxByteCount];
             outputBytes = new byte[MaxByteCount];
 
