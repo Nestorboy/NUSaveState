@@ -95,7 +95,13 @@ namespace UdonSharp.Nessie.SaveState
         {
             localPlayer = Networking.LocalPlayer;
 
-            // Hopefully prevent
+            // Workaround for prefab serialization issues. Angy. >:(
+            // (Though please do tell if you happen to know a better way around this. - Nestorboy#7647)
+            pedestalContainer = transform.GetChild(0);
+            pedestalPrefab = pedestalContainer.GetChild(0).gameObject;
+            pedestalPrefab.SetActive(false);
+
+            // Prevent other people from being moved over to the location of the SaveState, moving them to the world origin instead.
             transform.name = $"{localPlayer.displayName} {localPlayer.GetHashCode()}";
 
             inputBytes = new byte[MaxByteCount];

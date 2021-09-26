@@ -155,6 +155,8 @@ namespace UdonSharp.Nessie.SaveState.Internal
             // Draws the default convert to UdonBehaviour button, program asset field, sync settings, etc.
             if (UdonSharpGUI.DrawDefaultUdonSharpBehaviourHeader(target) || target == null) return;
 
+            if (!UdonSharpEditorUtility.IsProxyBehaviour(_behaviour)) return;
+
             if (styleHelpBox == null)
                 OnEnable();
 
