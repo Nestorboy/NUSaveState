@@ -113,17 +113,17 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
         private GUIContent contentRefresh;
 
-        private GUIContent contentAnimatorFolder = new GUIContent("Animator Folder", "Folder used when applying or generating animators.");
+        private GUIContent contentAnimatorFolder = new GUIContent("Animator Folder", "Folder used when applying or generating animators/assets.");
         private GUIContent contentEncryptionSeed = new GUIContent("Encryption Seed", "Seed used to generate key coordinates.");
         private GUIContent contentParameterName = new GUIContent("Parameter Name", "Name used as a parameter prefix.");
 
         private GUIContent contentWorldAnimators = new GUIContent("Generate World Assets", "Generate world-side assets into the selected folder.");
         private GUIContent contentAvatarAnimators = new GUIContent("Generate Avatar Assets", "Generate avatar-side assets into the selected folder.");
-        private GUIContent contentApplyAnimators = new GUIContent("Apply SaveState Animators", "Apply animator controllers from the selected folder.");
-        private GUIContent contentApplyKeys = new GUIContent("Apply SaveState Keys", "Generate keys used as protection against unwanted data reading.");
-        private GUIContent contentApplyData = new GUIContent("Apply SaveState Data", "Apply changes done to the SavteState data.");
+        private GUIContent contentApplyAnimators = new GUIContent("Apply Save State Animators", "Apply animator controllers from the selected folder.");
+        private GUIContent contentApplyKeys = new GUIContent("Apply Save State Keys", "Generate keys used as protection against unwanted data reading.");
+        private GUIContent contentApplyData = new GUIContent("Apply Save State Data", "Apply changes done to the SavteState data.");
 
-        private GUIContent contentEventReciever = new GUIContent("Event Reciever", "UdonBehaviour which recieves the following events when data processing is done:\n_SSLoaded _SSSaved _SSFailed");
+        private GUIContent contentEventReciever = new GUIContent("Event Reciever", "UdonBehaviour which recieves the following events when data processing is done:\n_SSSaved _SSSaveFailed _SSPostSave\n_SSLoaded _SSLoadFailed _SSPostLoad");
         private GUIContent contentFallbackAvatar = new GUIContent("Fallback Avatar", "Blueprint ID used to switch to a default avatar once the data processing is done.");
         private GUIContent contentVariableCount = new GUIContent("Variable Count", "Amount of variables the SaveStates should store. (Try to store as little as possible.)");
 
@@ -317,7 +317,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
             {
                 if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to generate and replace avatar assets in {animatorFolderSelected.name}?", "Yes", "No"))
                 {
-                    GenerateAvatarAnimators();
+                    PrepareAvatarAnimators();
                     GenerateAvatarMenu();
                 }
             }
@@ -614,7 +614,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
             dataVariableTypes = newVariableTypes;
             dataVariableIndecies = newVariableIndecies;
 
-            dataEventReciever = _behaviour.BufferEventReciever;
+            dataEventReciever = _behaviour.HookEventReciever;
             dataFallbackAvatarID = _behaviour.FallbackAvatarID;
             dataVariableCount = newUdonBehaviours.Length;
             dataBitCount = CalculateBitCount(newVariableTypes);
@@ -633,7 +633,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
             Undo.RecordObject(_behaviour, "Apply SaveState data");
 
-            _behaviour.BufferEventReciever = dataEventReciever;
+            _behaviour.HookEventReciever = dataEventReciever;
             _behaviour.FallbackAvatarID = dataFallbackAvatarID;
             _behaviour.MaxByteCount = Mathf.CeilToInt(CalculateBitCount(dataVariableTypes) / 8);
             _behaviour.DataAvatarIDs = dataAvatarIDs;
@@ -676,26 +676,29 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
         private void SetSaveStateAnimators()
         {
-            int animatorCount = Math.Min(dataBitCount + dataBitCount / 9, 144);
+            int byteCount = Mathf.CeilToInt(dataBitCount / 8f);
+            int minBitCount = Math.Min(dataBitCount, 128);
+            int minByteCount = Math.Min(byteCount, 16);
 
-            string[] controllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController", new string[] { AssetDatabase.GetAssetPath(animatorFolderSelected) });
-            if (controllerGUIDs.Length < animatorCount)
+            string[] writerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Writer", new string[] { AssetDatabase.GetAssetPath(animatorFolderSelected) });
+            string[] clearerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Clearer", new string[] { AssetDatabase.GetAssetPath(animatorFolderSelected) });
+            if (writerControllerGUIDs.Length < minBitCount || clearerControllerGUIDs.Length < minByteCount)
             {
                 Debug.LogWarning("[<color=#00FF9F>SaveState</color>] Couldn't find enough Animator Controllers.");
                 return;
             }
 
-            AnimatorController[] writingControllers = new AnimatorController[Math.Min(dataBitCount, 128)];
-            AnimatorController[] clearingControllers = new AnimatorController[Math.Min(dataBitCount / 9, 16)];
+            AnimatorController[] writingControllers = new AnimatorController[minBitCount];
+            AnimatorController[] clearingControllers = new AnimatorController[minByteCount];
 
-            int writerIndex = 0;
-            int clearerIndex = 0;
-            for (int controllerIndex = 0; controllerIndex < animatorCount; controllerIndex++)
+            for (int controllerIndex = 0; controllerIndex < writingControllers.Length; controllerIndex++)
             {
-                if (controllerIndex % 9 == 8)
-                    clearingControllers[clearerIndex++] = (AnimatorController)AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(controllerGUIDs[controllerIndex]));
-                else
-                    writingControllers[writerIndex++] = (AnimatorController)AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(controllerGUIDs[controllerIndex]));
+                writingControllers[controllerIndex] = (AnimatorController)AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(writerControllerGUIDs[controllerIndex]));
+            }
+
+            for (int controllerIndex = 0; controllerIndex < clearingControllers.Length; controllerIndex++)
+            {
+                clearingControllers[controllerIndex] = (AnimatorController)AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(clearerControllerGUIDs[controllerIndex]));
             }
 
             Undo.RecordObject(_behaviour, "Apply animator controllers");
@@ -732,43 +735,60 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
         private void PrepareWorldAnimators()
         {
-            for (int controllerIndex = 0; controllerIndex < 144; controllerIndex++)
+            System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+            timer.Start();
+
+            try
             {
-                EditorUtility.DisplayProgressBar("SaveState", $"Preparing Animator Controllers... ({controllerIndex}/{144})", (float)controllerIndex / 144);
+                AssetDatabase.StartAssetEditing();
 
-                bool isClearer = controllerIndex % 9 == 8;
-
-                // Prepare AnimatorController.
-                AnimatorController newController = AnimatorController.CreateAnimatorControllerAtPath(AssetDatabase.GetAssetPath(animatorFolderSelected) + (isClearer ? $"/SaveState-{saveStateParameterName}_{controllerIndex / 9}-clear.controller" : $"/SaveState-{saveStateParameterName}_{controllerIndex / 9}-bit_{controllerIndex % 9}.controller"));
-                AnimatorStateMachine newStateMachine = newController.layers[0].stateMachine;
-                newStateMachine.entryPosition = new Vector2(-30, 0);
-                newStateMachine.anyStatePosition = new Vector2(-30, 50);
-                newStateMachine.exitPosition = new Vector2(-30, 100);
-
-                // Prepate AnimatorState.
-                AnimatorState newState = newStateMachine.AddState("Write");
-                newStateMachine.states[0].position = new Vector2(-30, 150);
-                newState.writeDefaultValues = false;
-
-                // Prepare VRC Behaviour.
-                var VRCParameterDriver = newState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
-                VRCParameterDriver.parameters = new List<VRC_AvatarParameterDriver.Parameter>()
+                for (int controllerIndex = 0; controllerIndex < 144; controllerIndex++)
                 {
-                    new VRC_AvatarParameterDriver.Parameter()
+                    EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({controllerIndex}/{144})", (float)controllerIndex / 144);
+
+                    bool isClearer = controllerIndex % 9 == 8;
+
+                    // Prepare AnimatorController.
+                    AnimatorController newController = AnimatorController.CreateAnimatorControllerAtPath(AssetDatabase.GetAssetPath(animatorFolderSelected) + (isClearer ? $"/SaveState-{saveStateParameterName}_{controllerIndex / 9}-clear.controller" : $"/SaveState-{saveStateParameterName}_{controllerIndex / 9}-bit_{controllerIndex % 9}.controller"));
+                    AnimatorStateMachine newStateMachine = newController.layers[0].stateMachine;
+                    newStateMachine.entryPosition = new Vector2(-30, 0);
+                    newStateMachine.anyStatePosition = new Vector2(-30, 50);
+                    newStateMachine.exitPosition = new Vector2(-30, 100);
+
+                    // Prepate AnimatorState.
+                    AnimatorState newState = newStateMachine.AddState("Write");
+                    newStateMachine.states[0].position = new Vector2(-30, 150);
+                    newState.writeDefaultValues = false;
+
+                    // Prepare VRC Behaviour.
+                    var VRCParameterDriver = newState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+                    VRCParameterDriver.parameters = new List<VRC_AvatarParameterDriver.Parameter>()
                     {
-                        name = $"{saveStateParameterName}_{controllerIndex / 9}",
-                        value = isClearer ? 0 : 1 / Mathf.Pow(2, 7 - controllerIndex % 9 + 1),
-                        type = isClearer ? VRC_AvatarParameterDriver.ChangeType.Set : VRC_AvatarParameterDriver.ChangeType.Add
-                    }
-                };
+                        new VRC_AvatarParameterDriver.Parameter()
+                        {
+                            name = $"{saveStateParameterName}_{controllerIndex / 9}",
+                            value = isClearer ? 0 : 1 / Mathf.Pow(2, 7 - controllerIndex % 9 + 1),
+                            type = isClearer ? VRC_AvatarParameterDriver.ChangeType.Set : VRC_AvatarParameterDriver.ChangeType.Add
+                        }
+                    };
+
+                    AssetDatabase.SetLabels(newController, new string[] { isClearer ? "SaveState-Clearer" : "SaveState-Writer" });
+                }
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
             }
 
             AssetDatabase.SaveAssets();
 
+            timer.Stop();
+            Debug.Log($"[<color=#00FF9F>NUSaveState</color>] World asset creation took: {timer.Elapsed:mm\\:ss\\.fff}");
+
             EditorUtility.ClearProgressBar();
         }
 
-        private void GenerateAvatarAnimators()
+        private void PrepareAvatarAnimators()
         {
             int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
             int byteCount = Mathf.CeilToInt(dataBitCount / 8f);
@@ -793,82 +813,97 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 }
             }
 
-            // Create animator for each avatar.
-            for (int avatarIndex = 0; avatarIndex < avatarCount; avatarIndex++)
+            System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+            timer.Start();
+
+            try
             {
-                EditorUtility.DisplayProgressBar("SaveState", $"Preparing Animator Controllers... ({avatarIndex}/{avatarCount})", (float)avatarIndex / avatarCount);
+                AssetDatabase.StartAssetEditing();
 
-                // Prepare AnimatorController.
-                AnimatorController newController = AnimatorController.CreateAnimatorControllerAtPath(AssetDatabase.GetAssetPath(animatorFolderSelected) + $"/SaveState-Avatar_{avatarIndex}-{saveStateParameterName}.controller");
-                AnimatorStateMachine newStateMachine = newController.layers[0].stateMachine;
-                newStateMachine.entryPosition = new Vector2(-30, 0);
-                newStateMachine.anyStatePosition = new Vector2(-30, 50);
-                newStateMachine.exitPosition = new Vector2(-30, 100);
-
-                // Prepare data BlendTree state.
-                AnimatorState newState = newController.CreateBlendTreeInController("Data Blend", out BlendTree newTree, 0);
-                newStateMachine.states[0].position = new Vector2(-30, 150);
-                newController.RemoveParameter(0);
-
-                newState.writeDefaultValues = false;
-
-                newTree.blendType = BlendTreeType.Direct;
-
-                // Prepare VRC Behaviours.
-                var VRCLayerControl = newState.AddStateMachineBehaviour<VRCPlayableLayerControl>();
-                var VRCTrackingControl = newState.AddStateMachineBehaviour<VRCAnimatorTrackingControl>();
-
-                VRCLayerControl.goalWeight = 1;
-
-                VRCTrackingControl.trackingLeftFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
-                VRCTrackingControl.trackingRightFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
-
-                // Prepare base BlendTree animation.
-                AnimationClip newBaseClip = new AnimationClip() { name = "Straighten Bones" };
-
-                newBaseClip.SetCurve("", typeof(Animator), "RootT.y", AnimationCurve.Constant(0, 0, 1));
-
-                newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.x", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].x));
-                newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.y", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].y));
-                newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.z", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].z));
-                for (int i = 0; i < muscleNames.Length; i++)
+                // Create animator for each avatar.
+                for (int avatarIndex = 0; avatarIndex < avatarCount; avatarIndex++)
                 {
-                    newBaseClip.SetCurve("", typeof(Animator), $"{muscleNames[i]}2 Stretched", AnimationCurve.Constant(0, 0, 0.81002f));
-                    newBaseClip.SetCurve("", typeof(Animator), $"{muscleNames[i]}3 Stretched", AnimationCurve.Constant(0, 0, 0.81002f));
+                    EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({avatarIndex}/{avatarCount})", (float)avatarIndex / avatarCount);
+
+                    // Prepare AnimatorController.
+                    AnimatorController newController = AnimatorController.CreateAnimatorControllerAtPath(AssetDatabase.GetAssetPath(animatorFolderSelected) + $"/SaveState-Avatar_{avatarIndex}-{saveStateParameterName}.controller");
+                    AnimatorStateMachine newStateMachine = newController.layers[0].stateMachine;
+                    newStateMachine.entryPosition = new Vector2(-30, 0);
+                    newStateMachine.anyStatePosition = new Vector2(-30, 50);
+                    newStateMachine.exitPosition = new Vector2(-30, 100);
+
+                    // Prepare data BlendTree state.
+                    AnimatorState newState = newController.CreateBlendTreeInController("Data Blend", out BlendTree newTree, 0);
+                    newStateMachine.states[0].position = new Vector2(-30, 150);
+                    newController.RemoveParameter(0);
+
+                    newState.writeDefaultValues = false;
+
+                    newTree.blendType = BlendTreeType.Direct;
+
+                    // Prepare VRC Behaviours.
+                    var VRCLayerControl = newState.AddStateMachineBehaviour<VRCPlayableLayerControl>();
+                    var VRCTrackingControl = newState.AddStateMachineBehaviour<VRCAnimatorTrackingControl>();
+
+                    VRCLayerControl.goalWeight = 1;
+
+                    VRCTrackingControl.trackingLeftFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
+                    VRCTrackingControl.trackingRightFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
+
+                    // Prepare base BlendTree animation.
+                    AnimationClip newBaseClip = new AnimationClip() { name = "Straighten Bones" };
+
+                    newBaseClip.SetCurve("", typeof(Animator), "RootT.y", AnimationCurve.Constant(0, 0, 1));
+
+                    newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.x", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].x));
+                    newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.y", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].y));
+                    newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.z", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].z));
+                    for (int i = 0; i < muscleNames.Length; i++)
+                    {
+                        newBaseClip.SetCurve("", typeof(Animator), $"{muscleNames[i]}2 Stretched", AnimationCurve.Constant(0, 0, 0.81002f));
+                        newBaseClip.SetCurve("", typeof(Animator), $"{muscleNames[i]}3 Stretched", AnimationCurve.Constant(0, 0, 0.81002f));
+                    }
+                    newTree.AddChild(newBaseClip);
+
+                    AssetDatabase.AddObjectToAsset(newBaseClip, newController);
+
+                    // Prepare data BlendTree animations.
+                    for (int byteIndex = 0; byteIndex < Math.Min(byteCount, 16); byteIndex++)
+                    {
+                        AnimationClip newClip = new AnimationClip() { name = $"SaveState-{saveStateParameterName}_{byteIndex}.anim" };
+
+                        newClip.SetCurve("", typeof(Animator), $"{muscleNames[byteIndex % muscleNames.Length]}{3 - byteIndex / muscleNames.Length} Stretched", AnimationCurve.Constant(0, 0, 1));
+                        newTree.AddChild(newClip);
+
+                        AssetDatabase.AddObjectToAsset(newClip, newController);
+                    }
+
+                    // Prepare BlendTree parameters.
+                    ChildMotion[] newChildren = newTree.children;
+
+                    newController.AddParameter(new AnimatorControllerParameter() { name = "Base", type = AnimatorControllerParameterType.Float, defaultFloat = 1 });
+                    newChildren[0].directBlendParameter = "Base";
+
+                    for (int childIndex = 1; childIndex < newChildren.Length; childIndex++)
+                    {
+                        string newParameter = $"{saveStateParameterName}_{childIndex - 1}";
+
+                        newController.AddParameter(newParameter, AnimatorControllerParameterType.Float);
+                        newChildren[childIndex].directBlendParameter = newParameter;
+                    }
+
+                    newTree.children = newChildren;
                 }
-                newTree.AddChild(newBaseClip);
-
-                AssetDatabase.AddObjectToAsset(newBaseClip, newController);
-
-                // Prepare data BlendTree animations.
-                for (int byteIndex = 0; byteIndex < Math.Min(byteCount, 16); byteIndex++)
-                {
-                    AnimationClip newClip = new AnimationClip() { name = $"SaveState-{saveStateParameterName}_{byteIndex}.anim" };
-
-                    newClip.SetCurve("", typeof(Animator), $"{muscleNames[byteIndex % muscleNames.Length]}{3 - byteIndex / muscleNames.Length} Stretched", AnimationCurve.Constant(0, 0, 1));
-                    newTree.AddChild(newClip);
-
-                    AssetDatabase.AddObjectToAsset(newClip, newController);
-                }
-
-                // Prepare BlendTree parameters.
-                ChildMotion[] newChildren = newTree.children;
-
-                newController.AddParameter(new AnimatorControllerParameter() { name = "Base", type = AnimatorControllerParameterType.Float, defaultFloat = 1 });
-                newChildren[0].directBlendParameter = "Base";
-
-                for (int childIndex = 1; childIndex < newChildren.Length; childIndex++)
-                {
-                    string newParameter = $"{saveStateParameterName}_{childIndex - 1}";
-
-                    newController.AddParameter(newParameter, AnimatorControllerParameterType.Float);
-                    newChildren[childIndex].directBlendParameter = newParameter;
-                }
-
-                newTree.children = newChildren;
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
             }
 
             AssetDatabase.SaveAssets();
+
+            timer.Stop();
+            Debug.Log($"[<color=#00FF9F>NUSaveState</color>] Avatar asset creation took: {timer.Elapsed:mm\\:ss\\.fff}");
 
             EditorUtility.ClearProgressBar();
         }
@@ -921,7 +956,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 contentRefresh = new GUIContent(EditorGUIUtility.IconContent("d_Refresh"));
             else
                 contentRefresh = new GUIContent(EditorGUIUtility.IconContent("Refresh"));
-            contentRefresh.tooltip = "Retrieve data from the selected SaveState.";
+            contentRefresh.tooltip = "Retrieve data from the selected Save State.";
         }
 
         private void GetUIAssets()

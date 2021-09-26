@@ -4,7 +4,6 @@ using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 using UdonSharp;
-using TMPro;
 
 namespace UdonSharp.Nessie.SaveState
 {
@@ -14,7 +13,7 @@ namespace UdonSharp.Nessie.SaveState
         private VRCPlayerApi localPlayer;
 
         // *Insert custom class here*
-        public UdonBehaviour BufferEventReciever;
+        public UdonBehaviour HookEventReciever;
         public string FallbackAvatarID = "avtr_c38a1615-5bf5-42b4-84eb-a8b6c37cbd11";
         public int MaxByteCount;
         public string[] DataAvatarIDs;
@@ -74,9 +73,19 @@ namespace UdonSharp.Nessie.SaveState
         private float dataMinRange = 0.1897545f;
         private float dataMaxRange = 44.99054f;
 
+        private string[] recieverEvents = new string[]
+        {
+            "_SSSaved",
+            "_SSLoaded",
+            "_SSSaveFailed",
+            "_SSLoadFailed",
+            "_SSPostSave",
+            "_SSPostLoad"
+        };
         private bool lookingForAvatar;
-        private bool dataIsLoading;
-        private bool dataIsSaving;
+        private int dataStatus = 0;
+        private GameObject avatarKeyObject;
+
         private float dataAvatarTimeout;
         private int dataAvatarIndex;
         private int dataByteIndex;
@@ -120,11 +129,15 @@ namespace UdonSharp.Nessie.SaveState
             {
                 Debug.Log($"[<color=#00FF9F>SaveState</color>] Detected buffer avatar: {dataAvatarIndex}.");
 
+                avatarKeyObject = other;
+
                 dataAvatarTimeout = 0;
                 lookingForAvatar = false;
                 keyListener.enabled = false;
 
-                if (dataIsLoading)
+                if (dataStatus == 1)
+                    _PrepareData();
+                else
                 {
                     transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
                     dataWriter.animatorController = null;
@@ -132,8 +145,6 @@ namespace UdonSharp.Nessie.SaveState
 
                     SendCustomEventDelayedFrames(nameof(_GetData), 1);
                 }
-                else
-                    _PrepareData();
             }
         }
 
@@ -141,10 +152,10 @@ namespace UdonSharp.Nessie.SaveState
 
         public void _SSSave()
         {
-            if (dataIsLoading || dataIsSaving)
+            if (dataStatus > 0)
                 return;
 
-            dataIsSaving = true;
+            dataStatus = 1;
 
             _PackData();
 
@@ -154,13 +165,18 @@ namespace UdonSharp.Nessie.SaveState
 
         public void _SSLoad()
         {
-            if (dataIsLoading || dataIsSaving)
+            if (dataStatus > 0)
                 return;
 
-            dataIsLoading = true;
+            dataStatus = 2;
 
             dataAvatarIndex = 0;
             _ChangeAvatar();
+        }
+
+        private void _SSHook()
+        {
+            HookEventReciever.SendCustomEvent(recieverEvents[dataStatus - 1]);
         }
 
         #endregion API
@@ -183,10 +199,10 @@ namespace UdonSharp.Nessie.SaveState
 
         public void _LookForAvatar()
         {
-            keyListener.center = transform.InverseTransformPoint(localPlayer.GetRotation() * KeyCoordinates[dataAvatarIndex] + localPlayer.GetPosition());
-
             if (lookingForAvatar)
             {
+                keyListener.center = transform.InverseTransformPoint(localPlayer.GetRotation() * KeyCoordinates[dataAvatarIndex] + localPlayer.GetPosition());
+
                 if (dataAvatarTimeout > 0)
                 {
                     dataAvatarTimeout -= Time.deltaTime;
@@ -196,6 +212,19 @@ namespace UdonSharp.Nessie.SaveState
                 {
                     Debug.LogError("[<color=#00FF9F>SaveState</color>] Data avatar took too long to load or avatar ID is mismatched.");
                     _FailedData();
+                }
+            }
+            else if (dataStatus > 4)
+            {
+                if (Utilities.IsValid(avatarKeyObject) && dataAvatarTimeout > 0)
+                {
+                    dataAvatarTimeout -= Time.deltaTime;
+                    SendCustomEventDelayedFrames(nameof(_LookForAvatar), 1);
+                }
+                else
+                {
+                    _SSHook();
+                    dataStatus = 0;
                 }
             }
         }
@@ -286,28 +315,24 @@ namespace UdonSharp.Nessie.SaveState
 
         private void _FinishedData()
         {
-            if (dataIsLoading)
+            if (dataStatus == 1)
             {
-                _UnpackData();
-
-                dataIsLoading = false;
-
-                Debug.Log("[<color=#00FF9F>SaveState</color>] Data has been loaded.");
-
-                if (BufferEventReciever != null)
-                    BufferEventReciever.SendCustomEvent("_SSLoaded");
+                Debug.Log($"[<color=#00FF9F>SaveState</color>] Data has been saved.");
             }
             else
             {
-                dataIsSaving = false;
+                _UnpackData();
 
-                Debug.Log($"[<color=#00FF9F>SaveState</color>] Data has been saved.");
-
-                if (BufferEventReciever != null)
-                    BufferEventReciever.SendCustomEvent("_SSSaved");
+                Debug.Log("[<color=#00FF9F>SaveState</color>] Data has been loaded.");
             }
 
+            _SSHook();
+
             fallbackAvatarPedestal.SetAvatarUse(localPlayer);
+
+            dataAvatarTimeout = 30;
+            dataStatus += 4;
+            _LookForAvatar();
         }
 
         private void _FailedData()
@@ -315,29 +340,9 @@ namespace UdonSharp.Nessie.SaveState
             lookingForAvatar = false;
             keyListener.enabled = false;
 
-            if (dataIsLoading)
-            {
-                string printBytes = "";
-                foreach (byte b in outputBytes)
-                    printBytes += b;
-                Debug.Log($"[<color=#00FF9F>SaveState</color>] Data loaded before loading failed: {printBytes}");
-
-                fallbackAvatarPedestal.SetAvatarUse(localPlayer);
-
-                dataIsLoading = false;
-            }
-            else
-            {
-                string printBytes = "";
-                foreach (byte b in inputBytes)
-                    printBytes += b;
-                Debug.Log($"[<color=#00FF9F>SaveState</color>] Data saved before saving failed: {printBytes}");
-
-                dataIsSaving = false;
-            }
-
-            if (BufferEventReciever != null)
-                BufferEventReciever.SendCustomEvent("_SSFailed");
+            dataStatus += 2;
+            _SSHook();
+            dataStatus = 0;
         }
 
         private void _PackData()
