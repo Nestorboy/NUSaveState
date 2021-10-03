@@ -16,6 +16,6 @@ Every avatar can store up to 16 bytes, but there's no limit to how many avatars 
 It takes ~9 frames to store each byte, so ~144 frames for an entire avatar.
 Reading 16 bytes can be done almost instantly once an avatar is loaded.
 
-Temporary Avatar IDs: (Both PC and Quest ready!)
-avtr_1a5e837d-1944-44f3-aa2c-b3854a33a8ac (Key: 0, 1.5, 1)
-avtr_cd7bdeaa-2766-4b85-8c03-1d900db166b6 (Key: 0, 1.5, 2)
+Temporary Avatar IDs: (Key: 404)
+avtr_1a5e837d-1944-44f3-aa2c-b3854a33a8ac
+avtr_cd7bdeaa-2766-4b85-8c03-1d900db166b6

@@ -896,8 +896,6 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 newStateMachine.states[0].position = new Vector2(-30, 150);
                 controllers[avatarIndex].RemoveParameter(0);
 
-                newState.writeDefaultValues = false;
-
                 newTree.blendType = BlendTreeType.Direct;
 
                 // Prepare VRC Behaviours.
