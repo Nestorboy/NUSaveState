@@ -99,7 +99,6 @@ namespace UdonSharp.Nessie.SaveState
             // (Though please do tell if you happen to know a better way around this. - Nestorboy#7647)
             pedestalContainer = transform.GetChild(0);
             pedestalPrefab = pedestalContainer.GetChild(0).gameObject;
-            pedestalPrefab.SetActive(false);
 
             // Prevent other people from being moved over to the location of the SaveState, moving them to the world origin instead.
             transform.name = $"{localPlayer.displayName} {localPlayer.GetHashCode()}";
@@ -120,7 +119,7 @@ namespace UdonSharp.Nessie.SaveState
             }
 
             // Prepare fallback avatar.
-            fallbackAvatarPedestal = (VRC_AvatarPedestal)VRCInstantiate(pedestalPrefab).GetComponent(typeof(VRC_AvatarPedestal));
+            fallbackAvatarPedestal = (VRC_AvatarPedestal)pedestalPrefab.GetComponent(typeof(VRC_AvatarPedestal));
             fallbackAvatarPedestal.transform.SetParent(pedestalContainer, false);
             fallbackAvatarPedestal.transform.localPosition = new Vector3(1, 1, 0);
             fallbackAvatarPedestal.blueprintId = FallbackAvatarID;
@@ -253,15 +252,15 @@ namespace UdonSharp.Nessie.SaveState
             {
                 if (((inputBytes[dataByteIndex + dataAvatarIndex * 16] >> dataBitIndex) & 1) == 1)
                 {
-                    if (ByteWriters[dataBitIndex + dataByteIndex * 8 % 128] == null)
+                    if (ByteWriters[dataBitIndex + dataByteIndex * 8] == null)
                     {
-                        Debug.LogError($"[<color=#00FF9F>SaveState</color>] Bit animator {dataBitIndex + dataByteIndex * 8 % 128} is null.");
+                        Debug.LogError($"[<color=#00FF9F>SaveState</color>] Bit animator {dataBitIndex + dataByteIndex * 8} is null.");
                         _FailedData();
                         return;
                     }
                     else
                     {
-                        dataWriter.animatorController = ByteWriters[dataBitIndex + dataByteIndex * 8 % 128];
+                        dataWriter.animatorController = ByteWriters[dataBitIndex + dataByteIndex * 8];
                         localPlayer.UseAttachedStation();
                     }
                 }
@@ -274,23 +273,21 @@ namespace UdonSharp.Nessie.SaveState
                 dataBitIndex = 0;
                 dataByteIndex++;
 
-                if (dataByteIndex < 16)
+                if (dataByteIndex + dataAvatarIndex * 16 >= MaxByteCount)
                 {
-                    if (dataByteIndex + dataAvatarIndex * 16 < MaxByteCount)
+                    _FinishedData();
+                }
+                else
+                {
+                    if (dataByteIndex < 16)
                     {
                         SendCustomEventDelayedFrames(nameof(_PrepareData), 1);
                     }
                     else
                     {
-                        dataWriter.ExitStation(localPlayer);
-
-                        _FinishedData();
+                        dataAvatarIndex++;
+                        _ChangeAvatar();
                     }
-                }
-                else
-                {
-                    dataAvatarIndex++;
-                    _ChangeAvatar();
                 }
             }
         }

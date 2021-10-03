@@ -16,7 +16,18 @@ namespace UdonSharp.Nessie.SaveState.Internal
     [CustomEditor(typeof(NUSaveState))]
     internal class NUSaveStateInspector : Editor
     {
-        private NUSaveState _behaviour;
+        private NUSaveState _behaviourProxy;
+
+        private bool foldoutDefaultFields;
+
+        // Assets.
+        private string pathSaveState = "Assets/Nessie/Udon/NUSaveState";
+
+        private string[] assetFolderPaths;
+        private string[] assetFolderNames;
+        private DefaultAsset[] assetFolders;
+        private DefaultAsset assetFolderSelected;
+        private int assetFolderIndex = -1;
 
         private string[] muscleNames = new string[]
         {
@@ -31,30 +42,16 @@ namespace UdonSharp.Nessie.SaveState.Internal
         };
 
         // Save State Utilities.
-        private string[] animatorSubFolderPaths;
-        private string[] animatorFolderNames;
-        private DefaultAsset[] animatorFolders;
-        private DefaultAsset animatorFolderSelected;
-        private int animatorFolderIndex = -1;
-
         private string saveStateParameterName = "byte";
         private string saveStateSeed = "";
-        private int saveStateSeedHash;
+        private int saveStateHash;
 
         // Save State data.
-        private UdonBehaviour dataEventReciever;
-        private string dataFallbackAvatarID;
-        private int dataVariableCount;
+        private DataInstruction[] dataInstructions;
         private int dataBitCount;
-        private string[] dataAvatarIDs;
-
-        private UdonBehaviour[] dataUdonBehaviours;
-        private string[] dataVariableNames;
-        private Type[] dataVariableTypes;
-        private int[] dataVariableIndecies;
 
         // Validity checking.
-        private Type[] convertableTypes = new Type[]
+        private static Type[] convertableTypes = new Type[]
         {
             typeof(int),
             typeof(uint),
@@ -77,7 +74,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
             typeof(Color32),
             typeof(VRCPlayerApi)
         };
-        private int[] convertableBitCount = new int[]
+        private static int[] convertableBitCount = new int[]
         {
             32,
             32,
@@ -96,80 +93,237 @@ namespace UdonSharp.Nessie.SaveState.Internal
             96,
             128,
             128,
-            32,
+            128,
             32,
             32
         };
-        private string[][] validVariableNames;
-        private string[][] validVariableAndBits;
-        private Type[][] validVariableTypes;
 
         // UI.
-        private GUIStyle styleHelpBox;
-        private GUIStyle styleBox;
-        private GUIStyle styleScrollView;
-        private GUIStyle styleRichTextLabel;
-        private GUIStyle styleRichTextButton;
+        private UnityEditorInternal.ReorderableList instructionList;
+        private int selectedInstructionIndex;
+        private UnityEditorInternal.ReorderableList avatarList;
 
-        private GUIContent contentRefresh;
-
-        private GUIContent contentAnimatorFolder = new GUIContent("Animator Folder", "Folder used when applying or generating animators/assets.");
-        private GUIContent contentEncryptionSeed = new GUIContent("Encryption Seed", "Seed used to generate key coordinates.");
-        private GUIContent contentParameterName = new GUIContent("Parameter Name", "Name used as a parameter prefix.");
-
-        private GUIContent contentWorldAnimators = new GUIContent("Generate World Assets", "Generate world-side assets into the selected folder.");
-        private GUIContent contentAvatarAnimators = new GUIContent("Generate Avatar Assets", "Generate avatar-side assets into the selected folder.");
-        private GUIContent contentApplyAnimators = new GUIContent("Apply Save State Animators", "Apply animator controllers from the selected folder.");
-        private GUIContent contentApplyKeys = new GUIContent("Apply Save State Keys", "Generate keys used as protection against unwanted data reading.");
-        private GUIContent contentApplyData = new GUIContent("Apply Save State Data", "Apply changes done to the SavteState data.");
-
-        private GUIContent contentEventReciever = new GUIContent("Event Reciever", "UdonBehaviour which recieves the following events when data processing is done:\n_SSSaved _SSSaveFailed _SSPostSave\n_SSLoaded _SSLoadFailed _SSPostLoad");
-        private GUIContent contentFallbackAvatar = new GUIContent("Fallback Avatar", "Blueprint ID used to switch to a default avatar once the data processing is done.");
-        private GUIContent contentVariableCount = new GUIContent("Variable Count", "Amount of variables the SaveStates should store. (Try to store as little as possible.)");
+        private SerializedProperty propertyEventReciever;
+        private SerializedProperty propertyFallbackAvatar;
 
         private Texture2D _iconGitHub;
         private Texture2D _iconVRChat;
 
-        private bool foldoutDefaultFields;
-        private bool foldoutUdonInstructions;
-        private bool foldoutDataAvatars;
+        private GUIStyle styleHelpBox;
+        private GUIStyle styleBox;
+        private GUIStyle styleRichTextLabel;
+        private GUIStyle styleRichTextButton;
 
-        private Vector2 dataVariablesScrollPos;
-        private Vector2 dataAvatarScrollPos;
+        private GUIContent contentAssetFolder = new GUIContent("Asset Folder", "Folder used when applying or generating world/avatar assets.");
+        private GUIContent contentEncryptionSeed = new GUIContent("Encryption Seed", "Seed used to generate key coordinates.");
+        private GUIContent contentParameterName = new GUIContent("Parameter Name", "Name used as a parameter prefix.");
+
+        private GUIContent contentWorldAssets = new GUIContent("Generate World Assets", "Creates world-side assets into the selected folder.");
+        private GUIContent contentAvatarAssets = new GUIContent("Generate Avatar Assets", "Creates avatar-side assets and leaves an exported package in the selected folder.");
+        private GUIContent contentApplyAnimators = new GUIContent("Apply Save State Animators", "Applies animator controllers from the selected folder.");
+        private GUIContent contentApplyKeys = new GUIContent("Apply Save State Keys", "Generates keys used to identify the specified data avatars.");
+
+        private GUIContent contentEventReciever = new GUIContent("Event Reciever", "UdonBehaviour which recieves the following callback events:\n_SSSaved _SSSaveFailed _SSPostSave\n_SSLoaded _SSLoadFailed _SSPostLoad");
+        private GUIContent contentFallbackAvatar = new GUIContent("Fallback Avatar", "Blueprint ID of the avatar which is switched to when the data processing is done.");
+
+        private GUIContent contentInstructionList = new GUIContent("Data Instructions", "List of UdonBehaviours variables used when saving or loading data.");
+        private GUIContent contentAvatarList = new GUIContent("Avatar IDs", "List of avatars used as data buffers. (Unused avatars are drawn with disabled fields.)");
+
+        public class DataInstruction
+        {
+            public UdonBehaviour Udon;
+
+            public string[] VariableNames;
+            public Type[] VariableTypes;
+
+            private int _variableIndex = -1;
+            public int VariableIndex
+            {
+                get => _variableIndex;
+                set
+                {
+                    _variableIndex = value;
+
+                    if (value < 0)
+                        VariableBits = 0;
+                    else
+                    {
+                        int typeIndex = Array.IndexOf(convertableTypes, VariableTypes[value]);
+                        VariableBits = typeIndex < 0 ? 0 : convertableBitCount[typeIndex];
+                    }
+                }
+            }
+
+            public int VariableBits = 0;
+
+            public void PrepareLabels()
+            {
+                string[] newLabels = new string[Math.Min(VariableNames.Length, VariableTypes.Length)];
+                for (int i = 0; i < newLabels.Length; i++)
+                    newLabels[i] = $"{VariableNames[i]} ({convertableBitCount[Array.IndexOf(convertableTypes, VariableTypes[i])]})";
+                VariableLabels = newLabels;
+            }
+
+            public string[] VariableLabels = new string[0];
+        }
 
         private void OnEnable()
         {
-            InitializeStyles();
-
             GetUIAssets();
 
-            GetAnimatorFolders();
+            GetAssetFolders();
 
-            _behaviour = (NUSaveState)target;
+            propertyEventReciever = serializedObject.FindProperty(nameof(NUSaveState.HookEventReciever));
+            propertyFallbackAvatar = serializedObject.FindProperty(nameof(NUSaveState.FallbackAvatarID));
 
+            _behaviourProxy = (NUSaveState)target;
             GetSaveStateData();
+
+            #region Reorderable Lists
+
+            instructionList = new UnityEditorInternal.ReorderableList(serializedObject, serializedObject.FindProperty(nameof(NUSaveState.BufferUdonBehaviours)), true, true, true, true);
+            instructionList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
+            {
+                if (!instructionList.serializedProperty.isExpanded) return;
+
+                Rect udonFieldRect = new Rect(rect.x, rect.y + 1.5f, (rect.width - 2) / 2, EditorGUIUtility.singleLineHeight);
+                Rect variableFieldRect = new Rect(rect.x + udonFieldRect.width + 4, rect.y + 1.5f, (rect.width - 2) / 2, EditorGUIUtility.singleLineHeight);
+
+                EditorGUI.BeginChangeCheck();
+                dataInstructions[index].Udon = (UdonBehaviour)EditorGUI.ObjectField(udonFieldRect, dataInstructions[index].Udon, typeof(UdonBehaviour), true);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    GetValidVariables(dataInstructions[index].Udon, out List<string> vars, out List<Type> types);
+
+                    string[] newValidNames = vars.ToArray();
+                    Type[] newValidTypes = types.ToArray();
+
+                    int newVariableIndex = dataInstructions[index].VariableIndex < 0 ? -1 : Array.IndexOf(newValidNames, dataInstructions[index].VariableNames[dataInstructions[index].VariableIndex]);
+                    if (newVariableIndex < 0)
+                        dataInstructions[index].VariableIndex = -1;
+                    else
+                        dataInstructions[index].VariableIndex = newValidTypes[newVariableIndex] == dataInstructions[index].VariableTypes[dataInstructions[index].VariableIndex] ? newVariableIndex : -1;
+
+                    dataInstructions[index].VariableNames = newValidNames;
+                    dataInstructions[index].VariableTypes = newValidTypes;
+                    dataInstructions[index].PrepareLabels();
+
+                    dataBitCount = CalculateBitCount(dataInstructions);
+
+                    int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
+                    if (avatarCount > _behaviourProxy.DataAvatarIDs.Length)
+                    {
+                        Array.Resize(ref _behaviourProxy.DataAvatarIDs, avatarCount);
+                    }
+
+                    SetSaveStateData(index);
+                }
+
+                EditorGUI.BeginChangeCheck();
+                dataInstructions[index].VariableIndex = EditorGUI.Popup(variableFieldRect, dataInstructions[index].VariableIndex, dataInstructions[index].VariableLabels);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    dataBitCount = CalculateBitCount(dataInstructions);
+
+                    int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
+                    if (avatarCount > _behaviourProxy.DataAvatarIDs.Length)
+                    {
+                        Array.Resize(ref _behaviourProxy.DataAvatarIDs, avatarCount);
+                    }
+
+                    SetSaveStateData(index);
+                }
+            };
+            instructionList.drawHeaderCallback = (Rect rect) =>
+            {
+                instructionList.serializedProperty.isExpanded = EditorGUI.Foldout(new Rect(rect.x + 12, rect.y, 16, EditorGUIUtility.singleLineHeight), instructionList.serializedProperty.isExpanded, "");
+                EditorGUI.LabelField(new Rect(rect.x + 16, rect.y, (rect.width - 16) / 2, EditorGUIUtility.singleLineHeight), contentInstructionList);
+                EditorGUI.LabelField(new Rect(rect.x + 16 + (rect.width - 16) / 2, rect.y, (rect.width - 16) / 2, EditorGUIUtility.singleLineHeight), $"Bits: {dataBitCount} / {Mathf.CeilToInt(dataBitCount / 128f) * 128} Bytes: {Mathf.Ceil(dataBitCount / 8f)} / {Mathf.CeilToInt(dataBitCount / 128f) * 16}");
+            };
+            instructionList.elementHeightCallback = (int index) =>
+            {
+                return instructionList.serializedProperty.isExpanded ? instructionList.elementHeight : 0;
+            };
+            instructionList.onSelectCallback = (UnityEditorInternal.ReorderableList list) =>
+            {
+                selectedInstructionIndex = list.index;
+            };
+            instructionList.onReorderCallback = (UnityEditorInternal.ReorderableList list) =>
+            {
+                DataInstruction selectedInstruction = dataInstructions[selectedInstructionIndex];
+                if (list.index < selectedInstructionIndex)
+                    Array.Copy(dataInstructions, list.index, dataInstructions, list.index + 1, selectedInstructionIndex - list.index);
+                else
+                    Array.Copy(dataInstructions, selectedInstructionIndex + 1, dataInstructions, selectedInstructionIndex, list.index - selectedInstructionIndex);
+                dataInstructions[list.index] = selectedInstruction;
+
+                SetSaveStateData();
+            };
+            instructionList.onAddCallback = (UnityEditorInternal.ReorderableList list) =>
+            {
+                ArrayUtility.Add(ref dataInstructions, new DataInstruction());
+
+                SetSaveStateData();
+            };
+            instructionList.onRemoveCallback = (UnityEditorInternal.ReorderableList list) =>
+            {
+                dataBitCount -= dataInstructions[list.index].VariableBits;
+                ArrayUtility.RemoveAt(ref dataInstructions, list.index);
+
+                int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
+                if (avatarCount > _behaviourProxy.DataAvatarIDs.Length)
+                {
+                    Array.Resize(ref _behaviourProxy.DataAvatarIDs, avatarCount);
+                }
+
+                SetSaveStateData();
+            };
+
+            instructionList.footerHeight = instructionList.serializedProperty.isExpanded ? 20 : 0;
+
+            avatarList = new UnityEditorInternal.ReorderableList(serializedObject, serializedObject.FindProperty(nameof(NUSaveState.DataAvatarIDs)), true, true, false, true);
+            avatarList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
+            {
+                if (!avatarList.serializedProperty.isExpanded) return;
+
+                Rect avatarFieldRect = new Rect(rect) { y = rect.y + 1.5f, height = EditorGUIUtility.singleLineHeight };
+
+                EditorGUI.BeginDisabledGroup(index >= Mathf.CeilToInt(dataBitCount / 128f));
+                _behaviourProxy.DataAvatarIDs[index] = EditorGUI.TextField(avatarFieldRect, _behaviourProxy.DataAvatarIDs[index]);
+                EditorGUI.EndDisabledGroup();
+            };
+            avatarList.drawHeaderCallback = (Rect rect) =>
+            {
+                avatarList.serializedProperty.isExpanded = EditorGUI.Foldout(new Rect(rect.x + 12, rect.y, 16, EditorGUIUtility.singleLineHeight), avatarList.serializedProperty.isExpanded, "");
+                EditorGUI.LabelField(new Rect(rect.x + 16, rect.y, (rect.width - 16) / 2, EditorGUIUtility.singleLineHeight), contentAvatarList);
+                EditorGUI.LabelField(new Rect(rect.x + 16 + (rect.width - 16) / 2, rect.y, (rect.width - 16) / 2, EditorGUIUtility.singleLineHeight), $"Avatars: {Mathf.CeilToInt(dataBitCount / 128f)} / {_behaviourProxy.DataAvatarIDs.Length}");
+            };
+            avatarList.elementHeightCallback = (int index) =>
+            {
+                return avatarList.serializedProperty.isExpanded ? avatarList.elementHeight : 0;
+            };
+            avatarList.onRemoveCallback = (UnityEditorInternal.ReorderableList list) =>
+            {
+                if (_behaviourProxy.DataAvatarIDs.Length <= Mathf.CeilToInt(dataBitCount / 128f)) return;
+
+                ArrayUtility.RemoveAt(ref _behaviourProxy.DataAvatarIDs, list.index);
+            };
+
+            avatarList.footerHeight = avatarList.serializedProperty.isExpanded ? 20 : 0;
+
+            #endregion;
         }
 
         public override void OnInspectorGUI()
         {
+            if (styleBox == null) InitializeStyles();
+
+            _behaviourProxy = (NUSaveState)target;
+
             // Draws the default convert to UdonBehaviour button, program asset field, sync settings, etc.
             if (UdonSharpGUI.DrawDefaultUdonSharpBehaviourHeader(target) || target == null) return;
 
-            if (!UdonSharpEditorUtility.IsProxyBehaviour(_behaviour)) return;
-
-            if (styleHelpBox == null)
-                OnEnable();
-
-            // Initialize GUI styles.
-            styleBox = new GUIStyle(GUI.skin.box);
-            styleBox.padding = new RectOffset(GUI.skin.box.padding.left * 2, GUI.skin.box.padding.right * 2, GUI.skin.box.padding.top * 2, GUI.skin.box.padding.bottom * 2);
-            styleBox.margin = new RectOffset(0, 0, 4, 4);
-
-            styleRichTextLabel = new GUIStyle(GUI.skin.label);
-            styleRichTextLabel.richText = true;
-
-            styleRichTextButton = new GUIStyle(GUI.skin.button);
-            styleRichTextButton.richText = true;
+            if (!UdonSharpEditorUtility.IsProxyBehaviour(_behaviourProxy)) return;
 
             DrawBanner();
 
@@ -237,13 +391,13 @@ namespace UdonSharp.Nessie.SaveState.Internal
             string asteriskName;
             if (EditorGUIUtility.isProSkin)
             {
-                asteriskFolder = animatorFolderSelected == null ? "<color=#FC6D3F>*</color>" : "";
+                asteriskFolder = assetFolderSelected == null ? "<color=#FC6D3F>*</color>" : "";
                 asteriskSeed = saveStateSeed.Length < 1 ? "<color=#B0FC58>*</color>" : "";
                 asteriskName = saveStateParameterName.Length < 1 ? "<color=#7ED5FC>*</color>" : "";
             }
             else
             {
-                asteriskFolder = animatorFolderSelected == null ? "<color=#AF0C0C>*</color>" : "";
+                asteriskFolder = assetFolderSelected == null ? "<color=#AF0C0C>*</color>" : "";
                 asteriskSeed = saveStateSeed.Length < 1 ? "<color=#2D7C31>*</color>" : "";
                 asteriskName = saveStateParameterName.Length < 1 ? "<color=#0C6BC9>*</color>" : "";
             }
@@ -256,24 +410,24 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
             GUILayout.BeginHorizontal();
 
-            GUILayout.Label(new GUIContent(contentAnimatorFolder.text + asteriskFolder, contentAnimatorFolder.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
+            GUILayout.Label(new GUIContent(contentAssetFolder.text + asteriskFolder, contentAssetFolder.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
 
             EditorGUI.BeginChangeCheck();
-            DefaultAsset newFolder = (DefaultAsset)EditorGUILayout.ObjectField(animatorFolderSelected, typeof(DefaultAsset), true);
+            DefaultAsset newFolder = (DefaultAsset)EditorGUILayout.ObjectField(assetFolderSelected, typeof(DefaultAsset), true);
             if (EditorGUI.EndChangeCheck())
             {
                 if (newFolder == null || System.IO.Directory.Exists(AssetDatabase.GetAssetPath(newFolder))) // Simple fix to prevent non-folders from being selected.
                 {
-                    animatorFolderSelected = newFolder;
-                    animatorFolderIndex = ArrayUtility.IndexOf(animatorFolders, animatorFolderSelected);
+                    assetFolderSelected = newFolder;
+                    assetFolderIndex = ArrayUtility.IndexOf(assetFolders, assetFolderSelected);
                 }
             }
 
             EditorGUI.BeginChangeCheck();
-            animatorFolderIndex = EditorGUILayout.Popup(animatorFolderIndex, animatorFolderNames);
+            assetFolderIndex = EditorGUILayout.Popup(assetFolderIndex, assetFolderNames);
             if (EditorGUI.EndChangeCheck())
             {
-                animatorFolderSelected = animatorFolders[animatorFolderIndex];
+                assetFolderSelected = assetFolders[assetFolderIndex];
             }
 
             GUILayout.EndHorizontal();
@@ -286,7 +440,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
             saveStateSeed = EditorGUILayout.TextField(saveStateSeed);
             if (EditorGUI.EndChangeCheck())
             {
-                saveStateSeedHash = GetStableHashCode(saveStateSeed);
+                saveStateHash = GetStableHashCode(saveStateSeed);
             }
 
             GUILayout.EndHorizontal();
@@ -306,21 +460,82 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
             EditorGUILayout.Space();
 
-            EditorGUI.BeginDisabledGroup(animatorFolderSelected == null);
+            EditorGUI.BeginDisabledGroup(assetFolderSelected == null);
             EditorGUI.BeginDisabledGroup(saveStateParameterName.Length < 1);
-            if (GUILayout.Button(new GUIContent(contentWorldAnimators.text + asteriskFolder + asteriskName, contentWorldAnimators.tooltip), styleRichTextButton))
+            if (GUILayout.Button(new GUIContent(contentWorldAssets.text + asteriskFolder + asteriskName, contentWorldAssets.tooltip), styleRichTextButton))
             {
-                if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to generate and replace world assets in {animatorFolderSelected.name}?", "Yes", "No"))
-                    PrepareWorldAnimators();
+                if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to generate and replace world assets in {assetFolderSelected.name}?", "Yes", "No"))
+                {
+                    System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+                    timer.Start();
+
+                    try
+                    {
+                        AssetDatabase.StartAssetEditing();
+
+                        PrepareWorldAnimators();
+
+                        Debug.Log($"[<color=#00FF9F>NUSaveState</color>] World asset creation took: {timer.Elapsed:mm\\:ss\\.fff}");
+                    }
+                    finally
+                    {
+                        timer.Stop();
+
+                        AssetDatabase.StopAssetEditing();
+
+                        AssetDatabase.SaveAssets();
+                    }
+                }
             }
 
             EditorGUI.BeginDisabledGroup(saveStateSeed.Length < 1);
-            if (GUILayout.Button(new GUIContent(contentAvatarAnimators.text + asteriskFolder + asteriskSeed + asteriskName, contentAvatarAnimators.tooltip), styleRichTextButton))
+            if (GUILayout.Button(new GUIContent(contentAvatarAssets.text + asteriskFolder + asteriskSeed + asteriskName, contentAvatarAssets.tooltip), styleRichTextButton))
             {
-                if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to generate and replace avatar assets in {animatorFolderSelected.name}?", "Yes", "No"))
+                if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to generate and replace avatar assets in {assetFolderSelected.name}?", "Yes", "No"))
                 {
-                    PrepareAvatarAnimators();
-                    GenerateAvatarMenu();
+                    string pathTemplatePrefab = $"{pathSaveState}/Avatar/Template/SaveState-Avatar-Template";
+                    if (System.IO.File.Exists(pathTemplatePrefab))
+                    {
+                        Debug.LogError($"[<color=#00FF9F>NUSaveState</color>] Could not find SaveState-Avatar-Template at {pathTemplatePrefab}");
+
+                        return;
+                    }
+
+                    System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+                    timer.Start();
+
+                    try
+                    {
+                        AssetDatabase.StartAssetEditing();
+
+                        // Prepare the assets.
+                        List<string> assetPaths = new List<string>();
+                        assetPaths.AddRange(PrepareAvatarAnimators(out AnimatorController[] controllers, out AnimationClip[][]  clips));
+                        assetPaths.AddRange(PrepareAvatarMenus(out VRCExpressionsMenu menu, out VRCExpressionParameters parameters));
+                        assetPaths.AddRange(PrepareAvatarPrefabs(menu, parameters, controllers));
+
+                        // Filter out dependencies outside of the NUSaveState folder.
+                        List<string> packageAssetPaths = new List<string>();
+                        foreach (string assetPath in assetPaths)
+                            foreach (string pathDependency in AssetDatabase.GetDependencies(assetPath, true))
+                                if (pathDependency.StartsWith(pathSaveState))
+                                    packageAssetPaths.Add(pathDependency);
+
+                        // Create UnityPackage.
+                        string pathUnityPackage = $"{AssetDatabase.GetAssetPath(assetFolderSelected)}/SaveState-Avatar_{saveStateParameterName}.unitypackage";
+                        AssetDatabase.ExportPackage(packageAssetPaths.ToArray(), pathUnityPackage, ExportPackageOptions.Default);
+                        AssetDatabase.ImportAsset(pathUnityPackage);
+
+                        Debug.Log($"[<color=#00FF9F>NUSaveState</color>] Avatar asset creation took: {timer.Elapsed:mm\\:ss\\.fff}");
+                    }
+                    finally
+                    {
+                        timer.Stop();
+
+                        AssetDatabase.StopAssetEditing();
+
+                        AssetDatabase.SaveAssets();
+                    }
                 }
             }
             EditorGUI.EndDisabledGroup();
@@ -328,7 +543,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
             if (GUILayout.Button(new GUIContent(contentApplyAnimators.text + asteriskFolder, contentApplyAnimators.tooltip), styleRichTextButton))
             {
-                if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to apply the animator controllers from {animatorFolderSelected.name}?", "Yes", "No"))
+                if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to apply the animator controllers from {assetFolderSelected.name}?", "Yes", "No"))
                     SetSaveStateAnimators();
             }
             EditorGUI.EndDisabledGroup();
@@ -341,12 +556,6 @@ namespace UdonSharp.Nessie.SaveState.Internal
             }
             EditorGUI.EndDisabledGroup();
 
-            if (GUILayout.Button(contentApplyData))
-            {
-                if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to apply the changes?", "Yes", "No"))
-                    SetSaveStateData();
-            }
-
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.EndVertical();
@@ -358,210 +567,36 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
             GUILayout.BeginVertical(styleHelpBox);
 
-            GUILayout.BeginHorizontal();
-
             EditorGUILayout.LabelField("Save State Data", EditorStyles.boldLabel);
-
-            if (GUILayout.Button(contentRefresh, GUILayout.ExpandWidth(false), GUILayout.Height(EditorGUIUtility.singleLineHeight)))
-            {
-                GetSaveStateData();
-            }
-
-            GUILayout.EndHorizontal();
 
             GUILayout.BeginVertical(styleBox);
 
             EditorGUI.BeginChangeCheck();
-            dataEventReciever = (UdonBehaviour)EditorGUILayout.ObjectField(contentEventReciever, dataEventReciever, typeof(UdonBehaviour), true);
+            EditorGUILayout.PropertyField(propertyEventReciever, contentEventReciever);
+            EditorGUILayout.PropertyField(propertyFallbackAvatar, contentFallbackAvatar);
             if (EditorGUI.EndChangeCheck())
-            {
-
-            }
-
-            EditorGUI.BeginChangeCheck();
-            dataFallbackAvatarID = EditorGUILayout.TextField(contentFallbackAvatar, dataFallbackAvatarID);
-            if (EditorGUI.EndChangeCheck())
-            {
-                
-            }
-
-            EditorGUI.BeginChangeCheck();
-            dataVariableCount = EditorGUILayout.IntField(contentVariableCount, dataVariableCount);
-            if (EditorGUI.EndChangeCheck())
-            {
-                dataVariableCount = Mathf.Max(dataVariableCount, 0);
-
-                UdonBehaviour[] newUdonBehaviours = new UdonBehaviour[dataVariableCount];
-                string[] newVariableNames = new string[dataVariableCount];
-                Type[] newVariableTypes = new Type[dataVariableCount];
-                int[] newVariableIndecies = new int[dataVariableCount];
-
-                string[][] validVarNames = new string[dataVariableCount][];
-                string[][] validVarNamesAndBits = new string[dataVariableCount][];
-                Type[][] validVarTypes = new Type[dataVariableCount][];
-
-                Array.Copy(dataUdonBehaviours, 0, newUdonBehaviours, 0, Math.Min(dataUdonBehaviours.Length, dataVariableCount));
-                Array.Copy(dataVariableNames, 0, newVariableNames, 0, Math.Min(dataVariableNames.Length, dataVariableCount));
-                Array.Copy(dataVariableTypes, 0, newVariableTypes, 0, Math.Min(dataVariableTypes.Length, dataVariableCount));
-                Array.Copy(dataVariableIndecies, 0, newVariableIndecies, 0, Math.Min(dataVariableIndecies.Length, dataVariableCount));
-
-                Array.Copy(validVariableNames, 0, validVarNames, 0, Math.Min(validVariableNames.Length, dataVariableCount));
-                Array.Copy(validVariableAndBits, 0, validVarNamesAndBits, 0, Math.Min(validVariableAndBits.Length, dataVariableCount));
-                Array.Copy(validVariableTypes, 0, validVarTypes, 0, Math.Min(validVariableTypes.Length, dataVariableCount));
-
-                if (dataVariableCount > validVariableNames.Length)
-                    for (int i = validVariableNames.Length; i < dataVariableCount; i++)
-                    {
-                        validVarNames[i] = new string[0];
-                        validVarNamesAndBits[i] = new string[0];
-                        validVarTypes[i] = new Type[0];
-                        newVariableIndecies[i] = -1;
-                    }
-
-                dataUdonBehaviours = newUdonBehaviours;
-                dataVariableNames = newVariableNames;
-                dataVariableTypes = newVariableTypes;
-                dataVariableIndecies = newVariableIndecies;
-
-                validVariableNames = validVarNames;
-                validVariableAndBits = validVarNamesAndBits;
-                validVariableTypes = validVarTypes;
-
-                dataBitCount = CalculateBitCount(dataVariableTypes);
-                if (dataBitCount != dataAvatarIDs.Length)
-                {
-                    string[] newDataAvatarIDs = new string[Mathf.CeilToInt(dataBitCount / 128f)];
-                    Array.Copy(dataAvatarIDs, 0, newDataAvatarIDs, 0, Math.Min(newDataAvatarIDs.Length, dataAvatarIDs.Length));
-                    dataAvatarIDs = newDataAvatarIDs;
-                }
-            }
+                serializedObject.ApplyModifiedProperties();
 
             EditorGUILayout.Space();
 
-            GUILayout.BeginVertical(styleHelpBox);
-
-            GUIStyle labelStyle = new GUIStyle(styleBox);
-            labelStyle.margin = new RectOffset(0, 0, 0, 0);
-            labelStyle.padding = new RectOffset(0, 1, 0, 0);
-
-            GUILayout.BeginHorizontal();
-
-            EditorGUI.indentLevel++;
-
-            foldoutUdonInstructions = EditorGUILayout.Foldout(foldoutUdonInstructions, $"Bits: {dataBitCount}/{Mathf.CeilToInt(dataBitCount / 128f) * 128}  Bytes: {Mathf.Ceil(dataBitCount / 8f)} / {Mathf.CeilToInt(dataBitCount / 128f) * 16}");
-
-            EditorGUI.indentLevel--;
-
-            GUILayout.EndHorizontal();
-
-            GUILayout.BeginVertical(labelStyle);
-
-            dataVariablesScrollPos = GUILayout.BeginScrollView(dataVariablesScrollPos, false, true, GUILayout.MaxHeight(foldoutUdonInstructions ? 202 : 62));
-            for (int i = 0; i < dataVariableCount; i++)
+            if (instructionList.serializedProperty.isExpanded != instructionList.draggable)
             {
-                GUILayout.BeginHorizontal();
-
-                EditorGUI.BeginChangeCheck();
-                dataUdonBehaviours[i] = (UdonBehaviour)EditorGUILayout.ObjectField(dataUdonBehaviours[i], typeof(UdonBehaviour), true);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    GetValidVariables(dataUdonBehaviours[i], out List<string> vars, out List<Type> types);
-
-                    string[] newValidVars = vars.ToArray();
-                    Type[] newValidTypes = types.ToArray();
-
-                    dataVariableIndecies[i] = dataVariableIndecies[i] < 0 ? -1 : Array.IndexOf(newValidVars, validVariableNames[i][dataVariableIndecies[i]]);
-                    validVariableNames[i] = newValidVars;
-                    validVariableTypes[i] = newValidTypes;
-
-                    string[] newValidVarsAndBits = new string[newValidVars.Length];
-                    for (int j = 0; j < newValidVars.Length; j++)
-                    {
-                        int typeIndex = Array.IndexOf(convertableTypes, validVariableTypes[i][j]);
-                        string bitSuffix = typeIndex < 0 ? "invalid type" : $"{convertableBitCount[typeIndex]}";
-                        newValidVarsAndBits[j] = $"{validVariableNames[i][j]} ({bitSuffix})";
-                    }
-                    validVariableAndBits[i] = newValidVarsAndBits;
-
-                    if (dataVariableIndecies[i] < 0)
-                    {
-                        dataVariableNames[i] = null;
-                        dataVariableTypes[i] = null;
-                    }
-                    else
-                    {
-                        dataVariableNames[i] = validVariableNames[i][dataVariableIndecies[i]];
-                        dataVariableTypes[i] = validVariableTypes[i][dataVariableIndecies[i]];
-                    }
-
-                    dataBitCount = CalculateBitCount(dataVariableTypes);
-                    if (dataBitCount != dataAvatarIDs.Length)
-                    {
-                        string[] newDataAvatarIDs = new string[Mathf.CeilToInt(dataBitCount / 128f)];
-                        Array.Copy(dataAvatarIDs, 0, newDataAvatarIDs, 0, Math.Min(newDataAvatarIDs.Length, dataAvatarIDs.Length));
-                        dataAvatarIDs = newDataAvatarIDs;
-                    }
-                }
-
-                EditorGUI.BeginChangeCheck();
-                dataVariableIndecies[i] = EditorGUILayout.Popup(dataVariableIndecies[i], validVariableAndBits[i]);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    dataVariableNames[i] = validVariableNames[i][dataVariableIndecies[i]];
-                    dataVariableTypes[i] = validVariableTypes[i][dataVariableIndecies[i]];
-
-                    dataBitCount = CalculateBitCount(dataVariableTypes);
-                    if (dataBitCount != dataAvatarIDs.Length)
-                    {
-                        string[] newDataAvatarIDs = new string[Mathf.CeilToInt(dataBitCount / 128f)];
-                        Array.Copy(dataAvatarIDs, 0, newDataAvatarIDs, 0, Math.Min(newDataAvatarIDs.Length, dataAvatarIDs.Length));
-                        dataAvatarIDs = newDataAvatarIDs;
-                    }
-                }
-
-                GUILayout.EndHorizontal();
+                instructionList.draggable = instructionList.serializedProperty.isExpanded;
+                instructionList.footerHeight = instructionList.serializedProperty.isExpanded ? 20 : 0;
+                instructionList.displayAdd = instructionList.serializedProperty.isExpanded;
+                instructionList.displayRemove = instructionList.serializedProperty.isExpanded;
             }
-            EditorGUILayout.EndScrollView();
-
-            GUILayout.EndVertical();
-
-            GUILayout.EndVertical();
+            instructionList.DoLayoutList();
 
             EditorGUILayout.Space();
 
-            GUILayout.BeginVertical(styleHelpBox);
-
-            GUILayout.BeginHorizontal();
-
-            EditorGUI.indentLevel++;
-
-            foldoutDataAvatars = EditorGUILayout.Foldout(foldoutDataAvatars, $"Avatars: {Mathf.CeilToInt(dataBitCount / 128f)}");
-
-            EditorGUI.indentLevel--;
-
-            GUILayout.EndHorizontal();
-
-            GUILayout.BeginVertical(labelStyle);
-
-            dataAvatarScrollPos = GUILayout.BeginScrollView(dataAvatarScrollPos, false, true, GUILayout.MaxHeight(foldoutDataAvatars ? 202 : 62));
-            for (int i = 0; i < dataAvatarIDs.Length; i++)
+            if (avatarList.serializedProperty.isExpanded != avatarList.draggable)
             {
-                GUILayout.BeginHorizontal();
-
-                EditorGUI.BeginChangeCheck();
-                dataAvatarIDs[i] = EditorGUILayout.TextField(dataAvatarIDs[i]);
-                if (EditorGUI.EndChangeCheck())
-                {
-
-                }
-
-                GUILayout.EndHorizontal();
+                avatarList.draggable = avatarList.serializedProperty.isExpanded;
+                avatarList.footerHeight = avatarList.serializedProperty.isExpanded ? 20 : 0;
+                avatarList.displayRemove = avatarList.serializedProperty.isExpanded;
             }
-            EditorGUILayout.EndScrollView();
-
-            GUILayout.EndVertical();
-
-            GUILayout.EndVertical();
+            avatarList.DoLayoutList();
 
             GUILayout.EndVertical();
 
@@ -574,83 +609,116 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
         private void GetSaveStateData()
         {
-            UdonBehaviour[] newUdonBehaviours = _behaviour.BufferUdonBehaviours == null ? new UdonBehaviour[0] : new UdonBehaviour[_behaviour.BufferUdonBehaviours.Length];
-            string[] newVariableNames = _behaviour.BufferVariables == null ? new string[0] : new string[_behaviour.BufferUdonBehaviours.Length];
-            Type[] newVariableTypes = _behaviour.BufferTypes == null ? new Type[0] : new Type[_behaviour.BufferUdonBehaviours.Length];
-            int[] newVariableIndecies = _behaviour.BufferVariables == null ? new int[0] : new int[_behaviour.BufferUdonBehaviours.Length];
+            if (_behaviourProxy.DataAvatarIDs == null)
+                _behaviourProxy.DataAvatarIDs = new string[0];
 
-            if (newUdonBehaviours.Length > 0)
-                _behaviour.BufferUdonBehaviours.CopyTo(newUdonBehaviours, 0);
+            int udonSize = _behaviourProxy.BufferUdonBehaviours == null ? -1 : _behaviourProxy.BufferUdonBehaviours.Length;
+            int nameSize = _behaviourProxy.BufferVariables == null ? -1 : _behaviourProxy.BufferVariables.Length;
+            int typeSize = _behaviourProxy.BufferTypes == null ? -1 : _behaviourProxy.BufferTypes.Length;
+            int instructionSize = Math.Max(Math.Max(udonSize, nameSize), Math.Max(typeSize, 0));
 
-            if (newVariableNames.Length > 0)
-                _behaviour.BufferVariables.CopyTo(newVariableNames, 0);
-
-            if (newVariableTypes.Length > 0)
-                _behaviour.BufferTypes.CopyTo(newVariableTypes, 0);
-
-            string[][] validVars = new string[newUdonBehaviours.Length][];
-            string[][] validVarsAndBits = new string[newUdonBehaviours.Length][];
-            Type[][] validTypes = new Type[newUdonBehaviours.Length][];
-            for (int i = 0; i < newUdonBehaviours.Length; i++)
+            // Initialize arrays if mismatched.
+            if (udonSize < instructionSize)
             {
-                GetValidVariables(newUdonBehaviours[i], out List<string> vars, out List<Type> types);
-                validVars[i] = vars.ToArray();
-                validTypes[i] = types.ToArray();
-                newVariableIndecies[i] = Array.IndexOf(validVars[i], newVariableNames[i]);
+                Component[] newArr = new Component[instructionSize];
+                if (udonSize > 0)
+                    _behaviourProxy.BufferUdonBehaviours.CopyTo(newArr, 0);
 
-                validVarsAndBits[i] = new string[validVars[i].Length];
-                for (int j = 0; j < validVars[i].Length; j++)
-                {
-                    int typeIndex = Array.IndexOf(convertableTypes, validTypes[i][j]);
-                    string bitSuffix = typeIndex < 0 ? "invalid type" : $"{convertableBitCount[typeIndex]}";
-                    validVarsAndBits[i][j] = $"{validVars[i][j]} ({bitSuffix})";
-                }
+                _behaviourProxy.BufferUdonBehaviours = newArr;
+            }
+            if (nameSize < instructionSize)
+            {
+                string[] newArr = new string[instructionSize];
+                if (udonSize > 0)
+                    _behaviourProxy.BufferVariables.CopyTo(newArr, 0);
+
+                _behaviourProxy.BufferVariables = newArr;
+            }
+            if (typeSize < instructionSize)
+            {
+                Type[] newArr = new Type[instructionSize];
+                if (udonSize > 0)
+                    _behaviourProxy.BufferTypes.CopyTo(newArr, 0);
+
+                _behaviourProxy.BufferTypes = newArr;
             }
 
-            string[] newDataAvatarIDs = _behaviour.DataAvatarIDs == null ? new string[0] : new string[_behaviour.DataAvatarIDs.Length];
-            if (newDataAvatarIDs.Length > 0)
-                _behaviour.DataAvatarIDs.CopyTo(newDataAvatarIDs, 0);
+            DataInstruction[] newDataInstructions = new DataInstruction[instructionSize];
 
-            dataUdonBehaviours = newUdonBehaviours;
-            dataVariableNames = newVariableNames;
-            dataVariableTypes = newVariableTypes;
-            dataVariableIndecies = newVariableIndecies;
+            UdonBehaviour[] oldUdonBehaviours = new UdonBehaviour[instructionSize];
+            string[] oldVariableNames = new string[instructionSize];
+            Type[] oldVariableTypes = new Type[instructionSize];
 
-            dataEventReciever = _behaviour.HookEventReciever;
-            dataFallbackAvatarID = _behaviour.FallbackAvatarID;
-            dataVariableCount = newUdonBehaviours.Length;
-            dataBitCount = CalculateBitCount(newVariableTypes);
-            dataAvatarIDs = newDataAvatarIDs;
+            if (udonSize > 0)
+                _behaviourProxy.BufferUdonBehaviours.CopyTo(oldUdonBehaviours, 0);
+            if (nameSize > 0)
+                _behaviourProxy.BufferVariables.CopyTo(oldVariableNames, 0);
+            if (typeSize > 0)
+                _behaviourProxy.BufferTypes.CopyTo(oldVariableTypes, 0);
 
-            validVariableNames = validVars;
-            validVariableAndBits = validVarsAndBits;
-            validVariableTypes = validTypes;
+            for (int i = 0; i < instructionSize; i++)
+            {
+                GetValidVariables(oldUdonBehaviours[i], out List<string> vars, out List<Type> types);
+
+                newDataInstructions[i] = new DataInstruction();
+
+                newDataInstructions[i].Udon = oldUdonBehaviours[i];
+
+                newDataInstructions[i].VariableNames = vars.ToArray();
+                newDataInstructions[i].VariableTypes = types.ToArray();
+                newDataInstructions[i].PrepareLabels();
+
+                int newVariableIndex = Array.IndexOf(newDataInstructions[i].VariableNames, oldVariableNames[i]);
+                if (newVariableIndex >= 0)
+                    newDataInstructions[i].VariableIndex = newDataInstructions[i].VariableTypes[newVariableIndex] == oldVariableTypes[i] ? newVariableIndex : -1;
+            }
+
+            dataInstructions = newDataInstructions;
+
+            dataBitCount = CalculateBitCount(dataInstructions);
         }
 
         private void SetSaveStateData()
         {
-            string[] newVarNames = new string[dataVariableNames.Length];
-            for (int i = 0; i < newVarNames.Length; i++)
-                newVarNames[i] = dataVariableIndecies[i] < 0 ? null : validVariableNames[i][dataVariableIndecies[i]];
+            Undo.RecordObject(_behaviourProxy, "Apply SaveState data");
 
-            Undo.RecordObject(_behaviour, "Apply SaveState data");
+            _behaviourProxy.MaxByteCount = Mathf.CeilToInt(CalculateBitCount(dataInstructions) / 8);
 
-            _behaviour.HookEventReciever = dataEventReciever;
-            _behaviour.FallbackAvatarID = dataFallbackAvatarID;
-            _behaviour.MaxByteCount = Mathf.CeilToInt(CalculateBitCount(dataVariableTypes) / 8);
-            _behaviour.DataAvatarIDs = dataAvatarIDs;
+            Component[] newUdonBehaviours = new Component[dataInstructions.Length];
+            string[] newVariableNames = new string[dataInstructions.Length];
+            Type[] newVariableTypes = new Type[dataInstructions.Length];
 
-            _behaviour.BufferUdonBehaviours = dataUdonBehaviours;
-            _behaviour.BufferVariables = newVarNames;
-            _behaviour.BufferTypes = dataVariableTypes;
+            for (int i = 0; i < dataInstructions.Length; i++)
+            {
+                int variableIndex = dataInstructions[i].VariableIndex;
+                newUdonBehaviours[i] = dataInstructions[i].Udon;
+                newVariableNames[i] = variableIndex < 0 ? "" : dataInstructions[i].VariableNames[dataInstructions[i].VariableIndex];
+                newVariableTypes[i] = variableIndex < 0 ? null : dataInstructions[i].VariableTypes[dataInstructions[i].VariableIndex];
+            }
+
+            _behaviourProxy.BufferUdonBehaviours = newUdonBehaviours;
+            _behaviourProxy.BufferVariables = newVariableNames;
+            _behaviourProxy.BufferTypes = newVariableTypes;
+        }
+        private void SetSaveStateData(int index)
+        {
+            Undo.RecordObject(_behaviourProxy, "Apply SaveState data");
+
+            _behaviourProxy.MaxByteCount = Mathf.CeilToInt(CalculateBitCount(dataInstructions) / 8);
+
+            int variableIndex = dataInstructions[index].VariableIndex;
+
+            _behaviourProxy.BufferUdonBehaviours[index] = dataInstructions[index].Udon;
+            _behaviourProxy.BufferVariables[index] = variableIndex < 0 ? "" : dataInstructions[index].VariableNames[dataInstructions[index].VariableIndex];
+            _behaviourProxy.BufferTypes[index] = variableIndex < 0 ? null : dataInstructions[index].VariableTypes[dataInstructions[index].VariableIndex];
         }
 
-        private int CalculateBitCount(Type[] types)
+        private int CalculateBitCount(DataInstruction[] instructions)
         {
             int bits = 0;
 
-            foreach (Type type in types)
-                bits += Array.IndexOf(convertableTypes, type) < 0 ? 0 : convertableBitCount[Array.IndexOf(convertableTypes, type)];
+            foreach (DataInstruction instruction in instructions)
+                bits += instruction.VariableBits;
 
             return bits;
         }
@@ -682,8 +750,8 @@ namespace UdonSharp.Nessie.SaveState.Internal
             int minBitCount = Math.Min(dataBitCount, 128);
             int minByteCount = Math.Min(byteCount, 16);
 
-            string[] writerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Writer", new string[] { AssetDatabase.GetAssetPath(animatorFolderSelected) });
-            string[] clearerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Clearer", new string[] { AssetDatabase.GetAssetPath(animatorFolderSelected) });
+            string[] writerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Writer", new string[] { AssetDatabase.GetAssetPath(assetFolderSelected) });
+            string[] clearerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Clearer", new string[] { AssetDatabase.GetAssetPath(assetFolderSelected) });
             if (writerControllerGUIDs.Length < minBitCount || clearerControllerGUIDs.Length < minByteCount)
             {
                 Debug.LogWarning("[<color=#00FF9F>SaveState</color>] Couldn't find enough Animator Controllers.");
@@ -703,9 +771,9 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 clearingControllers[controllerIndex] = (AnimatorController)AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(clearerControllerGUIDs[controllerIndex]));
             }
 
-            Undo.RecordObject(_behaviour, "Apply animator controllers");
-            _behaviour.ByteWriters = writingControllers;
-            _behaviour.ByteClearers = clearingControllers;
+            Undo.RecordObject(_behaviourProxy, "Apply animator controllers");
+            _behaviourProxy.ByteWriters = writingControllers;
+            _behaviourProxy.ByteClearers = clearingControllers;
         }
 
         private void ApplyEncryptionKeys()
@@ -714,7 +782,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
             Vector3[] keyCoordinates = new Vector3[avatarCount];
 
-            UnityEngine.Random.InitState(saveStateSeedHash);
+            UnityEngine.Random.InitState(saveStateHash);
             for (int i = 0; i < keyCoordinates.Length; i++)
             {
                 keyCoordinates[i] = RandomInsideUnitCube() * 50;
@@ -731,74 +799,65 @@ namespace UdonSharp.Nessie.SaveState.Internal
             }
             UnityEngine.Random.InitState((int)DateTime.Now.Ticks);
 
-            Undo.RecordObject(_behaviour, "Apply encryption keys");
-            _behaviour.KeyCoordinates = keyCoordinates;
+            Undo.RecordObject(_behaviourProxy, "Apply encryption keys");
+            _behaviourProxy.KeyCoordinates = keyCoordinates;
         }
 
         private void PrepareWorldAnimators()
         {
-            System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
-            timer.Start();
-
-            try
+            for (int controllerIndex = 0; controllerIndex < 144; controllerIndex++)
             {
-                AssetDatabase.StartAssetEditing();
+                EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({controllerIndex}/{144})", (float)controllerIndex / 144);
 
-                for (int controllerIndex = 0; controllerIndex < 144; controllerIndex++)
+                bool isClearer = controllerIndex % 9 == 8;
+
+                // Prepare AnimatorController.
+                AnimatorController newController = AnimatorController.CreateAnimatorControllerAtPath(AssetDatabase.GetAssetPath(assetFolderSelected) + (isClearer ? $"/SaveState-{saveStateParameterName}_{controllerIndex / 9}-clear.controller" : $"/SaveState-{saveStateParameterName}_{controllerIndex / 9}-bit_{controllerIndex % 9}.controller"));
+                AnimatorStateMachine newStateMachine = newController.layers[0].stateMachine;
+                newStateMachine.entryPosition = new Vector2(-30, 0);
+                newStateMachine.anyStatePosition = new Vector2(-30, 50);
+                newStateMachine.exitPosition = new Vector2(-30, 100);
+
+                // Prepate AnimatorState.
+                AnimatorState newState = newStateMachine.AddState("Write");
+                newStateMachine.states[0].position = new Vector2(-30, 150);
+                newState.writeDefaultValues = false;
+
+                // Prepare VRC Behaviour.
+                var VRCParameterDriver = newState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+                VRCParameterDriver.parameters = new List<VRC_AvatarParameterDriver.Parameter>()
                 {
-                    EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({controllerIndex}/{144})", (float)controllerIndex / 144);
-
-                    bool isClearer = controllerIndex % 9 == 8;
-
-                    // Prepare AnimatorController.
-                    AnimatorController newController = AnimatorController.CreateAnimatorControllerAtPath(AssetDatabase.GetAssetPath(animatorFolderSelected) + (isClearer ? $"/SaveState-{saveStateParameterName}_{controllerIndex / 9}-clear.controller" : $"/SaveState-{saveStateParameterName}_{controllerIndex / 9}-bit_{controllerIndex % 9}.controller"));
-                    AnimatorStateMachine newStateMachine = newController.layers[0].stateMachine;
-                    newStateMachine.entryPosition = new Vector2(-30, 0);
-                    newStateMachine.anyStatePosition = new Vector2(-30, 50);
-                    newStateMachine.exitPosition = new Vector2(-30, 100);
-
-                    // Prepate AnimatorState.
-                    AnimatorState newState = newStateMachine.AddState("Write");
-                    newStateMachine.states[0].position = new Vector2(-30, 150);
-                    newState.writeDefaultValues = false;
-
-                    // Prepare VRC Behaviour.
-                    var VRCParameterDriver = newState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
-                    VRCParameterDriver.parameters = new List<VRC_AvatarParameterDriver.Parameter>()
+                    new VRC_AvatarParameterDriver.Parameter()
                     {
-                        new VRC_AvatarParameterDriver.Parameter()
-                        {
-                            name = $"{saveStateParameterName}_{controllerIndex / 9}",
-                            value = isClearer ? 0 : 1 / Mathf.Pow(2, 7 - controllerIndex % 9 + 1),
-                            type = isClearer ? VRC_AvatarParameterDriver.ChangeType.Set : VRC_AvatarParameterDriver.ChangeType.Add
-                        }
-                    };
+                        name = $"{saveStateParameterName}_{controllerIndex / 9}",
+                        value = isClearer ? 0 : 1 / Mathf.Pow(2, 7 - controllerIndex % 9 + 1),
+                        type = isClearer ? VRC_AvatarParameterDriver.ChangeType.Set : VRC_AvatarParameterDriver.ChangeType.Add
+                    }
+                };
 
-                    AssetDatabase.SetLabels(newController, new string[] { isClearer ? "SaveState-Clearer" : "SaveState-Writer" });
-                }
+                AssetDatabase.SetLabels(newController, new string[] { isClearer ? "SaveState-Clearer" : "SaveState-Writer" });
             }
-            finally
-            {
-                AssetDatabase.StopAssetEditing();
-            }
-
-            AssetDatabase.SaveAssets();
-
-            timer.Stop();
-            Debug.Log($"[<color=#00FF9F>NUSaveState</color>] World asset creation took: {timer.Elapsed:mm\\:ss\\.fff}");
 
             EditorUtility.ClearProgressBar();
         }
 
-        private void PrepareAvatarAnimators()
+        private List<string> PrepareAvatarAnimators(out AnimatorController[] controllers, out AnimationClip[][] clips)
         {
+            string pathAnimatorsFolder = $"{pathSaveState}/Avatar/Animators";
+            ReadyPath(pathAnimatorsFolder);
+
+            List<string> assetPaths = new List<string>();
+
             int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
             int byteCount = Mathf.CeilToInt(dataBitCount / 8f);
+
+            controllers = new AnimatorController[avatarCount];
+            clips = new AnimationClip[avatarCount][];
 
             // Prepare keys.
             Vector3[] keyCoordinates = new Vector3[avatarCount];
 
-            UnityEngine.Random.InitState(saveStateSeedHash);
+            UnityEngine.Random.InitState(saveStateHash);
 
             for (int i = 0; i < keyCoordinates.Length; i++)
             {
@@ -815,116 +874,115 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 }
             }
 
-            System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
-            timer.Start();
-
-            try
+            // Create animator for each avatar.
+            for (int avatarIndex = 0; avatarIndex < avatarCount; avatarIndex++)
             {
-                AssetDatabase.StartAssetEditing();
+                EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({avatarIndex}/{avatarCount})", (float)avatarIndex / avatarCount);
 
-                // Create animator for each avatar.
-                for (int avatarIndex = 0; avatarIndex < avatarCount; avatarIndex++)
+                clips[avatarIndex] = new AnimationClip[Math.Min(byteCount, 16) + 1];
+
+                // Prepare AnimatorController.
+                string newControllerPath = $"{pathAnimatorsFolder}/SaveState-Avatar_{avatarIndex}-{saveStateParameterName}.controller";
+                assetPaths.Add(newControllerPath);
+
+                controllers[avatarIndex] = AnimatorController.CreateAnimatorControllerAtPath(newControllerPath);
+                AnimatorStateMachine newStateMachine = controllers[avatarIndex].layers[0].stateMachine;
+                newStateMachine.entryPosition = new Vector2(-30, 0);
+                newStateMachine.anyStatePosition = new Vector2(-30, 50);
+                newStateMachine.exitPosition = new Vector2(-30, 100);
+
+                // Prepare data BlendTree state.
+                AnimatorState newState = controllers[avatarIndex].CreateBlendTreeInController("Data Blend", out BlendTree newTree, 0);
+                newStateMachine.states[0].position = new Vector2(-30, 150);
+                controllers[avatarIndex].RemoveParameter(0);
+
+                newState.writeDefaultValues = false;
+
+                newTree.blendType = BlendTreeType.Direct;
+
+                // Prepare VRC Behaviours.
+                var VRCLayerControl = newState.AddStateMachineBehaviour<VRCPlayableLayerControl>();
+                var VRCTrackingControl = newState.AddStateMachineBehaviour<VRCAnimatorTrackingControl>();
+
+                VRCLayerControl.goalWeight = 1;
+
+                VRCTrackingControl.trackingLeftFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
+                VRCTrackingControl.trackingRightFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
+
+                // Prepare base BlendTree animation.
+                AnimationClip newBaseClip = new AnimationClip() { name = "Straighten Bones" };
+
+                newBaseClip.SetCurve("", typeof(Animator), "RootT.y", AnimationCurve.Constant(0, 0, 1));
+
+                newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.x", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].x));
+                newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.y", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].y));
+                newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.z", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].z));
+                for (int i = 0; i < muscleNames.Length; i++)
                 {
-                    EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({avatarIndex}/{avatarCount})", (float)avatarIndex / avatarCount);
-
-                    // Prepare AnimatorController.
-                    AnimatorController newController = AnimatorController.CreateAnimatorControllerAtPath(AssetDatabase.GetAssetPath(animatorFolderSelected) + $"/SaveState-Avatar_{avatarIndex}-{saveStateParameterName}.controller");
-                    AnimatorStateMachine newStateMachine = newController.layers[0].stateMachine;
-                    newStateMachine.entryPosition = new Vector2(-30, 0);
-                    newStateMachine.anyStatePosition = new Vector2(-30, 50);
-                    newStateMachine.exitPosition = new Vector2(-30, 100);
-
-                    // Prepare data BlendTree state.
-                    AnimatorState newState = newController.CreateBlendTreeInController("Data Blend", out BlendTree newTree, 0);
-                    newStateMachine.states[0].position = new Vector2(-30, 150);
-                    newController.RemoveParameter(0);
-
-                    newState.writeDefaultValues = false;
-
-                    newTree.blendType = BlendTreeType.Direct;
-
-                    // Prepare VRC Behaviours.
-                    var VRCLayerControl = newState.AddStateMachineBehaviour<VRCPlayableLayerControl>();
-                    var VRCTrackingControl = newState.AddStateMachineBehaviour<VRCAnimatorTrackingControl>();
-
-                    VRCLayerControl.goalWeight = 1;
-
-                    VRCTrackingControl.trackingLeftFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
-                    VRCTrackingControl.trackingRightFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
-
-                    // Prepare base BlendTree animation.
-                    AnimationClip newBaseClip = new AnimationClip() { name = "Straighten Bones" };
-
-                    newBaseClip.SetCurve("", typeof(Animator), "RootT.y", AnimationCurve.Constant(0, 0, 1));
-
-                    newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.x", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].x));
-                    newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.y", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].y));
-                    newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.z", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].z));
-                    for (int i = 0; i < muscleNames.Length; i++)
-                    {
-                        newBaseClip.SetCurve("", typeof(Animator), $"{muscleNames[i]}2 Stretched", AnimationCurve.Constant(0, 0, 0.81002f));
-                        newBaseClip.SetCurve("", typeof(Animator), $"{muscleNames[i]}3 Stretched", AnimationCurve.Constant(0, 0, 0.81002f));
-                    }
-                    newTree.AddChild(newBaseClip);
-
-                    AssetDatabase.AddObjectToAsset(newBaseClip, newController);
-
-                    // Prepare data BlendTree animations.
-                    for (int byteIndex = 0; byteIndex < Math.Min(byteCount, 16); byteIndex++)
-                    {
-                        AnimationClip newClip = new AnimationClip() { name = $"SaveState-{saveStateParameterName}_{byteIndex}.anim" };
-
-                        newClip.SetCurve("", typeof(Animator), $"{muscleNames[byteIndex % muscleNames.Length]}{3 - byteIndex / muscleNames.Length} Stretched", AnimationCurve.Constant(0, 0, 1));
-                        newTree.AddChild(newClip);
-
-                        AssetDatabase.AddObjectToAsset(newClip, newController);
-                    }
-
-                    // Prepare BlendTree parameters.
-                    ChildMotion[] newChildren = newTree.children;
-
-                    newController.AddParameter(new AnimatorControllerParameter() { name = "Base", type = AnimatorControllerParameterType.Float, defaultFloat = 1 });
-                    newChildren[0].directBlendParameter = "Base";
-
-                    for (int childIndex = 1; childIndex < newChildren.Length; childIndex++)
-                    {
-                        string newParameter = $"{saveStateParameterName}_{childIndex - 1}";
-
-                        newController.AddParameter(newParameter, AnimatorControllerParameterType.Float);
-                        newChildren[childIndex].directBlendParameter = newParameter;
-                    }
-
-                    newTree.children = newChildren;
+                    newBaseClip.SetCurve("", typeof(Animator), $"{muscleNames[i]}2 Stretched", AnimationCurve.Constant(0, 0, 0.81002f));
+                    newBaseClip.SetCurve("", typeof(Animator), $"{muscleNames[i]}3 Stretched", AnimationCurve.Constant(0, 0, 0.81002f));
                 }
-            }
-            finally
-            {
-                AssetDatabase.StopAssetEditing();
-            }
+                newTree.AddChild(newBaseClip);
 
-            AssetDatabase.SaveAssets();
+                clips[avatarIndex][0] = newBaseClip;
+                AssetDatabase.AddObjectToAsset(newBaseClip, controllers[avatarIndex]);
 
-            timer.Stop();
-            Debug.Log($"[<color=#00FF9F>NUSaveState</color>] Avatar asset creation took: {timer.Elapsed:mm\\:ss\\.fff}");
+                // Prepare data BlendTree animations.
+                for (int byteIndex = 0; byteIndex < Math.Min(byteCount, 16); byteIndex++)
+                {
+                    AnimationClip newClip = new AnimationClip() { name = $"SaveState-{saveStateParameterName}_{byteIndex}.anim" };
+
+                    newClip.SetCurve("", typeof(Animator), $"{muscleNames[byteIndex % muscleNames.Length]}{3 - byteIndex / muscleNames.Length} Stretched", AnimationCurve.Constant(0, 0, 1));
+                    newTree.AddChild(newClip);
+
+                    clips[avatarIndex][byteIndex + 1] = newClip;
+                    AssetDatabase.AddObjectToAsset(newClip, controllers[avatarIndex]);
+                }
+
+                // Prepare BlendTree parameters.
+                ChildMotion[] newChildren = newTree.children;
+
+                controllers[avatarIndex].AddParameter(new AnimatorControllerParameter() { name = "Base", type = AnimatorControllerParameterType.Float, defaultFloat = 1 });
+                newChildren[0].directBlendParameter = "Base";
+
+                for (int childIndex = 1; childIndex < newChildren.Length; childIndex++)
+                {
+                    string newParameter = $"{saveStateParameterName}_{childIndex - 1}";
+
+                    controllers[avatarIndex].AddParameter(newParameter, AnimatorControllerParameterType.Float);
+                    newChildren[childIndex].directBlendParameter = newParameter;
+                }
+
+                newTree.children = newChildren;
+            }
 
             EditorUtility.ClearProgressBar();
+
+            return assetPaths;
         }
 
-        private void GenerateAvatarMenu()
+        private List<string> PrepareAvatarMenus(out VRCExpressionsMenu menu, out VRCExpressionParameters parameters)
         {
+            string pathExpressionsFolder = $"{pathSaveState}/Avatar/Expressions";
+            ReadyPath(pathExpressionsFolder);
+
+            List<string> assetPaths = new List<string>();
+
             int byteCount = Mathf.CeilToInt(dataBitCount / 8f);
 
             // Prepare ExpressionMenu.
-            VRCExpressionsMenu expressionMenu = CreateInstance<VRCExpressionsMenu>();
-            expressionMenu.controls.Add(new VRCExpressionsMenu.Control()
+            menu = CreateInstance<VRCExpressionsMenu>();
+            menu.controls.Add(new VRCExpressionsMenu.Control()
             {
                 name = "<font=LiberationMono SDF><color=#00FF9F><size=140%><b>Nessie's Udon Save <voffset=15em>State"
             });
 
-            AssetDatabase.CreateAsset(expressionMenu, AssetDatabase.GetAssetPath(animatorFolderSelected) + $"/SaveState-Menu-{saveStateParameterName}.asset");
+            string newMenuPath = $"{pathExpressionsFolder}/SaveState-Menu-{saveStateParameterName}.asset";
+            assetPaths.Add(newMenuPath);
+            AssetDatabase.CreateAsset(menu, newMenuPath);
 
             // Prepare ExpressionParameter.
-            VRCExpressionParameters expressionParameters = CreateInstance<VRCExpressionParameters>();
+            parameters = CreateInstance<VRCExpressionParameters>();
 
             VRCExpressionParameters.Parameter[] expressionControls = new VRCExpressionParameters.Parameter[Math.Min(byteCount, 16)];
             for (int i = 0; i < expressionControls.Length; i++)
@@ -935,12 +993,47 @@ namespace UdonSharp.Nessie.SaveState.Internal
                     valueType = VRCExpressionParameters.ValueType.Float
                 };
             }
+            parameters.parameters = expressionControls;
 
-            expressionParameters.parameters = expressionControls;
+            string newParametersPath = $"{pathExpressionsFolder}/SaveState-Expression-{saveStateParameterName}.asset";
+            assetPaths.Add(newParametersPath);
+            AssetDatabase.CreateAsset(parameters, newParametersPath);
 
-            AssetDatabase.CreateAsset(expressionParameters, AssetDatabase.GetAssetPath(animatorFolderSelected) + $"/SaveState-Expression-{saveStateParameterName}.asset");
+            return assetPaths;
+        }
 
-            AssetDatabase.SaveAssets();
+        private List<string> PrepareAvatarPrefabs(VRCExpressionsMenu menu, VRCExpressionParameters parameters, AnimatorController[] controllers)
+        {
+            string pathPrefabsFolder = $"{pathSaveState}/Avatar/Prefabs";
+            ReadyPath(pathPrefabsFolder);
+
+            List<string> assetPaths = new List<string>();
+
+            int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
+
+            GameObject templatePrefab = PrefabUtility.LoadPrefabContents($"{pathSaveState}/Avatar/Template/SaveState-Avatar-Template.prefab");
+            for (int avatarIndex = 0; avatarIndex < avatarCount; avatarIndex++)
+            {
+                string newPrefabPath = $"{pathPrefabsFolder}/SaveState-Avatar_{avatarIndex}-{saveStateParameterName}.prefab";
+                assetPaths.Add(newPrefabPath);
+
+                VRCAvatarDescriptor newAvatarDescriptor = templatePrefab.GetComponent<VRCAvatarDescriptor>();
+
+                newAvatarDescriptor.expressionsMenu = menu;
+                newAvatarDescriptor.expressionParameters = parameters;
+
+                VRCAvatarDescriptor.CustomAnimLayer[] baseLayers = newAvatarDescriptor.baseAnimationLayers;
+                baseLayers[3].animatorController = controllers[avatarIndex];
+                baseLayers[4].animatorController = controllers[avatarIndex];
+
+                VRCAvatarDescriptor.CustomAnimLayer[] specialLayers = newAvatarDescriptor.specialAnimationLayers;
+                specialLayers[1].animatorController = controllers[avatarIndex];
+
+                PrefabUtility.SaveAsPrefabAsset(templatePrefab, newPrefabPath);
+            }
+            PrefabUtility.UnloadPrefabContents(templatePrefab);
+
+            return assetPaths;
         }
 
         #endregion SaveState Methods
@@ -949,16 +1042,20 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
         private void InitializeStyles()
         {
+            // EditorGUI
             styleHelpBox = new GUIStyle(EditorStyles.helpBox);
             styleHelpBox.padding = new RectOffset(0, 0, styleHelpBox.padding.top, styleHelpBox.padding.bottom + 3);
-            styleScrollView = new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(0, 1, 0, 0) };
-            styleScrollView.padding = new RectOffset(0, 1, 0, 0);
 
-            if (EditorGUIUtility.isProSkin)
-                contentRefresh = new GUIContent(EditorGUIUtility.IconContent("d_Refresh"));
-            else
-                contentRefresh = new GUIContent(EditorGUIUtility.IconContent("Refresh"));
-            contentRefresh.tooltip = "Retrieve data from the selected Save State.";
+            // GUI
+            styleBox = new GUIStyle(GUI.skin.box);
+            styleBox.padding = new RectOffset(GUI.skin.box.padding.left * 2, GUI.skin.box.padding.right * 2, GUI.skin.box.padding.top * 2, GUI.skin.box.padding.bottom * 2);
+            styleBox.margin = new RectOffset(0, 0, 4, 4);
+
+            styleRichTextLabel = new GUIStyle(GUI.skin.label);
+            styleRichTextLabel.richText = true;
+
+            styleRichTextButton = new GUIStyle(GUI.skin.button);
+            styleRichTextButton.richText = true;
         }
 
         private void GetUIAssets()
@@ -967,29 +1064,25 @@ namespace UdonSharp.Nessie.SaveState.Internal
             _iconGitHub = Resources.Load<Texture2D>("Icons/GitHub-Mark-32px");
         }
 
-        private void GetAnimatorFolders()
+        private void GetAssetFolders()
         {
-            string[] guids = AssetDatabase.FindAssets("t:Folder AnimatorFolders", new string[] { "Assets" });
+            string pathAssetsFolder = $"{pathSaveState}/AssetFolders";
+            ReadyPath(pathAssetsFolder);
 
-            string animatorFolderPath = null;
-            foreach (string guid in guids)
-                if (AssetDatabase.GUIDToAssetPath(guid).EndsWith("NUSaveState/AnimatorFolders"))
-                {
-                    animatorFolderPath = AssetDatabase.GUIDToAssetPath(guid);
-                    break;
-                }
-
-            if (animatorFolderPath == null)
-                return;
-
-            animatorSubFolderPaths = AssetDatabase.GetSubFolders(animatorFolderPath);
-            animatorFolderNames = new string[animatorSubFolderPaths.Length];
-            animatorFolders = new DefaultAsset[animatorSubFolderPaths.Length];
-            for (int i = 0; i < animatorFolders.Length; i++)
+            assetFolderPaths = AssetDatabase.GetSubFolders(pathAssetsFolder);
+            assetFolderNames = new string[assetFolderPaths.Length];
+            assetFolders = new DefaultAsset[assetFolderPaths.Length];
+            for (int i = 0; i < assetFolders.Length; i++)
             {
-                animatorFolders[i] = (DefaultAsset)AssetDatabase.LoadMainAssetAtPath(animatorSubFolderPaths[i]);
-                animatorFolderNames[i] = animatorFolders[i].name;
+                assetFolders[i] = (DefaultAsset)AssetDatabase.LoadMainAssetAtPath(assetFolderPaths[i]);
+                assetFolderNames[i] = assetFolders[i].name;
             }
+        }
+
+        private static void ReadyPath(string folderPath)
+        {
+            if (!System.IO.Directory.Exists(folderPath))
+                System.IO.Directory.CreateDirectory(folderPath);
         }
 
         #endregion Resources

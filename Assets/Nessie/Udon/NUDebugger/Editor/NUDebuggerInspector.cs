@@ -14,7 +14,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
     [CustomEditor(typeof(NUDebugger))]
     internal class NUDebuggerInspector : Editor
     {
-        private NUDebugger _udonDebugger;
+        private NUDebugger _behaviourProxy;
         private List<ProgramData> _listPrograms = new List<ProgramData>();
         private List<UdonData> _listData = new List<UdonData>();
 
@@ -26,7 +26,6 @@ namespace UdonSharp.Nessie.Debugger.Internal
         private Texture2D _iconGitHub;
         private Texture2D _iconVRChat;
 
-        private SerializedObject so;
         private SerializedProperty settingMainColor;
         private SerializedProperty settingCrashColor;
         private SerializedProperty settingUpdateRate;
@@ -90,27 +89,28 @@ namespace UdonSharp.Nessie.Debugger.Internal
             // Stupid workaround for whacky U# related errors.
             if (target == null) return;
 
-            _udonDebugger = (NUDebugger)target;
+            _behaviourProxy = (NUDebugger)target;
 
             GetAssets();
 
             GetData();
 
-            so = new SerializedObject(target);
-            settingMainColor = so.FindProperty(nameof(NUDebugger.MainColor));
-            settingCrashColor = so.FindProperty(nameof(NUDebugger.CrashColor));
-            settingUpdateRate = so.FindProperty(nameof(NUDebugger.UpdateRate));
-            settingNetworked = so.FindProperty(nameof(NUDebugger.Networked));
+            settingMainColor = serializedObject.FindProperty(nameof(NUDebugger.MainColor));
+            settingCrashColor = serializedObject.FindProperty(nameof(NUDebugger.CrashColor));
+            settingUpdateRate = serializedObject.FindProperty(nameof(NUDebugger.UpdateRate));
+            settingNetworked = serializedObject.FindProperty(nameof(NUDebugger.Networked));
         }
 
         public override void OnInspectorGUI()
         {
+            _behaviourProxy = (NUDebugger)target;
+
             // Draws the default convert to UdonBehaviour button, program asset field, sync settings, etc.
             if (UdonSharpGUI.DrawDefaultUdonSharpBehaviourHeader(target)) return;
 
             GetData();
 
-            so.Update();
+            serializedObject.Update();
 
             GUILayout.BeginVertical(EditorStyles.helpBox);
 
@@ -130,7 +130,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             GUILayout.EndVertical();
 
-            so.ApplyModifiedProperties();
+            serializedObject.ApplyModifiedProperties();
         }
 
         #region Drawers
@@ -231,7 +231,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
                 if (GUILayout.Button(new GUIContent("Clear Data", "Remove all the data stored in the Udon Debugger.")))
                 {
-                    Undo.RecordObject(_udonDebugger, "Cleared all the cached Program data.");
+                    Undo.RecordObject(_behaviourProxy, "Cleared all the cached Program data.");
 
                     _listPrograms.Clear();
                     _listData.Clear();
@@ -272,7 +272,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
                 _listPrograms[i].Name = EditorGUILayout.TextField(_listPrograms[i].Name);
                 if (EditorGUI.EndChangeCheck())
                 {
-                    Undo.RecordObject(_udonDebugger, "Changed Program Name.");
+                    Undo.RecordObject(_behaviourProxy, "Changed Program Name.");
 
                     SetData(i);
                 }
@@ -337,7 +337,7 @@ namespace UdonSharp.Nessie.Debugger.Internal
                 list[i] = EditorGUILayout.TextField(string.Format(format, i), list[i]);
                 if (EditorGUI.EndChangeCheck())
                 {
-                    Undo.RecordObject(_udonDebugger, "Changed data name.");
+                    Undo.RecordObject(_behaviourProxy, "Changed data name.");
 
                     SetData(index);
                 }
@@ -360,12 +360,12 @@ namespace UdonSharp.Nessie.Debugger.Internal
             {
                 _listData.Clear();
 
-                for (int i = 0; i < _udonDebugger.DataUdons.Length; i++)
+                for (int i = 0; i < _behaviourProxy.DataUdons.Length; i++)
                 {
                     UdonData data = new UdonData
                     {
-                        Udon = (UdonBehaviour)_udonDebugger.DataUdons[i],
-                        ProgramIndex = _udonDebugger.ProgramIndecies[i]
+                        Udon = (UdonBehaviour)_behaviourProxy.DataUdons[i],
+                        ProgramIndex = _behaviourProxy.ProgramIndecies[i]
                     };
 
                     _listData.Add(data);
@@ -375,14 +375,14 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
                 _listPrograms.Clear();
 
-                for (int i = 0; i < _udonDebugger.ProgramNames.Length; i++)
+                for (int i = 0; i < _behaviourProxy.ProgramNames.Length; i++)
                 {
                     ProgramData program = new ProgramData
                     {
-                        Name = _udonDebugger.ProgramNames[i],
-                        Arrays = _udonDebugger.DataArrays[i].ToList(),
-                        Variables = _udonDebugger.DataVariables[i].ToList(),
-                        Events = _udonDebugger.DataEvents[i].ToList(),
+                        Name = _behaviourProxy.ProgramNames[i],
+                        Arrays = _behaviourProxy.DataArrays[i].ToList(),
+                        Variables = _behaviourProxy.DataVariables[i].ToList(),
+                        Events = _behaviourProxy.DataEvents[i].ToList(),
                     };
 
                     if (i < oldPrograms.Count)
@@ -402,13 +402,13 @@ namespace UdonSharp.Nessie.Debugger.Internal
         {
             try
             {
-                _listData[index].Udon = (UdonBehaviour)_udonDebugger.DataUdons[index];
-                _listData[index].ProgramIndex = _udonDebugger.ProgramIndecies[index];
+                _listData[index].Udon = (UdonBehaviour)_behaviourProxy.DataUdons[index];
+                _listData[index].ProgramIndex = _behaviourProxy.ProgramIndecies[index];
 
-                _listPrograms[index].Name = _udonDebugger.ProgramNames[index];
-                _listPrograms[index].Arrays = _udonDebugger.DataArrays[index].ToList();
-                _listPrograms[index].Variables = _udonDebugger.DataVariables[index].ToList();
-                _listPrograms[index].Events = _udonDebugger.DataEvents[index].ToList();
+                _listPrograms[index].Name = _behaviourProxy.ProgramNames[index];
+                _listPrograms[index].Arrays = _behaviourProxy.DataArrays[index].ToList();
+                _listPrograms[index].Variables = _behaviourProxy.DataVariables[index].ToList();
+                _listPrograms[index].Events = _behaviourProxy.DataEvents[index].ToList();
             }
             catch (Exception e)
             {
@@ -427,23 +427,23 @@ namespace UdonSharp.Nessie.Debugger.Internal
                 newProgramIDs[i] = _listData[i].ProgramIndex;
             }
 
-            _udonDebugger.DataUdons = newUdons;
-            _udonDebugger.ProgramIndecies = newProgramIDs;
+            _behaviourProxy.DataUdons = newUdons;
+            _behaviourProxy.ProgramIndecies = newProgramIDs;
 
-            _udonDebugger.ProgramNames = _listPrograms.Select(a => a.Name).ToArray();
-            _udonDebugger.DataArrays = _listPrograms.Select(a => a.Arrays.ToArray()).ToArray();
-            _udonDebugger.DataVariables = _listPrograms.Select(a => a.Variables.ToArray()).ToArray();
-            _udonDebugger.DataEvents = _listPrograms.Select(a => a.Events.ToArray()).ToArray();
+            _behaviourProxy.ProgramNames = _listPrograms.Select(a => a.Name).ToArray();
+            _behaviourProxy.DataArrays = _listPrograms.Select(a => a.Arrays.ToArray()).ToArray();
+            _behaviourProxy.DataVariables = _listPrograms.Select(a => a.Variables.ToArray()).ToArray();
+            _behaviourProxy.DataEvents = _listPrograms.Select(a => a.Events.ToArray()).ToArray();
         }
         private void SetData(int index)
         {
-            _udonDebugger.DataUdons[index] = _listData[index].Udon;
-            _udonDebugger.ProgramIndecies[index] = _listData[index].ProgramIndex;
+            _behaviourProxy.DataUdons[index] = _listData[index].Udon;
+            _behaviourProxy.ProgramIndecies[index] = _listData[index].ProgramIndex;
 
-            _udonDebugger.ProgramNames[index] = _listPrograms[index].Name;
-            _udonDebugger.DataArrays[index] = _listPrograms[index].Arrays.ToArray();
-            _udonDebugger.DataVariables[index] = _listPrograms[index].Variables.ToArray();
-            _udonDebugger.DataEvents[index] = _listPrograms[index].Events.ToArray();
+            _behaviourProxy.ProgramNames[index] = _listPrograms[index].Name;
+            _behaviourProxy.DataArrays[index] = _listPrograms[index].Arrays.ToArray();
+            _behaviourProxy.DataVariables[index] = _listPrograms[index].Variables.ToArray();
+            _behaviourProxy.DataEvents[index] = _listPrograms[index].Events.ToArray();
         }
 
         #endregion Data Methods
@@ -662,14 +662,14 @@ namespace UdonSharp.Nessie.Debugger.Internal
 
             newData.Sort();
 
-            Undo.RecordObject(_udonDebugger, "Cached all the Udon program dependencies of the scene.");
+            Undo.RecordObject(_behaviourProxy, "Cached all the Udon program dependencies of the scene.");
 
             _listPrograms = newPrograms.ToList();
             _listData = newData;
 
-            _udonDebugger.GraphSolutions = graphSolutions;
-            _udonDebugger.GraphConditions = graphConditions;
-            _udonDebugger.SharpIDs = sharpSolutions;
+            _behaviourProxy.GraphSolutions = graphSolutions;
+            _behaviourProxy.GraphConditions = graphConditions;
+            _behaviourProxy.SharpIDs = sharpSolutions;
 
             SetData();
 
