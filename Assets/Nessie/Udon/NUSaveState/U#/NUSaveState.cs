@@ -143,13 +143,7 @@ namespace UdonSharp.Nessie.SaveState
                 if (dataStatus == 1)
                     _PrepareData();
                 else
-                {
-                    transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
-                    dataWriter.animatorController = null;
-                    localPlayer.UseAttachedStation();
-
                     SendCustomEventDelayedFrames(nameof(_GetData), 1);
-                }
             }
         }
 
@@ -310,7 +304,6 @@ namespace UdonSharp.Nessie.SaveState
             else
             {
                 Debug.Log("[<color=#00FF9F>SaveState</color>] Data has been loaded.");
-                dataWriter.ExitStation(localPlayer);
 
                 _FinishedData();
             }
