@@ -70,8 +70,8 @@ namespace UdonSharp.Nessie.SaveState
             HumanBodyBones.RightRingProximal,
             HumanBodyBones.RightLittleProximal,
         };
-        private float dataMinRange = 0.1897545f;
-        private float dataMaxRange = 44.99054f;
+        private float dataMinRange = 0.0009971f;
+        private float dataMaxRange = 0.4999345f;
 
         private string[] recieverEvents = new string[]
         {
@@ -231,7 +231,7 @@ namespace UdonSharp.Nessie.SaveState
         public void _PrepareData() // Reset each byte before writing to them.
         {
             transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
-            dataWriter.animatorController = ByteClearers[dataByteIndex];
+            dataWriter.animatorController = ByteClearers[dataByteIndex / 2];
             localPlayer.UseAttachedStation();
 
             dataBitIndex = 0;
@@ -244,19 +244,10 @@ namespace UdonSharp.Nessie.SaveState
 
             if (dataBitIndex < 8)
             {
-                if (((inputBytes[dataByteIndex + dataAvatarIndex * 16] >> dataBitIndex) & 1) == 1)
+                if (((inputBytes[dataByteIndex + dataAvatarIndex * 32] >> dataBitIndex) & 1) == 1)
                 {
-                    if (ByteWriters[dataBitIndex + dataByteIndex * 8] == null)
-                    {
-                        Debug.LogError($"[<color=#00FF9F>SaveState</color>] Bit animator {dataBitIndex + dataByteIndex * 8} is null.");
-                        _FailedData();
-                        return;
-                    }
-                    else
-                    {
-                        dataWriter.animatorController = ByteWriters[dataBitIndex + dataByteIndex * 8];
-                        localPlayer.UseAttachedStation();
-                    }
+                    dataWriter.animatorController = ByteWriters[dataBitIndex + dataByteIndex * 8];
+                    localPlayer.UseAttachedStation();
                 }
 
                 dataBitIndex++;
@@ -267,15 +258,18 @@ namespace UdonSharp.Nessie.SaveState
                 dataBitIndex = 0;
                 dataByteIndex++;
 
-                if (dataByteIndex + dataAvatarIndex * 16 >= MaxByteCount)
+                if (dataByteIndex + dataAvatarIndex * 32 >= MaxByteCount)
                 {
                     _FinishedData();
                 }
                 else
                 {
-                    if (dataByteIndex < 16)
+                    if (dataByteIndex < 32)
                     {
-                        SendCustomEventDelayedFrames(nameof(_PrepareData), 1);
+                        if ((dataByteIndex & 1) == 1)
+                            _SetData();
+                        else
+                            _PrepareData();
                     }
                     else
                     {
@@ -288,23 +282,25 @@ namespace UdonSharp.Nessie.SaveState
 
         public void _GetData()
         {
-            for (; dataByteIndex < Mathf.Min(MaxByteCount - dataAvatarIndex * 16, 16); dataByteIndex++)
+            int avatarByteCount = Mathf.Min(MaxByteCount - dataAvatarIndex * 32, 32);
+            for (int boneIndex = 0; dataByteIndex < avatarByteCount; boneIndex++)
             {
-                Quaternion muscleTarget = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[dataByteIndex]);
-                Quaternion muscleParent = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[dataByteIndex + 8]);
+                Quaternion muscleTarget = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[boneIndex]);
+                Quaternion muscleParent = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[boneIndex + 8]);
 
-                outputBytes[dataByteIndex + dataAvatarIndex * 16] = (byte)(Mathf.RoundToInt(InverseMuscle(muscleTarget, muscleParent) * 256) & 0xFF);
+                int bytes = Mathf.RoundToInt(InverseMuscle(muscleTarget, muscleParent) * 65536) & 0xFFFF; // 2 bytes per parameter.
+                outputBytes[dataByteIndex++ + dataAvatarIndex * 32] = (byte)(bytes & 0xFF);
+                if (dataByteIndex < avatarByteCount)
+                    outputBytes[dataByteIndex++ + dataAvatarIndex * 32] = (byte)(bytes >> 8);
             }
 
-            if (dataByteIndex + dataAvatarIndex * 16 < MaxByteCount)
+            if (dataByteIndex + dataAvatarIndex * 32 < MaxByteCount)
             {
                 dataAvatarIndex++;
                 _ChangeAvatar();
             }
             else
             {
-                Debug.Log("[<color=#00FF9F>SaveState</color>] Data has been loaded.");
-
                 _FinishedData();
             }
         }
@@ -368,9 +364,13 @@ namespace UdonSharp.Nessie.SaveState
             }
         }
 
-        private float InverseMuscle(Quaternion a, Quaternion b) // Janky way to read avatar data, atleast it works though.
+        private float InverseMuscle(Quaternion a, Quaternion b) // Funky numbers that make the world go round.
         {
-            return ((Quaternion.Inverse(b) * a).eulerAngles.x - dataMinRange) / dataMaxRange;
+            Quaternion deltaQ = Quaternion.Inverse(b) * a;
+            float initialRange = Mathf.Abs(Mathf.Asin(deltaQ.x)) * 4 / Mathf.PI;
+            float normalizedRange = (initialRange - dataMinRange) / dataMaxRange;
+
+            return normalizedRange;
         }
 
         #endregion Data

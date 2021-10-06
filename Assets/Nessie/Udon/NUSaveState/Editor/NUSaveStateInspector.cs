@@ -210,7 +210,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
                     dataBitCount = CalculateBitCount(dataInstructions);
 
-                    int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
+                    int avatarCount = Mathf.CeilToInt(dataBitCount / 256f);
                     if (avatarCount > _behaviourProxy.DataAvatarIDs.Length)
                     {
                         Array.Resize(ref _behaviourProxy.DataAvatarIDs, avatarCount);
@@ -225,7 +225,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 {
                     dataBitCount = CalculateBitCount(dataInstructions);
 
-                    int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
+                    int avatarCount = Mathf.CeilToInt(dataBitCount / 256f);
                     if (avatarCount > _behaviourProxy.DataAvatarIDs.Length)
                     {
                         Array.Resize(ref _behaviourProxy.DataAvatarIDs, avatarCount);
@@ -238,7 +238,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
             {
                 instructionList.serializedProperty.isExpanded = EditorGUI.Foldout(new Rect(rect.x + 12, rect.y, 16, EditorGUIUtility.singleLineHeight), instructionList.serializedProperty.isExpanded, "");
                 EditorGUI.LabelField(new Rect(rect.x + 16, rect.y, (rect.width - 16) / 2, EditorGUIUtility.singleLineHeight), contentInstructionList);
-                EditorGUI.LabelField(new Rect(rect.x + 16 + (rect.width - 16) / 2, rect.y, (rect.width - 16) / 2, EditorGUIUtility.singleLineHeight), $"Bits: {dataBitCount} / {Mathf.CeilToInt(dataBitCount / 128f) * 128} Bytes: {Mathf.Ceil(dataBitCount / 8f)} / {Mathf.CeilToInt(dataBitCount / 128f) * 16}");
+                EditorGUI.LabelField(new Rect(rect.x + 16 + (rect.width - 16) / 2, rect.y, (rect.width - 16) / 2, EditorGUIUtility.singleLineHeight), $"Bits: {dataBitCount} / {Mathf.CeilToInt(dataBitCount / 256f) * 256} Bytes: {Mathf.Ceil(dataBitCount / 8f)} / {Mathf.CeilToInt(dataBitCount / 256f) * 32}");
             };
             instructionList.elementHeightCallback = (int index) =>
             {
@@ -270,7 +270,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 dataBitCount -= dataInstructions[list.index].VariableBits;
                 ArrayUtility.RemoveAt(ref dataInstructions, list.index);
 
-                int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
+                int avatarCount = Mathf.CeilToInt(dataBitCount / 256f);
                 if (avatarCount > _behaviourProxy.DataAvatarIDs.Length)
                 {
                     Array.Resize(ref _behaviourProxy.DataAvatarIDs, avatarCount);
@@ -288,7 +288,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
                 Rect avatarFieldRect = new Rect(rect) { y = rect.y + 1.5f, height = EditorGUIUtility.singleLineHeight };
 
-                EditorGUI.BeginDisabledGroup(index >= Mathf.CeilToInt(dataBitCount / 128f));
+                EditorGUI.BeginDisabledGroup(index >= Mathf.CeilToInt(dataBitCount / 256f));
                 _behaviourProxy.DataAvatarIDs[index] = EditorGUI.TextField(avatarFieldRect, _behaviourProxy.DataAvatarIDs[index]);
                 EditorGUI.EndDisabledGroup();
             };
@@ -296,7 +296,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
             {
                 avatarList.serializedProperty.isExpanded = EditorGUI.Foldout(new Rect(rect.x + 12, rect.y, 16, EditorGUIUtility.singleLineHeight), avatarList.serializedProperty.isExpanded, "");
                 EditorGUI.LabelField(new Rect(rect.x + 16, rect.y, (rect.width - 16) / 2, EditorGUIUtility.singleLineHeight), contentAvatarList);
-                EditorGUI.LabelField(new Rect(rect.x + 16 + (rect.width - 16) / 2, rect.y, (rect.width - 16) / 2, EditorGUIUtility.singleLineHeight), $"Avatars: {Mathf.CeilToInt(dataBitCount / 128f)} / {_behaviourProxy.DataAvatarIDs.Length}");
+                EditorGUI.LabelField(new Rect(rect.x + 16 + (rect.width - 16) / 2, rect.y, (rect.width - 16) / 2, EditorGUIUtility.singleLineHeight), $"Avatars: {Mathf.CeilToInt(dataBitCount / 256f)} / {_behaviourProxy.DataAvatarIDs.Length}");
             };
             avatarList.elementHeightCallback = (int index) =>
             {
@@ -304,7 +304,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
             };
             avatarList.onRemoveCallback = (UnityEditorInternal.ReorderableList list) =>
             {
-                if (_behaviourProxy.DataAvatarIDs.Length <= Mathf.CeilToInt(dataBitCount / 128f)) return;
+                if (_behaviourProxy.DataAvatarIDs.Length <= Mathf.CeilToInt(dataBitCount / 256f)) return;
 
                 ArrayUtility.RemoveAt(ref _behaviourProxy.DataAvatarIDs, list.index);
             };
@@ -747,7 +747,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
         private void SetSaveStateAnimators()
         {
             int byteCount = Mathf.CeilToInt(dataBitCount / 8f);
-            int minBitCount = Math.Min(dataBitCount, 128);
+            int minBitCount = Math.Min(dataBitCount, 256);
             int minByteCount = Math.Min(byteCount, 16);
 
             string[] writerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Writer", new string[] { AssetDatabase.GetAssetPath(assetFolderSelected) });
@@ -778,7 +778,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
         private void ApplyEncryptionKeys()
         {
-            int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
+            int avatarCount = Mathf.CeilToInt(dataBitCount / 256f);
 
             Vector3[] keyCoordinates = new Vector3[avatarCount];
 
@@ -805,14 +805,14 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
         private void PrepareWorldAnimators()
         {
-            for (int controllerIndex = 0; controllerIndex < 144; controllerIndex++)
+            for (int controllerIndex = 0; controllerIndex < 256 + 16; controllerIndex++)
             {
-                EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({controllerIndex}/{144})", (float)controllerIndex / 144);
+                EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({controllerIndex}/{272})", (float)controllerIndex / 272);
 
-                bool isClearer = controllerIndex % 9 == 8;
+                bool isClearer = controllerIndex % 17 == 16;
 
                 // Prepare AnimatorController.
-                AnimatorController newController = AnimatorController.CreateAnimatorControllerAtPath(AssetDatabase.GetAssetPath(assetFolderSelected) + (isClearer ? $"/SaveState-{saveStateParameterName}_{controllerIndex / 9}-clear.controller" : $"/SaveState-{saveStateParameterName}_{controllerIndex / 9}-bit_{controllerIndex % 9}.controller"));
+                AnimatorController newController = AnimatorController.CreateAnimatorControllerAtPath(AssetDatabase.GetAssetPath(assetFolderSelected) + (isClearer ? $"/SaveState-{saveStateParameterName}_{controllerIndex / 17}-clear.controller" : $"/SaveState-{saveStateParameterName}_{controllerIndex / 17}-bit_{controllerIndex % 17}.controller"));
                 AnimatorStateMachine newStateMachine = newController.layers[0].stateMachine;
                 newStateMachine.entryPosition = new Vector2(-30, 0);
                 newStateMachine.anyStatePosition = new Vector2(-30, 50);
@@ -829,8 +829,8 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 {
                     new VRC_AvatarParameterDriver.Parameter()
                     {
-                        name = $"{saveStateParameterName}_{controllerIndex / 9}",
-                        value = isClearer ? 0 : 1 / Mathf.Pow(2, 7 - controllerIndex % 9 + 1),
+                        name = $"{saveStateParameterName}_{controllerIndex / 17}",
+                        value = isClearer ? 0 : 1 / Mathf.Pow(2, 16 - controllerIndex % 17),
                         type = isClearer ? VRC_AvatarParameterDriver.ChangeType.Set : VRC_AvatarParameterDriver.ChangeType.Add
                     }
                 };
@@ -848,7 +848,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
             List<string> assetPaths = new List<string>();
 
-            int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
+            int avatarCount = Mathf.CeilToInt(dataBitCount / 256f);
             int byteCount = Mathf.CeilToInt(dataBitCount / 8f);
 
             controllers = new AnimatorController[avatarCount];
@@ -1007,7 +1007,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
             List<string> assetPaths = new List<string>();
 
-            int avatarCount = Mathf.CeilToInt(dataBitCount / 128f);
+            int avatarCount = Mathf.CeilToInt(dataBitCount / 256f);
 
             GameObject templatePrefab = PrefabUtility.LoadPrefabContents($"{pathSaveState}/Avatar/Template/SaveState-Avatar-Template.prefab");
             for (int avatarIndex = 0; avatarIndex < avatarCount; avatarIndex++)
