@@ -82,7 +82,7 @@ namespace UdonSharp.Nessie.SaveState
             "_SSPostSave",
             "_SSPostLoad"
         };
-        private bool lookingForAvatar;
+        private bool avatarIsLoading;
         private int dataStatus = 0;
         private GameObject avatarKeyObject;
 
@@ -130,14 +130,14 @@ namespace UdonSharp.Nessie.SaveState
 
         private void OnParticleCollision(GameObject other)
         {
-            if (lookingForAvatar)
+            if (avatarIsLoading)
             {
                 Debug.Log($"[<color=#00FF9F>SaveState</color>] Detected buffer avatar: {dataAvatarIndex}.");
 
                 avatarKeyObject = other;
 
                 dataAvatarTimeout = 0;
-                lookingForAvatar = false;
+                avatarIsLoading = false;
                 keyListener.enabled = false;
 
                 if (dataStatus == 1)
@@ -145,15 +145,17 @@ namespace UdonSharp.Nessie.SaveState
                 else
                     SendCustomEventDelayedFrames(nameof(_GetData), 1);
             }
+            else if (dataStatus > 4)
+            {
+                dataAvatarTimeout = 2f;
+            }
         }
 
         #region API
 
         public void _SSSave()
         {
-            if (dataStatus > 0)
-                return;
-
+            if (dataStatus > 0 && dataStatus < 3) return;
             dataStatus = 1;
 
             _PackData();
@@ -164,9 +166,7 @@ namespace UdonSharp.Nessie.SaveState
 
         public void _SSLoad()
         {
-            if (dataStatus > 0)
-                return;
-
+            if (dataStatus > 0 && dataStatus < 3) return;
             dataStatus = 2;
 
             dataAvatarIndex = 0;
@@ -191,17 +191,17 @@ namespace UdonSharp.Nessie.SaveState
             dataAvatarPedestals[dataAvatarIndex].SetAvatarUse(localPlayer);
 
             dataAvatarTimeout = 30;
-            lookingForAvatar = true;
+            avatarIsLoading = true;
             keyListener.enabled = true;
             _LookForAvatar();
         }
 
         public void _LookForAvatar()
         {
-            if (lookingForAvatar)
-            {
-                keyListener.center = transform.InverseTransformPoint(localPlayer.GetRotation() * KeyCoordinates[dataAvatarIndex] + localPlayer.GetPosition());
+            keyListener.center = transform.InverseTransformPoint(localPlayer.GetRotation() * KeyCoordinates[dataAvatarIndex] + localPlayer.GetPosition());
 
+            if (avatarIsLoading)
+            {
                 if (dataAvatarTimeout > 0)
                 {
                     dataAvatarTimeout -= Time.deltaTime;
@@ -324,12 +324,13 @@ namespace UdonSharp.Nessie.SaveState
 
             dataAvatarTimeout = 30;
             dataStatus += 4;
+            keyListener.enabled = true;
             _LookForAvatar();
         }
 
         private void _FailedData()
         {
-            lookingForAvatar = false;
+            avatarIsLoading = false;
             keyListener.enabled = false;
 
             dataStatus += 2;

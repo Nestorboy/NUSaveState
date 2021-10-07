@@ -1492,7 +1492,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: lookingForAvatar
+      Data: avatarIsLoading
     - Name: $v
       Entry: 7
       Data: 93|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -1519,10 +1519,10 @@ MonoBehaviour:
       Data: SystemBoolean
     - Name: symbolOriginalName
       Entry: 1
-      Data: lookingForAvatar
+      Data: avatarIsLoading
     - Name: symbolUniqueName
       Entry: 1
-      Data: lookingForAvatar
+      Data: avatarIsLoading
     - Name: symbolDefaultValue
       Entry: 6
       Data: 

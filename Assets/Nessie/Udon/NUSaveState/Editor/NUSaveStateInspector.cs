@@ -42,7 +42,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
         };
 
         // Save State Utilities.
-        private string saveStateParameterName = "byte";
+        private string saveStateParameterName = "parameter";
         private string saveStateSeed = "";
         private int saveStateHash;
 
@@ -261,7 +261,22 @@ namespace UdonSharp.Nessie.SaveState.Internal
             };
             instructionList.onAddCallback = (UnityEditorInternal.ReorderableList list) =>
             {
-                ArrayUtility.Add(ref dataInstructions, new DataInstruction());
+                DataInstruction newData = new DataInstruction();
+                if (list.index >= 0)
+                {
+                    GetValidVariables(dataInstructions[list.index].Udon, out List<string> vars, out List<Type> types);
+
+                    newData.Udon = dataInstructions[list.index].Udon;
+
+                    newData.VariableNames = vars.ToArray();
+                    newData.VariableTypes = types.ToArray();
+                    newData.PrepareLabels();
+
+                    int newVariableIndex = Array.IndexOf(newData.VariableNames, dataInstructions[list.index]);
+                    if (newVariableIndex >= 0)
+                        newData.VariableIndex = newData.VariableTypes[newVariableIndex] == dataInstructions[list.index].VariableTypes[newVariableIndex] ? newVariableIndex : -1;
+                }
+                ArrayUtility.Add(ref dataInstructions, newData);
 
                 SetSaveStateData();
             };
@@ -269,6 +284,8 @@ namespace UdonSharp.Nessie.SaveState.Internal
             {
                 dataBitCount -= dataInstructions[list.index].VariableBits;
                 ArrayUtility.RemoveAt(ref dataInstructions, list.index);
+                if (list.index >= dataInstructions.Length)
+                    list.index--;
 
                 int avatarCount = Mathf.CeilToInt(dataBitCount / 256f);
                 if (avatarCount > _behaviourProxy.DataAvatarIDs.Length)
@@ -730,18 +747,29 @@ namespace UdonSharp.Nessie.SaveState.Internal
             if (udon == null) return;
 
             VRC.Udon.Common.Interfaces.IUdonSymbolTable symbolTable = udon.programSource.SerializedProgramAsset.RetrieveProgram().SymbolTable;
+
             List<string> programVariablesNames = symbolTable.GetSymbols().ToList();
+            List<KeyValuePair<string, Type>> toSort = new List<KeyValuePair<string, Type>>();
+
             foreach (string variableName in programVariablesNames)
-                if (!variableName.StartsWith("__"))
+            {
+                if (variableName.StartsWith("__")) continue;
+
+                Type variableType = symbolTable.GetSymbolType(variableName);
+                int typeIndex = Array.IndexOf(convertableTypes, variableType);
+                if (typeIndex > -1)
                 {
-                    Type variableType = symbolTable.GetSymbolType(variableName);
-                    int typeIndex = Array.IndexOf(convertableTypes, variableType);
-                    if (typeIndex > -1)
-                    {
-                        vars.Add(variableName);
-                        types.Add(variableType);
-                    }
+                    toSort.Add(new KeyValuePair<string, Type>(variableName, variableType));
                 }
+            }
+
+            List<KeyValuePair<string, Type>> sorted = toSort.OrderBy(kvp => kvp.Key).ToList();
+
+            foreach (KeyValuePair<string, Type> item in sorted)
+            {
+                vars.Add(item.Key);
+                types.Add(item.Value);
+            }
         }
 
         private void SetSaveStateAnimators()
