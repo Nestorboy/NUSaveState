@@ -527,7 +527,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
                         // Prepare the assets.
                         List<string> assetPaths = new List<string>();
-                        assetPaths.AddRange(PrepareAvatarAnimators(out AnimatorController[] controllers, out AnimationClip[][]  clips));
+                        assetPaths.AddRange(PrepareAvatarAnimators(out AnimatorController[] controllers));
                         assetPaths.AddRange(PrepareAvatarMenus(out VRCExpressionsMenu menu, out VRCExpressionParameters parameters));
                         assetPaths.AddRange(PrepareAvatarPrefabs(menu, parameters, controllers));
 
@@ -869,7 +869,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
             EditorUtility.ClearProgressBar();
         }
 
-        private List<string> PrepareAvatarAnimators(out AnimatorController[] controllers, out AnimationClip[][] clips)
+        private List<string> PrepareAvatarAnimators(out AnimatorController[] controllers)
         {
             string pathAnimatorsFolder = $"{pathSaveState}/Avatar/Animators";
             ReadyPath(pathAnimatorsFolder);
@@ -880,7 +880,6 @@ namespace UdonSharp.Nessie.SaveState.Internal
             int byteCount = Mathf.CeilToInt(dataBitCount / 8f);
 
             controllers = new AnimatorController[avatarCount];
-            clips = new AnimationClip[avatarCount][];
 
             // Prepare keys.
             Vector3[] keyCoordinates = new Vector3[avatarCount];
@@ -907,8 +906,6 @@ namespace UdonSharp.Nessie.SaveState.Internal
             {
                 EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({avatarIndex}/{avatarCount})", (float)avatarIndex / avatarCount);
 
-                clips[avatarIndex] = new AnimationClip[Math.Min(byteCount, 16) + 1];
-
                 // Prepare AnimatorController.
                 string newControllerPath = $"{pathAnimatorsFolder}/SaveState-Avatar_{avatarIndex}-{saveStateParameterName}.controller";
                 assetPaths.Add(newControllerPath);
@@ -919,16 +916,33 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 newStateMachine.anyStatePosition = new Vector2(-30, 50);
                 newStateMachine.exitPosition = new Vector2(-30, 100);
 
+                // Prepare default animation.
+                AnimationClip newDefaultClip = new AnimationClip() { name = "Default" };
+                newDefaultClip.SetCurve("", typeof(Animator), "RootT.y", AnimationCurve.Constant(0, 0, 1));
+
+                AssetDatabase.AddObjectToAsset(newDefaultClip, controllers[avatarIndex]);
+
+                // Prepare default state an animation.
+                controllers[avatarIndex].AddParameter(new AnimatorControllerParameter() { name = "IsLocal", type = AnimatorControllerParameterType.Bool, defaultBool = false });
+                AnimatorState newDefaultState = newStateMachine.AddState("Default", new Vector3(200, 0));
+                newDefaultState.motion = newDefaultClip;
+
                 // Prepare data BlendTree state.
-                AnimatorState newState = controllers[avatarIndex].CreateBlendTreeInController("Data Blend", out BlendTree newTree, 0);
-                newStateMachine.states[0].position = new Vector2(-30, 150);
-                controllers[avatarIndex].RemoveParameter(0);
+                AnimatorState newBlendState = controllers[avatarIndex].CreateBlendTreeInController("Data Blend", out BlendTree newTree, 0);
+                ChildAnimatorState[] newChildStates = newStateMachine.states;
+                newChildStates[1].position = new Vector2(200, 50);
+                newStateMachine.states = newChildStates;
+
+                controllers[avatarIndex].RemoveParameter(1); // Get rid of 'Blend' parameter.
+
+                AnimatorStateTransition newBlendTransition = newStateMachine.AddAnyStateTransition(newBlendState);
+                newBlendTransition.AddCondition(AnimatorConditionMode.If, 1, "IsLocal");
 
                 newTree.blendType = BlendTreeType.Direct;
 
                 // Prepare VRC Behaviours.
-                var VRCLayerControl = newState.AddStateMachineBehaviour<VRCPlayableLayerControl>();
-                var VRCTrackingControl = newState.AddStateMachineBehaviour<VRCAnimatorTrackingControl>();
+                var VRCLayerControl = newBlendState.AddStateMachineBehaviour<VRCPlayableLayerControl>();
+                var VRCTrackingControl = newBlendState.AddStateMachineBehaviour<VRCAnimatorTrackingControl>();
 
                 VRCLayerControl.goalWeight = 1;
 
@@ -936,9 +950,10 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 VRCTrackingControl.trackingRightFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
 
                 // Prepare base BlendTree animation.
-                AnimationClip newBaseClip = new AnimationClip() { name = "Straighten Bones" };
+                AnimationClip newBaseClip = new AnimationClip() { name = "SaveState-Base" };
 
                 newBaseClip.SetCurve("", typeof(Animator), "RootT.y", AnimationCurve.Constant(0, 0, 1));
+                newBaseClip.SetCurve("SaveState-Key", typeof(GameObject), "m_IsActive", AnimationCurve.Constant(0, 0, 1));
 
                 newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.x", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].x));
                 newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.y", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].y));
@@ -950,7 +965,6 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 }
                 newTree.AddChild(newBaseClip);
 
-                clips[avatarIndex][0] = newBaseClip;
                 AssetDatabase.AddObjectToAsset(newBaseClip, controllers[avatarIndex]);
 
                 // Prepare data BlendTree animations.
@@ -961,7 +975,6 @@ namespace UdonSharp.Nessie.SaveState.Internal
                     newClip.SetCurve("", typeof(Animator), $"{muscleNames[byteIndex % muscleNames.Length]}{3 - byteIndex / muscleNames.Length} Stretched", AnimationCurve.Constant(0, 0, 1));
                     newTree.AddChild(newClip);
 
-                    clips[avatarIndex][byteIndex + 1] = newClip;
                     AssetDatabase.AddObjectToAsset(newClip, controllers[avatarIndex]);
                 }
 

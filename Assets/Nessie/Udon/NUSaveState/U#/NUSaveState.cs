@@ -10,36 +10,40 @@ namespace UdonSharp.Nessie.SaveState
     [AddComponentMenu("Udon Sharp/Nessie/NUSaveState")]
     public class NUSaveState : UdonSharpBehaviour
     {
-        private VRCPlayerApi localPlayer;
+        #region Serialized Fields
 
-        // *Insert custom class here*
         public UdonBehaviour HookEventReciever;
         public string FallbackAvatarID = "avtr_c38a1615-5bf5-42b4-84eb-a8b6c37cbd11";
         public int MaxByteCount;
+
+        // Instructions.
+        public Component[] BufferUdonBehaviours;
+        public string[] BufferVariables;
+        public Type[] BufferTypes;
+
         public string[] DataAvatarIDs;
-
-        // Data saving/loading.
-        [SerializeField] private GameObject pedestalPrefab;
-        [SerializeField] private Transform pedestalContainer;
-
         public Vector3[] KeyCoordinates;
-        private BoxCollider keyListener;
-
-        private VRCStation dataWriter;
-        private VRC_AvatarPedestal[] dataAvatarPedestals;
-        private VRC_AvatarPedestal fallbackAvatarPedestal;
 
         public RuntimeAnimatorController[] ByteClearers;
         public RuntimeAnimatorController[] ByteWriters;
 
-        // Used at runtime when loading/saving data.
-        [HideInInspector] public byte[] inputBytes;
-        [HideInInspector] public byte[] outputBytes;
+        #endregion Serialized Fields
 
-        // Automatic data management.
-        public Component[] BufferUdonBehaviours;
-        public string[] BufferVariables;
-        public Type[] BufferTypes;
+        #region Private Fields
+
+        private VRCPlayerApi localPlayer;
+
+        private Transform pedestalContainer;
+        private GameObject pedestalPrefab;
+
+        private BoxCollider keyDetector;
+        private VRCStation dataWriter;
+
+        private VRC_AvatarPedestal[] dataAvatarPedestals;
+        private VRC_AvatarPedestal fallbackAvatarPedestal;
+
+        private byte[] inputBytes;
+        private byte[] outputBytes;
 
         private object[] dataBones = new object[]
         {
@@ -84,12 +88,15 @@ namespace UdonSharp.Nessie.SaveState
         };
         private bool avatarIsLoading;
         private int dataStatus = 0;
-        private GameObject avatarKeyObject;
 
         private float dataAvatarTimeout;
         private int dataAvatarIndex;
         private int dataByteIndex;
         private int dataBitIndex;
+
+        #endregion Private Fields
+
+        #region Unity Events
 
         private void Start()
         {
@@ -106,7 +113,7 @@ namespace UdonSharp.Nessie.SaveState
             inputBytes = new byte[MaxByteCount];
             outputBytes = new byte[MaxByteCount];
 
-            keyListener = GetComponent<BoxCollider>();
+            keyDetector = GetComponent<BoxCollider>();
 
             // Prepare data buffer avatars.
             dataAvatarPedestals = new VRC_AvatarPedestal[DataAvatarIDs.Length];
@@ -134,11 +141,9 @@ namespace UdonSharp.Nessie.SaveState
             {
                 Debug.Log($"[<color=#00FF9F>SaveState</color>] Detected buffer avatar: {dataAvatarIndex}.");
 
-                avatarKeyObject = other;
-
                 dataAvatarTimeout = 0;
                 avatarIsLoading = false;
-                keyListener.enabled = false;
+                keyDetector.enabled = false;
 
                 if (dataStatus == 1)
                     _PrepareData();
@@ -151,7 +156,9 @@ namespace UdonSharp.Nessie.SaveState
             }
         }
 
-        #region API
+        #endregion Unity Events
+
+        #region SaveState API
 
         public void _SSSave()
         {
@@ -178,9 +185,9 @@ namespace UdonSharp.Nessie.SaveState
             HookEventReciever.SendCustomEvent(recieverEvents[dataStatus - 1]);
         }
 
-        #endregion API
+        #endregion SaveState API
 
-        #region Data
+        #region SaveState Data
 
         private void _ChangeAvatar()
         {
@@ -192,13 +199,13 @@ namespace UdonSharp.Nessie.SaveState
 
             dataAvatarTimeout = 30;
             avatarIsLoading = true;
-            keyListener.enabled = true;
+            keyDetector.enabled = true;
             _LookForAvatar();
         }
 
         public void _LookForAvatar()
         {
-            keyListener.center = transform.InverseTransformPoint(localPlayer.GetRotation() * KeyCoordinates[dataAvatarIndex] + localPlayer.GetPosition());
+            keyDetector.center = transform.InverseTransformPoint(localPlayer.GetRotation() * KeyCoordinates[dataAvatarIndex] + localPlayer.GetPosition());
 
             if (avatarIsLoading)
             {
@@ -215,7 +222,7 @@ namespace UdonSharp.Nessie.SaveState
             }
             else if (dataStatus > 4)
             {
-                if (Utilities.IsValid(avatarKeyObject) && dataAvatarTimeout > 0)
+                if (dataAvatarTimeout > 0)
                 {
                     dataAvatarTimeout -= Time.deltaTime;
                     SendCustomEventDelayedFrames(nameof(_LookForAvatar), 1);
@@ -238,7 +245,7 @@ namespace UdonSharp.Nessie.SaveState
             SendCustomEventDelayedFrames(nameof(_SetData), 2);
         }
 
-        public void _SetData()
+        public void _SetData() // Write data by doing float additions.
         {
             dataWriter.ExitStation(localPlayer);
 
@@ -280,7 +287,7 @@ namespace UdonSharp.Nessie.SaveState
             }
         }
 
-        public void _GetData()
+        public void _GetData() // Read data using finger rotations.
         {
             int avatarByteCount = Mathf.Min(MaxByteCount - dataAvatarIndex * 32, 32);
             for (int boneIndex = 0; dataByteIndex < avatarByteCount; boneIndex++)
@@ -324,14 +331,14 @@ namespace UdonSharp.Nessie.SaveState
 
             dataAvatarTimeout = 30;
             dataStatus += 4;
-            keyListener.enabled = true;
+            keyDetector.enabled = true;
             _LookForAvatar();
         }
 
         private void _FailedData()
         {
             avatarIsLoading = false;
-            keyListener.enabled = false;
+            keyDetector.enabled = false;
 
             dataStatus += 2;
             _SSHook();
@@ -374,7 +381,7 @@ namespace UdonSharp.Nessie.SaveState
             return normalizedRange;
         }
 
-        #endregion Data
+        #endregion SaveState Data
 
         #region Buffer Utilities
 
