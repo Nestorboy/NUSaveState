@@ -24,8 +24,8 @@ namespace UdonSharp.Nessie.SaveState
         public string[] DataAvatarIDs;
         public Vector3[] KeyCoordinates;
 
-        public RuntimeAnimatorController[] ByteClearers;
-        public RuntimeAnimatorController[] ByteWriters;
+        public RuntimeAnimatorController[] ParameterClearer;
+        public RuntimeAnimatorController[] ParameterWriters;
 
         #endregion Serialized Fields
 
@@ -115,7 +115,7 @@ namespace UdonSharp.Nessie.SaveState
 
             keyDetector = GetComponent<BoxCollider>();
 
-            // Prepare data buffer avatars.
+            // Prepare data avatar pedestals.
             dataAvatarPedestals = new VRC_AvatarPedestal[DataAvatarIDs.Length];
             for (int i = 0; i < DataAvatarIDs.Length; i++)
             {
@@ -125,7 +125,7 @@ namespace UdonSharp.Nessie.SaveState
                 dataAvatarPedestals[i].blueprintId = DataAvatarIDs[i];
             }
 
-            // Prepare fallback avatar.
+            // Prepare fallback avatar pedestal.
             fallbackAvatarPedestal = (VRC_AvatarPedestal)pedestalPrefab.GetComponent(typeof(VRC_AvatarPedestal));
             fallbackAvatarPedestal.transform.SetParent(pedestalContainer, false);
             fallbackAvatarPedestal.transform.localPosition = new Vector3(1, 1, 0);
@@ -146,7 +146,7 @@ namespace UdonSharp.Nessie.SaveState
                 keyDetector.enabled = false;
 
                 if (dataStatus == 1)
-                    _PrepareData();
+                    _ClearData();
                 else
                     SendCustomEventDelayedFrames(nameof(_GetData), 1);
             }
@@ -235,10 +235,10 @@ namespace UdonSharp.Nessie.SaveState
             }
         }
 
-        public void _PrepareData() // Reset each byte before writing to them.
+        private void _ClearData() // Reset all the parameters before writing to them.
         {
             transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
-            dataWriter.animatorController = ByteClearers[dataByteIndex / 2];
+            dataWriter.animatorController = ParameterClearer[0];
             localPlayer.UseAttachedStation();
 
             dataBitIndex = 0;
@@ -253,12 +253,18 @@ namespace UdonSharp.Nessie.SaveState
             {
                 if (((inputBytes[dataByteIndex + dataAvatarIndex * 32] >> dataBitIndex) & 1) == 1)
                 {
-                    dataWriter.animatorController = ByteWriters[dataBitIndex + dataByteIndex * 8];
+                    transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
+                    dataWriter.animatorController = ParameterWriters[dataBitIndex + dataByteIndex * 8];
                     localPlayer.UseAttachedStation();
-                }
 
-                dataBitIndex++;
-                SendCustomEventDelayedFrames(nameof(_SetData), 1);
+                    dataBitIndex++;
+                    SendCustomEventDelayedFrames(nameof(_SetData), 2);
+                }
+                else
+                {
+                    dataBitIndex++;
+                    _SetData();
+                }
             }
             else
             {
@@ -273,10 +279,7 @@ namespace UdonSharp.Nessie.SaveState
                 {
                     if (dataByteIndex < 32)
                     {
-                        if ((dataByteIndex & 1) == 1)
-                            _SetData();
-                        else
-                            _PrepareData();
+                        _SetData();
                     }
                     else
                     {
@@ -428,6 +431,10 @@ namespace UdonSharp.Nessie.SaveState
             else if (type == typeof(Vector2)) return __WriteBufferVector2((Vector2)(value ?? Vector2.zero), buffer, index);
             else if (type == typeof(Vector3)) return __WriteBufferVector3((Vector3)(value ?? Vector3.zero), buffer, index);
             else if (type == typeof(Vector4)) return __WriteBufferVector4((Vector4)(value ?? Vector4.zero), buffer, index);
+            /* UI 1.5 Update
+            else if (type == typeof(Vector2Int)) return __WriteBufferVector2Int((Vector2Int)(value ?? Vector2Int.zero), buffer, index);
+            else if (type == typeof(Vector3Int)) return __WriteBufferVector3Int((Vector3Int)(value ?? Vector3Int.zero), buffer, index);
+            */
             else if (type == typeof(Quaternion)) return __WriteBufferQuaternion((value != null ? (Quaternion)value : Quaternion.identity), buffer, index);
             else if (type == typeof(Color)) return __WriteBufferColor((value != null ? (Color)value : Color.clear), buffer, index);
             else if (type == typeof(Color32)) return __WriteBufferColor32((value != null ? (Color32)value : (Color32)Color.clear), buffer, index);
@@ -453,6 +460,10 @@ namespace UdonSharp.Nessie.SaveState
             else if (type == typeof(Vector2)) return __ReadBufferVector2(buffer);
             else if (type == typeof(Vector3)) return __ReadBufferVector3(buffer);
             else if (type == typeof(Vector4)) return __ReadBufferVector4(buffer);
+            /* UI 1.5 Update
+            else if (type == typeof(Vector2Int)) return __ReadBufferVector2Int(buffer);
+            else if (type == typeof(Vector3Int)) return __ReadBufferVector3Int(buffer);
+            */
             else if (type == typeof(Quaternion)) return __ReadBufferQuaternion(buffer);
             else if (type == typeof(Color)) return __ReadBufferColor(buffer);
             else if (type == typeof(Color32)) return __ReadBufferColor32(buffer);
@@ -483,7 +494,6 @@ namespace UdonSharp.Nessie.SaveState
             if (value > 0x80) value = value - 0xFF;
             return Convert.ToSByte(value);
         }
-
         private int __WriteBufferSignedByte(sbyte value, byte[] buffer, int index)
         {
             buffer[index++] = (byte)(value < 0 ? (value + 0xFF) : value);
@@ -496,7 +506,6 @@ namespace UdonSharp.Nessie.SaveState
             if (value > 0x8000) value = value - 0xFFFF;
             return Convert.ToInt16(value);
         }
-
         private int __WriteBufferShort(short value, byte[] buffer, int index)
         {
             int tmp = value < 0 ? (value + 0xFFFF) : value;
@@ -567,7 +576,6 @@ namespace UdonSharp.Nessie.SaveState
             int signScaleBits = __ReadBufferInteger(buffer);
             return new Decimal(__ReadBufferInteger(buffer), __ReadBufferInteger(buffer), __ReadBufferInteger(buffer), (signScaleBits & 0x80000000) != 0, (byte)((signScaleBits >> 16) & 127));
         }
-
         private int __WriteBufferDecimal(decimal value, byte[] buffer, int index)
         {
             int[] bits = Decimal.GetBits(value);
@@ -604,6 +612,25 @@ namespace UdonSharp.Nessie.SaveState
             index = __WriteBufferFloat(value.w, buffer, index);
             return index;
         }
+
+        /* UI 1.5 Update
+        private Vector2Int __ReadBufferVector2Int(byte[] buffer) => new Vector2Int(__ReadBufferInteger(buffer), __ReadBufferInteger(buffer));
+        private int __WriteBufferVector2Int(Vector2Int value, byte[] buffer, int index)
+        {
+            index = __WriteBufferInteger(value.x, buffer, index);
+            index = __WriteBufferInteger(value.y, buffer, index);
+            return index;
+        }
+
+        private Vector3Int __ReadBufferVector3Int(byte[] buffer) => new Vector3Int(__ReadBufferInteger(buffer), __ReadBufferInteger(buffer), __ReadBufferInteger(buffer));
+        private int __WriteBufferVector3Int(Vector3Int value, byte[] buffer, int index)
+        {
+            index = __WriteBufferInteger(value.x, buffer, index);
+            index = __WriteBufferInteger(value.y, buffer, index);
+            index = __WriteBufferInteger(value.z, buffer, index);
+            return index;
+        }
+        */
 
         private Quaternion __ReadBufferQuaternion(byte[] buffer) => new Quaternion(__ReadBufferFloat(buffer), __ReadBufferFloat(buffer), __ReadBufferFloat(buffer), __ReadBufferFloat(buffer));
         private int __WriteBufferQuaternion(Quaternion value, byte[] buffer, int index)
@@ -669,7 +696,6 @@ namespace UdonSharp.Nessie.SaveState
 
             return result;
         }
-
         private int __WriteBufferFloat(float value, byte[] buffer, int index)
         {
             uint tmp = 0;
@@ -728,7 +754,6 @@ namespace UdonSharp.Nessie.SaveState
         {
             return double.Parse(__ReadBufferStringAscii(buffer));
         }
-
         private int __WriteBufferDouble(double value, byte[] buffer, int index)
         {
             return __WriteBufferStringAscii(value.ToString("R"), buffer, index);
@@ -792,6 +817,7 @@ namespace UdonSharp.Nessie.SaveState
                 return __WriteBufferUnsignedLong(tmp, buffer, index);
             }
         */
+
         private string __ReadBufferStringAscii(byte[] buffer)
         {
             int bytesCount = __ReadBufferInteger(buffer);
@@ -800,7 +826,6 @@ namespace UdonSharp.Nessie.SaveState
             for (var i = 0; i < bytesCount; ++i) chars[i] = Convert.ToChar(buffer[_currentBufferIndex++] & 0x7F);
             return new string(chars);
         }
-
         private int __WriteBufferStringAscii(string str, byte[] buffer, int index)
         {
             index = __WriteBufferInteger(str.Length, buffer, index);

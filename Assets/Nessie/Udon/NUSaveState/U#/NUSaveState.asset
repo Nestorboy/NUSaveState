@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: NUSaveState
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: dcead4b27a681ab49baa946213978dbb,
+  serializedUdonProgramAsset: {fileID: 11400000, guid: de073ea950ae555408a6dd464a6793f8,
     type: 2}
   udonAssembly: 
   assemblyError: 
-  sourceCsScript: {fileID: 11500000, guid: 6dc2f8af2a20dce42b01f28ddfdb8dd7, type: 3}
+  sourceCsScript: {fileID: 11500000, guid: b39bbab69726ab64b8ceef4ea8e1cfb5, type: 3}
   behaviourSyncMode: 0
   behaviourIDHeapVarName: __refl_const_intnl_udonTypeID
   compileErrors: []
@@ -547,7 +547,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: ByteClearers
+      Data: ParameterClearer
     - Name: $v
       Entry: 7
       Data: 33|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -574,10 +574,10 @@ MonoBehaviour:
       Data: UnityEngineRuntimeAnimatorControllerArray
     - Name: symbolOriginalName
       Entry: 1
-      Data: ByteClearers
+      Data: ParameterClearer
     - Name: symbolUniqueName
       Entry: 1
-      Data: ByteClearers
+      Data: ParameterClearer
     - Name: symbolDefaultValue
       Entry: 6
       Data: 
@@ -610,7 +610,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: ByteWriters
+      Data: ParameterWriters
     - Name: $v
       Entry: 7
       Data: 37|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -631,10 +631,10 @@ MonoBehaviour:
       Data: UnityEngineRuntimeAnimatorControllerArray
     - Name: symbolOriginalName
       Entry: 1
-      Data: ByteWriters
+      Data: ParameterWriters
     - Name: symbolUniqueName
       Entry: 1
-      Data: ByteWriters
+      Data: ParameterWriters
     - Name: symbolDefaultValue
       Entry: 6
       Data: 

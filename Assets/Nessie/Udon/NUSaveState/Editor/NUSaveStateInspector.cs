@@ -18,8 +18,6 @@ namespace UdonSharp.Nessie.SaveState.Internal
     {
         private NUSaveState _behaviourProxy;
 
-        private bool foldoutDefaultFields;
-
         // Assets.
         private string pathSaveState = "Assets/Nessie/Udon/NUSaveState";
 
@@ -27,6 +25,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
         private string[] assetFolderNames;
         private DefaultAsset[] assetFolders;
         private DefaultAsset assetFolderSelected;
+        string assetFolderPath;
         private int assetFolderIndex = -1;
 
         private string[] muscleNames = new string[]
@@ -69,6 +68,10 @@ namespace UdonSharp.Nessie.SaveState.Internal
             typeof(Vector2),
             typeof(Vector3),
             typeof(Vector4),
+            /* UI 1.5 Update
+            typeof(Vector2Int),
+            typeof(Vector3Int),
+            */
             typeof(Quaternion),
             typeof(Color),
             typeof(Color32),
@@ -92,6 +95,10 @@ namespace UdonSharp.Nessie.SaveState.Internal
             64,
             96,
             128,
+            /* UI 1.5 Update
+            128,
+            128,
+            */
             128,
             128,
             32,
@@ -99,6 +106,8 @@ namespace UdonSharp.Nessie.SaveState.Internal
         };
 
         // UI.
+        private bool foldoutDefaultFields;
+
         private UnityEditorInternal.ReorderableList instructionList;
         private int selectedInstructionIndex;
         private UnityEditorInternal.ReorderableList avatarList;
@@ -436,6 +445,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 if (newFolder == null || System.IO.Directory.Exists(AssetDatabase.GetAssetPath(newFolder))) // Simple fix to prevent non-folders from being selected.
                 {
                     assetFolderSelected = newFolder;
+                    assetFolderPath = AssetDatabase.GetAssetPath(assetFolderSelected);
                     assetFolderIndex = ArrayUtility.IndexOf(assetFolders, assetFolderSelected);
                 }
             }
@@ -445,6 +455,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
             if (EditorGUI.EndChangeCheck())
             {
                 assetFolderSelected = assetFolders[assetFolderIndex];
+                assetFolderPath = AssetDatabase.GetAssetPath(assetFolders[assetFolderIndex]);
             }
 
             GUILayout.EndHorizontal();
@@ -539,7 +550,7 @@ namespace UdonSharp.Nessie.SaveState.Internal
                                     packageAssetPaths.Add(pathDependency);
 
                         // Create UnityPackage.
-                        string pathUnityPackage = $"{AssetDatabase.GetAssetPath(assetFolderSelected)}/SaveState-Avatar_{saveStateParameterName}.unitypackage";
+                        string pathUnityPackage = $"{assetFolderPath}/SaveState-Avatar_{saveStateParameterName}.unitypackage";
                         AssetDatabase.ExportPackage(packageAssetPaths.ToArray(), pathUnityPackage, ExportPackageOptions.Default);
                         AssetDatabase.ImportAsset(pathUnityPackage);
 
@@ -774,34 +785,33 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
         private void SetSaveStateAnimators()
         {
-            int byteCount = Mathf.CeilToInt(dataBitCount / 8f);
             int minBitCount = Math.Min(dataBitCount, 256);
-            int minByteCount = Math.Min(byteCount, 16);
 
-            string[] writerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Writer", new string[] { AssetDatabase.GetAssetPath(assetFolderSelected) });
-            string[] clearerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Clearer", new string[] { AssetDatabase.GetAssetPath(assetFolderSelected) });
-            if (writerControllerGUIDs.Length < minBitCount || clearerControllerGUIDs.Length < minByteCount)
+            string[] clearerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Clearer", new string[] { assetFolderPath });
+            string[] writerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Writer", new string[] { assetFolderPath });
+
+            if (clearerControllerGUIDs.Length < 1 || writerControllerGUIDs.Length < minBitCount)
             {
-                Debug.LogWarning("[<color=#00FF9F>SaveState</color>] Couldn't find enough Animator Controllers.");
+                if (clearerControllerGUIDs.Length < 1 && writerControllerGUIDs.Length < minBitCount)
+                    Debug.LogWarning("[<color=#00FF9F>SaveState</color>] Couldn't find parameter Clearer or enough parameter Writers.", assetFolderSelected);
+                else if (clearerControllerGUIDs.Length < 1)
+                    Debug.LogWarning("[<color=#00FF9F>SaveState</color>] Couldn't find parameter Clearer.", assetFolderSelected);
+                else if (writerControllerGUIDs.Length < minBitCount)
+                    Debug.LogWarning("[<color=#00FF9F>SaveState</color>] Couldn't find enough parameter Writers.", assetFolderSelected);
                 return;
             }
 
+            AnimatorController[] clearingController = new AnimatorController[] { (AnimatorController)AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(clearerControllerGUIDs[0])) };
             AnimatorController[] writingControllers = new AnimatorController[minBitCount];
-            AnimatorController[] clearingControllers = new AnimatorController[minByteCount];
 
             for (int controllerIndex = 0; controllerIndex < writingControllers.Length; controllerIndex++)
             {
                 writingControllers[controllerIndex] = (AnimatorController)AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(writerControllerGUIDs[controllerIndex]));
             }
 
-            for (int controllerIndex = 0; controllerIndex < clearingControllers.Length; controllerIndex++)
-            {
-                clearingControllers[controllerIndex] = (AnimatorController)AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(clearerControllerGUIDs[controllerIndex]));
-            }
-
             Undo.RecordObject(_behaviourProxy, "Apply animator controllers");
-            _behaviourProxy.ByteWriters = writingControllers;
-            _behaviourProxy.ByteClearers = clearingControllers;
+            _behaviourProxy.ParameterWriters = writingControllers;
+            _behaviourProxy.ParameterClearer = clearingController;
         }
 
         private void ApplyEncryptionKeys()
@@ -833,37 +843,62 @@ namespace UdonSharp.Nessie.SaveState.Internal
 
         private void PrepareWorldAnimators()
         {
-            for (int controllerIndex = 0; controllerIndex < 256 + 16; controllerIndex++)
-            {
-                EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({controllerIndex}/{272})", (float)controllerIndex / 272);
+            // Prepare AnimatorController used for clearing data.
+            AnimatorController newClearerController = AnimatorController.CreateAnimatorControllerAtPath($"{assetFolderPath}/SaveState-{saveStateParameterName}-clear.controller");
+            AnimatorStateMachine newClearerStateMachine = newClearerController.layers[0].stateMachine;
+            newClearerStateMachine.entryPosition = new Vector2(-30, 0);
+            newClearerStateMachine.anyStatePosition = new Vector2(-30, 50);
+            newClearerStateMachine.exitPosition = new Vector2(-30, 100);
 
-                bool isClearer = controllerIndex % 17 == 16;
+            // Prepare AnimatorState used for clearing data.
+            AnimatorState newClearerState = newClearerStateMachine.AddState("Write", new Vector3(200, 0));
+
+            // Prepare VRC Behaviour used for clearing data.
+            var newClearerVRCParameterDriver = newClearerState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+
+            var newClearerParameters = new List<VRC_AvatarParameterDriver.Parameter>();
+            for (int parameterIndex = 0; parameterIndex < 16; parameterIndex++)
+            {
+                var newParameter = new VRC_AvatarParameterDriver.Parameter()
+                {
+                    name = $"{saveStateParameterName}_{parameterIndex}",
+                    value = 0,
+                    type = VRC_AvatarParameterDriver.ChangeType.Set
+                };
+                newClearerParameters.Add(newParameter);
+            }
+
+            newClearerVRCParameterDriver.parameters = newClearerParameters;
+
+            AssetDatabase.SetLabels(newClearerController, new string[] { "SaveState-Clearer" });
+
+            for (int controllerIndex = 0; controllerIndex < 256; controllerIndex++)
+            {
+                EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({controllerIndex}/{256})", (float)controllerIndex / 256);
 
                 // Prepare AnimatorController.
-                AnimatorController newController = AnimatorController.CreateAnimatorControllerAtPath(AssetDatabase.GetAssetPath(assetFolderSelected) + (isClearer ? $"/SaveState-{saveStateParameterName}_{controllerIndex / 17}-clear.controller" : $"/SaveState-{saveStateParameterName}_{controllerIndex / 17}-bit_{controllerIndex % 17}.controller"));
-                AnimatorStateMachine newStateMachine = newController.layers[0].stateMachine;
-                newStateMachine.entryPosition = new Vector2(-30, 0);
-                newStateMachine.anyStatePosition = new Vector2(-30, 50);
-                newStateMachine.exitPosition = new Vector2(-30, 100);
+                AnimatorController newWriterController = AnimatorController.CreateAnimatorControllerAtPath($"{assetFolderPath}/SaveState-{saveStateParameterName}_{controllerIndex / 16}-bit_{controllerIndex % 16}.controller");
+                AnimatorStateMachine newWriterStateMachine = newWriterController.layers[0].stateMachine;
+                newWriterStateMachine.entryPosition = new Vector2(-30, 0);
+                newWriterStateMachine.anyStatePosition = new Vector2(-30, 50);
+                newWriterStateMachine.exitPosition = new Vector2(-30, 100);
 
-                // Prepate AnimatorState.
-                AnimatorState newState = newStateMachine.AddState("Write");
-                newStateMachine.states[0].position = new Vector2(-30, 150);
-                newState.writeDefaultValues = false;
+                // Prepare AnimatorState.
+                AnimatorState newWriterState = newWriterStateMachine.AddState("Write", new Vector3(200, 0));
 
                 // Prepare VRC Behaviour.
-                var VRCParameterDriver = newState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+                var VRCParameterDriver = newWriterState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
                 VRCParameterDriver.parameters = new List<VRC_AvatarParameterDriver.Parameter>()
                 {
                     new VRC_AvatarParameterDriver.Parameter()
                     {
-                        name = $"{saveStateParameterName}_{controllerIndex / 17}",
-                        value = isClearer ? 0 : 1 / Mathf.Pow(2, 16 - controllerIndex % 17),
-                        type = isClearer ? VRC_AvatarParameterDriver.ChangeType.Set : VRC_AvatarParameterDriver.ChangeType.Add
+                        name = $"{saveStateParameterName}_{controllerIndex / 16}",
+                        value = 1 / Mathf.Pow(2, 16 - controllerIndex % 16),
+                        type = VRC_AvatarParameterDriver.ChangeType.Add
                     }
                 };
 
-                AssetDatabase.SetLabels(newController, new string[] { isClearer ? "SaveState-Clearer" : "SaveState-Writer" });
+                AssetDatabase.SetLabels(newWriterController, new string[] { "SaveState-Writer" });
             }
 
             EditorUtility.ClearProgressBar();
