@@ -10,24 +10,28 @@ namespace UdonSharp.Nessie.SaveState
     [AddComponentMenu("Udon Sharp/Nessie/NUSaveState")]
     public class NUSaveState : UdonSharpBehaviour
     {
-        #region Serialized Fields
+        #region Serialized Public Fields
 
         public UdonBehaviour HookEventReciever;
         public string FallbackAvatarID = "avtr_c38a1615-5bf5-42b4-84eb-a8b6c37cbd11";
-        public int MaxByteCount;
+
+        #endregion Serialized Public Fields
+
+        #region Serialized Private Fields
 
         // Instructions.
-        public Component[] BufferUdonBehaviours;
-        public string[] BufferVariables;
-        public Type[] BufferTypes;
+        [SerializeField] private int bufferByteCount;
+        [SerializeField] private Component[] bufferUdonBehaviours;
+        [SerializeField] private string[] bufferVariables;
+        [SerializeField] private string[] bufferTypes;
 
-        public string[] DataAvatarIDs;
-        public Vector3[] KeyCoordinates;
+        [SerializeField] private string[] dataAvatarIDs;
+        [SerializeField] private Vector3[] dataKeyCoords;
 
-        public RuntimeAnimatorController[] ParameterClearer;
-        public RuntimeAnimatorController[] ParameterWriters;
+        [SerializeField] private RuntimeAnimatorController[] parameterClearer; // Has to be an array to avoid an odd Udon serialization issue.
+        [SerializeField] private RuntimeAnimatorController[] parameterWriters;
 
-        #endregion Serialized Fields
+        #endregion Serialized Private Fields
 
         #region Private Fields
 
@@ -100,6 +104,9 @@ namespace UdonSharp.Nessie.SaveState
 
         private void Start()
         {
+            if (gameObject.layer != 5)
+                Debug.LogWarning("[<color=#00FF9F>SaveState</color>] NUSaveState behaviour is not situated on the UI layer, this might prevent the behaviour from detecting data avatars.");
+
             localPlayer = Networking.LocalPlayer;
 
             // Workaround for prefab serialization issues. Angy. >:(
@@ -110,19 +117,19 @@ namespace UdonSharp.Nessie.SaveState
             // Prevent other people from being moved over to the location of the SaveState, moving them to the world origin instead.
             transform.name = $"{localPlayer.displayName} {localPlayer.GetHashCode()}";
 
-            inputBytes = new byte[MaxByteCount];
-            outputBytes = new byte[MaxByteCount];
+            inputBytes = new byte[bufferByteCount];
+            outputBytes = new byte[bufferByteCount];
 
             keyDetector = GetComponent<BoxCollider>();
 
             // Prepare data avatar pedestals.
-            dataAvatarPedestals = new VRC_AvatarPedestal[DataAvatarIDs.Length];
-            for (int i = 0; i < DataAvatarIDs.Length; i++)
+            dataAvatarPedestals = new VRC_AvatarPedestal[dataAvatarIDs.Length];
+            for (int i = 0; i < dataAvatarIDs.Length; i++)
             {
                 dataAvatarPedestals[i] = (VRC_AvatarPedestal)VRCInstantiate(pedestalPrefab).GetComponent(typeof(VRC_AvatarPedestal));
                 dataAvatarPedestals[i].transform.SetParent(pedestalContainer, false);
                 dataAvatarPedestals[i].transform.localPosition = new Vector3(0, i + 1, 0);
-                dataAvatarPedestals[i].blueprintId = DataAvatarIDs[i];
+                dataAvatarPedestals[i].blueprintId = dataAvatarIDs[i];
             }
 
             // Prepare fallback avatar pedestal.
@@ -205,7 +212,7 @@ namespace UdonSharp.Nessie.SaveState
 
         public void _LookForAvatar()
         {
-            keyDetector.center = transform.InverseTransformPoint(localPlayer.GetRotation() * KeyCoordinates[dataAvatarIndex] + localPlayer.GetPosition());
+            keyDetector.center = transform.InverseTransformPoint(localPlayer.GetRotation() * dataKeyCoords[dataAvatarIndex] + localPlayer.GetPosition());
 
             if (avatarIsLoading)
             {
@@ -238,7 +245,7 @@ namespace UdonSharp.Nessie.SaveState
         private void _ClearData() // Reset all the parameters before writing to them.
         {
             transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
-            dataWriter.animatorController = ParameterClearer[0];
+            dataWriter.animatorController = parameterClearer[0];
             localPlayer.UseAttachedStation();
 
             dataBitIndex = 0;
@@ -254,7 +261,7 @@ namespace UdonSharp.Nessie.SaveState
                 if (((inputBytes[dataByteIndex + dataAvatarIndex * 32] >> dataBitIndex) & 1) == 1)
                 {
                     transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
-                    dataWriter.animatorController = ParameterWriters[dataBitIndex + dataByteIndex * 8];
+                    dataWriter.animatorController = parameterWriters[dataBitIndex + dataByteIndex * 8];
                     localPlayer.UseAttachedStation();
 
                     dataBitIndex++;
@@ -271,7 +278,7 @@ namespace UdonSharp.Nessie.SaveState
                 dataBitIndex = 0;
                 dataByteIndex++;
 
-                if (dataByteIndex + dataAvatarIndex * 32 >= MaxByteCount)
+                if (dataByteIndex + dataAvatarIndex * 32 >= bufferByteCount)
                 {
                     _FinishedData();
                 }
@@ -292,7 +299,7 @@ namespace UdonSharp.Nessie.SaveState
 
         public void _GetData() // Read data using finger rotations.
         {
-            int avatarByteCount = Mathf.Min(MaxByteCount - dataAvatarIndex * 32, 32);
+            int avatarByteCount = Mathf.Min(bufferByteCount - dataAvatarIndex * 32, 32);
             for (int boneIndex = 0; dataByteIndex < avatarByteCount; boneIndex++)
             {
                 Quaternion muscleTarget = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[boneIndex]);
@@ -304,7 +311,7 @@ namespace UdonSharp.Nessie.SaveState
                     outputBytes[dataByteIndex++ + dataAvatarIndex * 32] = (byte)(bytes >> 8);
             }
 
-            if (dataByteIndex + dataAvatarIndex * 32 < MaxByteCount)
+            if (dataByteIndex + dataAvatarIndex * 32 < bufferByteCount)
             {
                 dataAvatarIndex++;
                 _ChangeAvatar();
@@ -354,10 +361,10 @@ namespace UdonSharp.Nessie.SaveState
             byte[] bufferBytes = __PrepareWriteBuffer();
             for (int i = 0; bufferLength < bufferBytes.Length; i++)
             {
-                if (BufferUdonBehaviours[i] == null || BufferVariables[i] == null) return;
+                if (bufferUdonBehaviours[i] == null || bufferVariables[i] == null) return;
 
-                object value = ((UdonBehaviour)BufferUdonBehaviours[i]).GetProgramVariable(BufferVariables[i]);
-                bufferLength = __WriteBufferTypedObject(value, BufferTypes[i], bufferBytes, bufferLength);
+                object value = ((UdonBehaviour)bufferUdonBehaviours[i]).GetProgramVariable(bufferVariables[i]);
+                bufferLength = __WriteBufferTypedObject(value, bufferTypes[i], bufferBytes, bufferLength);
             }
 
             inputBytes = __FinalizeWriteBuffer(bufferBytes, bufferLength);
@@ -368,10 +375,10 @@ namespace UdonSharp.Nessie.SaveState
             byte[] bufferBytes = __PrepareReadBuffer(outputBytes);
             for (int i = 0; _currentBufferIndex < bufferBytes.Length; i++)
             {
-                if (BufferUdonBehaviours[i] == null || BufferVariables[i] == null) return;
+                if (bufferUdonBehaviours[i] == null || bufferVariables[i] == null) return;
 
-                object value = __ReadBufferTypedObject(BufferTypes[i], bufferBytes);
-                ((UdonBehaviour)BufferUdonBehaviours[i]).SetProgramVariable(BufferVariables[i], value);
+                object value = __ReadBufferTypedObject(bufferTypes[i], bufferBytes);
+                ((UdonBehaviour)bufferUdonBehaviours[i]).SetProgramVariable(bufferVariables[i], value);
             }
         }
 
@@ -396,7 +403,7 @@ namespace UdonSharp.Nessie.SaveState
 
         private byte[] __PrepareWriteBuffer()
         {
-            if (_tempBuffer == null) _tempBuffer = new byte[MaxByteCount];
+            if (_tempBuffer == null) _tempBuffer = new byte[bufferByteCount];
             return _tempBuffer;
         }
 
@@ -413,61 +420,61 @@ namespace UdonSharp.Nessie.SaveState
             return buffer;
         }
 
-        private int __WriteBufferTypedObject(object value, Type type, byte[] buffer, int index)
+        private int __WriteBufferTypedObject(object value, string typeName, byte[] buffer, int index)
         {
-            if (type == typeof(int)) return __WriteBufferInteger((int)(value ?? 0), buffer, index);
-            else if (type == typeof(uint)) return __WriteBufferUnsignedInteger((uint)(value ?? 0U), buffer, index);
-            else if (type == typeof(long)) return __WriteBufferLong((long)(value ?? 0L), buffer, index);
-            else if (type == typeof(ulong)) return __WriteBufferUnsignedLong((ulong)(value ?? 0UL), buffer, index);
-            else if (type == typeof(short)) return __WriteBufferShort((short)(value ?? 0), buffer, index);
-            else if (type == typeof(ushort)) return __WriteBufferUnsignedShort((ushort)(value ?? 0U), buffer, index);
-            else if (type == typeof(byte)) return __WriteBufferByte((byte)(value ?? 0), buffer, index);
-            else if (type == typeof(sbyte)) return __WriteBufferSignedByte((sbyte)(value ?? 0), buffer, index);
-            else if (type == typeof(char)) return __WriteBufferChar((char)(value ?? 0), buffer, index);
-            else if (type == typeof(float)) return __WriteBufferFloat((float)(value ?? 0.0f), buffer, index);
-            else if (type == typeof(double)) return __WriteBufferDouble((double)(value ?? 0.0), buffer, index);
-            else if (type == typeof(decimal)) return __WriteBufferDecimal((decimal)(value ?? 0m), buffer, index);
-            else if (type == typeof(bool)) return __WriteBufferBoolean((bool)(value ?? false), buffer, index);
-            else if (type == typeof(Vector2)) return __WriteBufferVector2((Vector2)(value ?? Vector2.zero), buffer, index);
-            else if (type == typeof(Vector3)) return __WriteBufferVector3((Vector3)(value ?? Vector3.zero), buffer, index);
-            else if (type == typeof(Vector4)) return __WriteBufferVector4((Vector4)(value ?? Vector4.zero), buffer, index);
+            if (typeName == typeof(int).FullName) return __WriteBufferInteger((int)(value ?? 0), buffer, index);
+            else if (typeName == typeof(uint).FullName) return __WriteBufferUnsignedInteger((uint)(value ?? 0U), buffer, index);
+            else if (typeName == typeof(long).FullName) return __WriteBufferLong((long)(value ?? 0L), buffer, index);
+            else if (typeName == typeof(ulong).FullName) return __WriteBufferUnsignedLong((ulong)(value ?? 0UL), buffer, index);
+            else if (typeName == typeof(short).FullName) return __WriteBufferShort((short)(value ?? 0), buffer, index);
+            else if (typeName == typeof(ushort).FullName) return __WriteBufferUnsignedShort((ushort)(value ?? 0U), buffer, index);
+            else if (typeName == typeof(byte).FullName) return __WriteBufferByte((byte)(value ?? 0), buffer, index);
+            else if (typeName == typeof(sbyte).FullName) return __WriteBufferSignedByte((sbyte)(value ?? 0), buffer, index);
+            else if (typeName == typeof(char).FullName) return __WriteBufferChar((char)(value ?? 0), buffer, index);
+            else if (typeName == typeof(float).FullName) return __WriteBufferFloat((float)(value ?? 0.0f), buffer, index);
+            else if (typeName == typeof(double).FullName) return __WriteBufferDouble((double)(value ?? 0.0), buffer, index);
+            else if (typeName == typeof(decimal).FullName) return __WriteBufferDecimal((decimal)(value ?? 0m), buffer, index);
+            else if (typeName == typeof(bool).FullName) return __WriteBufferBoolean((bool)(value ?? false), buffer, index);
+            else if (typeName == typeof(Vector2).FullName) return __WriteBufferVector2((Vector2)(value ?? Vector2.zero), buffer, index);
+            else if (typeName == typeof(Vector3).FullName) return __WriteBufferVector3((Vector3)(value ?? Vector3.zero), buffer, index);
+            else if (typeName == typeof(Vector4).FullName) return __WriteBufferVector4((Vector4)(value ?? Vector4.zero), buffer, index);
             /* UI 1.5 Update
-            else if (type == typeof(Vector2Int)) return __WriteBufferVector2Int((Vector2Int)(value ?? Vector2Int.zero), buffer, index);
-            else if (type == typeof(Vector3Int)) return __WriteBufferVector3Int((Vector3Int)(value ?? Vector3Int.zero), buffer, index);
+            else if (type == typeof(Vector2Int).FullName) return __WriteBufferVector2Int((Vector2Int)(value ?? Vector2Int.zero), buffer, index);
+            else if (type == typeof(Vector3Int).FullName) return __WriteBufferVector3Int((Vector3Int)(value ?? Vector3Int.zero), buffer, index);
             */
-            else if (type == typeof(Quaternion)) return __WriteBufferQuaternion((value != null ? (Quaternion)value : Quaternion.identity), buffer, index);
-            else if (type == typeof(Color)) return __WriteBufferColor((value != null ? (Color)value : Color.clear), buffer, index);
-            else if (type == typeof(Color32)) return __WriteBufferColor32((value != null ? (Color32)value : (Color32)Color.clear), buffer, index);
-            else if (type == typeof(VRCPlayerApi)) return __WriteBufferVRCPlayer((VRCPlayerApi)value, buffer, index);
+            else if (typeName == typeof(Quaternion).FullName) return __WriteBufferQuaternion((value != null ? (Quaternion)value : Quaternion.identity), buffer, index);
+            else if (typeName == typeof(Color).FullName) return __WriteBufferColor((value != null ? (Color)value : Color.clear), buffer, index);
+            else if (typeName == typeof(Color32).FullName) return __WriteBufferColor32((value != null ? (Color32)value : (Color32)Color.clear), buffer, index);
+            else if (typeName == typeof(VRCPlayerApi).FullName) return __WriteBufferVRCPlayer((VRCPlayerApi)value, buffer, index);
             return index;
         }
 
-        private object __ReadBufferTypedObject(Type type, byte[] buffer)
+        private object __ReadBufferTypedObject(string typeName, byte[] buffer)
         {
-            if (type == typeof(int)) return __ReadBufferInteger(buffer);
-            else if (type == typeof(uint)) return __ReadBufferUnsignedInteger(buffer);
-            else if (type == typeof(long)) return __ReadBufferLong(buffer);
-            else if (type == typeof(ulong)) return __ReadBufferUnsignedLong(buffer);
-            else if (type == typeof(short)) return __ReadBufferShort(buffer);
-            else if (type == typeof(ushort)) return __ReadBufferUnsignedShort(buffer);
-            else if (type == typeof(byte)) return __ReadBufferByte(buffer);
-            else if (type == typeof(sbyte)) return __ReadBufferSignedByte(buffer);
-            else if (type == typeof(char)) return __ReadBufferChar(buffer);
-            else if (type == typeof(float)) return __ReadBufferFloat(buffer);
-            else if (type == typeof(double)) return __ReadBufferDouble(buffer);
-            else if (type == typeof(decimal)) return __ReadBufferDecimal(buffer);
-            else if (type == typeof(bool)) return __ReadBufferBoolean(buffer);
-            else if (type == typeof(Vector2)) return __ReadBufferVector2(buffer);
-            else if (type == typeof(Vector3)) return __ReadBufferVector3(buffer);
-            else if (type == typeof(Vector4)) return __ReadBufferVector4(buffer);
+            if (typeName == typeof(int).FullName) return __ReadBufferInteger(buffer);
+            else if (typeName == typeof(uint).FullName) return __ReadBufferUnsignedInteger(buffer);
+            else if (typeName == typeof(long).FullName) return __ReadBufferLong(buffer);
+            else if (typeName == typeof(ulong).FullName) return __ReadBufferUnsignedLong(buffer);
+            else if (typeName == typeof(short).FullName) return __ReadBufferShort(buffer);
+            else if (typeName == typeof(ushort).FullName) return __ReadBufferUnsignedShort(buffer);
+            else if (typeName == typeof(byte).FullName) return __ReadBufferByte(buffer);
+            else if (typeName == typeof(sbyte).FullName) return __ReadBufferSignedByte(buffer);
+            else if (typeName == typeof(char).FullName) return __ReadBufferChar(buffer);
+            else if (typeName == typeof(float).FullName) return __ReadBufferFloat(buffer);
+            else if (typeName == typeof(double).FullName) return __ReadBufferDouble(buffer);
+            else if (typeName == typeof(decimal).FullName) return __ReadBufferDecimal(buffer);
+            else if (typeName == typeof(bool).FullName) return __ReadBufferBoolean(buffer);
+            else if (typeName == typeof(Vector2).FullName) return __ReadBufferVector2(buffer);
+            else if (typeName == typeof(Vector3).FullName) return __ReadBufferVector3(buffer);
+            else if (typeName == typeof(Vector4).FullName) return __ReadBufferVector4(buffer);
             /* UI 1.5 Update
-            else if (type == typeof(Vector2Int)) return __ReadBufferVector2Int(buffer);
-            else if (type == typeof(Vector3Int)) return __ReadBufferVector3Int(buffer);
+            else if (type == typeof(Vector2Int).FullName) return __ReadBufferVector2Int(buffer);
+            else if (type == typeof(Vector3Int).FullName) return __ReadBufferVector3Int(buffer);
             */
-            else if (type == typeof(Quaternion)) return __ReadBufferQuaternion(buffer);
-            else if (type == typeof(Color)) return __ReadBufferColor(buffer);
-            else if (type == typeof(Color32)) return __ReadBufferColor32(buffer);
-            else if (type == typeof(VRCPlayerApi)) return __ReadBufferVRCPlayer(buffer);
+            else if (typeName == typeof(Quaternion).FullName) return __ReadBufferQuaternion(buffer);
+            else if (typeName == typeof(Color).FullName) return __ReadBufferColor(buffer);
+            else if (typeName == typeof(Color32).FullName) return __ReadBufferColor32(buffer);
+            else if (typeName == typeof(VRCPlayerApi).FullName) return __ReadBufferVRCPlayer(buffer);
             return null;
         }
 
