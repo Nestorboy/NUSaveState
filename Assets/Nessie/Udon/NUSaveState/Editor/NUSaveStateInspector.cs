@@ -1005,6 +1005,8 @@ namespace UdonSharp.Nessie.SaveState.Internal
                 controllers[avatarIndex].RemoveParameter(1); // Get rid of 'Blend' parameter.
 
                 AnimatorStateTransition newBlendTransition = newStateMachine.AddAnyStateTransition(newBlendState);
+                newBlendTransition.exitTime = 1;
+                newBlendTransition.duration = 0;
                 newBlendTransition.AddCondition(AnimatorConditionMode.If, 1, "IsLocal");
 
                 newTree.blendType = BlendTreeType.Direct;

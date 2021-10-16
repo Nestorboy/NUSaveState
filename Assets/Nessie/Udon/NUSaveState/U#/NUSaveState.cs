@@ -153,9 +153,9 @@ namespace UdonSharp.Nessie.SaveState
                 keyDetector.enabled = false;
 
                 if (dataStatus == 1)
-                    SendCustomEventDelayedFrames(nameof(_ClearData), 1);
+                    _ClearData();
                 else
-                    SendCustomEventDelayedFrames(nameof(_GetData), 1);
+                    _GetData();
             }
             else if (dataStatus > 4)
             {
@@ -242,14 +242,14 @@ namespace UdonSharp.Nessie.SaveState
             }
         }
 
-        public void _ClearData() // Reset all the parameters before writing to them.
+        private void _ClearData() // Reset all the parameters before writing to them.
         {
             transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
             dataWriter.animatorController = parameterClearer[0];
             localPlayer.UseAttachedStation();
 
             dataBitIndex = 0;
-            SendCustomEventDelayedFrames(nameof(_SetData), 1);
+            SendCustomEventDelayedFrames(nameof(_SetData), 2);
         }
 
         public void _SetData() // Write data by doing float additions.
@@ -297,7 +297,7 @@ namespace UdonSharp.Nessie.SaveState
             }
         }
 
-        public void _GetData() // Read data using finger rotations.
+        private void _GetData() // Read data using finger rotations.
         {
             int avatarByteCount = Mathf.Min(bufferByteCount - dataAvatarIndex * 32, 32);
             for (int boneIndex = 0; dataByteIndex < avatarByteCount; boneIndex++)
