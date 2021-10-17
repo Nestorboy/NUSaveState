@@ -5,7 +5,7 @@ using VRC.SDKBase;
 using VRC.Udon;
 using UdonSharp;
 
-namespace UdonSharp.Nessie.SaveState
+namespace Nessie.Udon.SaveState
 {
     [AddComponentMenu("Udon Sharp/Nessie/NUSaveState")]
     public class NUSaveState : UdonSharpBehaviour
@@ -81,7 +81,7 @@ namespace UdonSharp.Nessie.SaveState
         private float dataMinRange = 0.0009971f;
         private float dataMaxRange = 0.4999345f;
 
-        private string[] recieverEvents = new string[]
+        private string[] callbackEvents = new string[]
         {
             "_SSSaved",
             "_SSLoaded",
@@ -189,7 +189,7 @@ namespace UdonSharp.Nessie.SaveState
 
         private void _SSHook()
         {
-            HookEventReciever.SendCustomEvent(recieverEvents[dataStatus - 1]);
+            HookEventReciever.SendCustomEvent(callbackEvents[dataStatus - 1]);
         }
 
         #endregion SaveState API

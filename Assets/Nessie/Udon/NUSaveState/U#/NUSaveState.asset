@@ -1453,7 +1453,7 @@ MonoBehaviour:
       Data: 
     - Name: $k
       Entry: 1
-      Data: recieverEvents
+      Data: callbackEvents
     - Name: $v
       Entry: 7
       Data: 93|UdonSharp.Compiler.FieldDefinition, UdonSharp.Editor
@@ -1474,10 +1474,10 @@ MonoBehaviour:
       Data: SystemStringArray
     - Name: symbolOriginalName
       Entry: 1
-      Data: recieverEvents
+      Data: callbackEvents
     - Name: symbolUniqueName
       Entry: 1
-      Data: recieverEvents
+      Data: callbackEvents
     - Name: symbolDefaultValue
       Entry: 6
       Data: 

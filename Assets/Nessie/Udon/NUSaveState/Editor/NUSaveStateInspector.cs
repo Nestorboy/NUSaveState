@@ -1,8 +1,8 @@
 ﻿
-using UnityEngine;
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEditor;
 using UnityEditor.Animations;
 using VRC.SDKBase;
@@ -11,7 +11,7 @@ using UdonSharpEditor;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDK3.Avatars.ScriptableObjects;
 
-namespace UdonSharp.Nessie.SaveState.Internal
+namespace Nessie.Udon.SaveState.Internal
 {
     [CustomEditor(typeof(NUSaveState))]
     internal class NUSaveStateInspector : Editor
