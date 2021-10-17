@@ -1,11 +1,11 @@
 ﻿
-using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
+using UdonSharp;
 using TMPro;
 
-namespace UdonSharp.Nessie.Debugger
+namespace Nessie.Udon.Debugger
 {
     [AddComponentMenu("Udon Sharp/Nessie/Debugger/NUDebugger Text")]
     public class NUDebuggerText : UdonSharpBehaviour

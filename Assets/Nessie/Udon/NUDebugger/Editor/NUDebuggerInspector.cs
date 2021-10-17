@@ -7,9 +7,10 @@ using System.Text.RegularExpressions;
 using UnityEditor;
 using VRC.Udon;
 using VRC.Udon.Editor.ProgramSources.UdonGraphProgram;
+using UdonSharp;
 using UdonSharpEditor;
 
-namespace UdonSharp.Nessie.Debugger.Internal
+namespace Nessie.Udon.Debugger.Internal
 {
     [CustomEditor(typeof(NUDebugger))]
     internal class NUDebuggerInspector : Editor

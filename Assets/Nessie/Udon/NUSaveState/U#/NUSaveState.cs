@@ -12,7 +12,7 @@ namespace Nessie.Udon.SaveState
     {
         #region Serialized Public Fields
 
-        public UdonBehaviour HookEventReciever;
+        public UdonBehaviour CallbackReciever;
         public string FallbackAvatarID = "avtr_c38a1615-5bf5-42b4-84eb-a8b6c37cbd11";
 
         #endregion Serialized Public Fields
@@ -189,7 +189,7 @@ namespace Nessie.Udon.SaveState
 
         private void _SSHook()
         {
-            HookEventReciever.SendCustomEvent(callbackEvents[dataStatus - 1]);
+            CallbackReciever.SendCustomEvent(callbackEvents[dataStatus - 1]);
         }
 
         #endregion SaveState API

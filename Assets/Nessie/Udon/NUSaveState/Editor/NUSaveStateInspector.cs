@@ -143,7 +143,7 @@ namespace Nessie.Udon.SaveState.Internal
         private GUIContent contentApplyAnimators = new GUIContent("Apply Save State Animators", "Applies animator controllers from the selected folder.");
         private GUIContent contentApplyKeys = new GUIContent("Apply Save State Keys", "Generates keys used to identify the specified data avatars.");
 
-        private GUIContent contentEventReciever = new GUIContent("Event Reciever", "UdonBehaviour which recieves the following callback events:\n_SSSaved _SSSaveFailed _SSPostSave\n_SSLoaded _SSLoadFailed _SSPostLoad");
+        private GUIContent contentEventReciever = new GUIContent("Cabllback Reciever", "UdonBehaviour which recieves the following callback events:\n_SSSaved _SSSaveFailed _SSPostSave\n_SSLoaded _SSLoadFailed _SSPostLoad");
         private GUIContent contentFallbackAvatar = new GUIContent("Fallback Avatar", "Blueprint ID of the avatar which is switched to when the data processing is done.");
 
         private GUIContent contentInstructionList = new GUIContent("Data Instructions", "List of UdonBehaviours variables used when saving or loading data.");
@@ -1170,7 +1170,7 @@ namespace Nessie.Udon.SaveState.Internal
 
         private void InitializeProperties()
         {
-            propertyEventReciever = serializedObject.FindProperty(nameof(NUSaveState.HookEventReciever));
+            propertyEventReciever = serializedObject.FindProperty(nameof(NUSaveState.CallbackReciever));
             propertyFallbackAvatar = serializedObject.FindProperty(nameof(NUSaveState.FallbackAvatarID));
 
             propertyBufferByteCount = serializedObject.FindProperty("bufferByteCount");

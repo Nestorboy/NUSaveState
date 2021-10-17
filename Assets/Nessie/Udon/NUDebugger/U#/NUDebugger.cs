@@ -1,12 +1,13 @@
 ﻿
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using VRC.SDKBase;
 using VRC.Udon;
-using System;
+using UdonSharp;
 using TMPro;
 
-namespace UdonSharp.Nessie.Debugger
+namespace Nessie.Udon.Debugger
 {
     [AddComponentMenu("Udon Sharp/Nessie/Debugger/NUDebugger")]
     public class NUDebugger : UdonSharpBehaviour
