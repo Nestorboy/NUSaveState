@@ -2742,7 +2742,7 @@ MonoBehaviour:
       Data: 190|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: UdonSharp.Nessie.Debugger.NUDebuggerText[], Assembly-CSharp
+      Data: Nessie.Udon.Debugger.NUDebuggerText[], Assembly-CSharp
     - Name: 
       Entry: 8
       Data: 
