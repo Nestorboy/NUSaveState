@@ -15,7 +15,7 @@ _SSPostLoad is called after loading the data and the user has switched out of th
 
 Notes:
 Every avatar can store up to 32 bytes or 256 bits, but there's no limit to how many avatars you can use.
-It takes ~10 frames to store each byte, so ~320 frames for an entire avatar.
+It takes 1 frame to write a bit, so it would take ~256 frames to set all bits on an avatar to 1.
 Reading 32 bytes can be done almost instantly once an avatar is loaded.
 
 Pre-made:

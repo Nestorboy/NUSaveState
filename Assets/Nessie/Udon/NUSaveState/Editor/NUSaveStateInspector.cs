@@ -16,6 +16,8 @@ namespace Nessie.Udon.SaveState.Internal
     [CustomEditor(typeof(NUSaveState))]
     internal class NUSaveStateInspector : Editor
     {
+        #region Private Fields
+
         private NUSaveState _behaviourProxy;
 
         // Assets.
@@ -25,7 +27,7 @@ namespace Nessie.Udon.SaveState.Internal
         private string[] assetFolderNames;
         private DefaultAsset[] assetFolders;
         private DefaultAsset assetFolderSelected;
-        string assetFolderPath;
+        private string assetFolderPath;
         private int assetFolderIndex = -1;
 
         private string[] muscleNames = new string[]
@@ -149,7 +151,11 @@ namespace Nessie.Udon.SaveState.Internal
         private GUIContent contentInstructionList = new GUIContent("Data Instructions", "List of UdonBehaviours variables used when saving or loading data.");
         private GUIContent contentAvatarList = new GUIContent("Avatar IDs", "List of avatars used as data buffers. (Unused avatars are drawn with disabled fields.)");
 
-        public class DataInstruction
+        #endregion Private Fields
+
+        #region Private Classes
+
+        private class DataInstruction
         {
             public UdonBehaviour Udon;
 
@@ -186,6 +192,10 @@ namespace Nessie.Udon.SaveState.Internal
 
             public string[] VariableLabels = new string[0];
         }
+
+        #endregion Private Classes
+
+        #region Editor Events
 
         private void OnEnable()
         {
@@ -400,6 +410,8 @@ namespace Nessie.Udon.SaveState.Internal
             DrawDefaultFields();
             EditorGUI.indentLevel--;
         }
+
+        #endregion Editor Events
 
         #region Drawers
 
