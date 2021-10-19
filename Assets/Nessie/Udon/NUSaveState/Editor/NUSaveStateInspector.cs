@@ -136,6 +136,10 @@ namespace Nessie.Udon.SaveState.Internal
         private GUIStyle styleRichTextLabel;
         private GUIStyle styleRichTextButton;
 
+        private string labelAsteriskFolder;
+        private string labelAsteriskSeed;
+        private string labelAsteriskName;
+
         private GUIContent contentAssetFolder = new GUIContent("Asset Folder", "Folder used when applying or generating world/avatar assets.");
         private GUIContent contentEncryptionSeed = new GUIContent("Encryption Seed", "Seed used to generate key coordinates.");
         private GUIContent contentParameterName = new GUIContent("Parameter Name", "Name used as a parameter prefix.");
@@ -145,7 +149,7 @@ namespace Nessie.Udon.SaveState.Internal
         private GUIContent contentApplyAnimators = new GUIContent("Apply Save State Animators", "Applies animator controllers from the selected folder.");
         private GUIContent contentApplyKeys = new GUIContent("Apply Save State Keys", "Generates keys used to identify the specified data avatars.");
 
-        private GUIContent contentEventReciever = new GUIContent("Cabllback Reciever", "UdonBehaviour which recieves the following callback events:\n_SSSaved _SSSaveFailed _SSPostSave\n_SSLoaded _SSLoadFailed _SSPostLoad");
+        private GUIContent contentEventReciever = new GUIContent("Callback Reciever", "UdonBehaviour which recieves the following callback events:\n_SSSaved _SSSaveFailed _SSPostSave\n_SSLoaded _SSLoadFailed _SSPostLoad");
         private GUIContent contentFallbackAvatar = new GUIContent("Fallback Avatar", "Blueprint ID of the avatar which is switched to when the data processing is done.");
 
         private GUIContent contentInstructionList = new GUIContent("Data Instructions", "List of UdonBehaviours variables used when saving or loading data.");
@@ -199,6 +203,8 @@ namespace Nessie.Udon.SaveState.Internal
 
         private void OnEnable()
         {
+            if (target == null) return; // Prevents some iffy errors in the console.
+
             _behaviourProxy = (NUSaveState)target;
             _behaviourProxy.UpdateProxy();
             serializedObject.Update();
@@ -294,19 +300,21 @@ namespace Nessie.Udon.SaveState.Internal
             instructionList.onAddCallback = (UnityEditorInternal.ReorderableList list) =>
             {
                 DataInstruction newData = new DataInstruction();
-                if (list.index >= 0)
+                if (list.count > 0)
                 {
-                    GetValidVariables(dataInstructions[list.index].Udon, out List<string> vars, out List<Type> types);
+                    int copyIndex = list.count - 1;
 
-                    newData.Udon = dataInstructions[list.index].Udon;
+                    GetValidVariables(dataInstructions[copyIndex].Udon, out List<string> vars, out List<Type> types);
+
+                    newData.Udon = dataInstructions[copyIndex].Udon;
 
                     newData.VariableNames = vars.ToArray();
                     newData.VariableTypes = types.ToArray();
                     newData.PrepareLabels();
 
-                    int newVariableIndex = Array.IndexOf(newData.VariableNames, dataInstructions[list.index]);
+                    int newVariableIndex = Array.IndexOf(newData.VariableNames, dataInstructions[copyIndex]);
                     if (newVariableIndex >= 0)
-                        newData.VariableIndex = newData.VariableTypes[newVariableIndex] == dataInstructions[list.index].VariableTypes[newVariableIndex] ? newVariableIndex : -1;
+                        newData.VariableIndex = newData.VariableTypes[newVariableIndex] == dataInstructions[copyIndex].VariableTypes[newVariableIndex] ? newVariableIndex : -1;
                 }
                 ArrayUtility.Add(ref dataInstructions, newData);
 
@@ -322,11 +330,11 @@ namespace Nessie.Udon.SaveState.Internal
 
                 ArrayUtility.RemoveAt(ref dataInstructions, list.index);
 
-                if (propertyBufferUdonBehaviours.GetArrayElementAtIndex(list.index) != null)
-                    propertyBufferUdonBehaviours.DeleteArrayElementAtIndex(list.index);
                 propertyBufferUdonBehaviours.DeleteArrayElementAtIndex(list.index);
                 propertyBufferVariables.DeleteArrayElementAtIndex(list.index);
                 propertyBufferTypes.DeleteArrayElementAtIndex(list.index);
+                if (propertyBufferUdonBehaviours.GetArrayElementAtIndex(list.index) != null)
+                    propertyBufferUdonBehaviours.DeleteArrayElementAtIndex(list.index);
 
                 if (list.index >= dataInstructions.Length)
                     list.index--;
@@ -402,6 +410,8 @@ namespace Nessie.Udon.SaveState.Internal
 
             DrawBanner();
 
+            DrawMessages();
+
             DrawSaveStateUtilities();
 
             DrawSaveStateData();
@@ -420,6 +430,14 @@ namespace Nessie.Udon.SaveState.Internal
             foldoutDefaultFields = EditorGUILayout.Foldout(foldoutDefaultFields, new GUIContent("Default Inspector", "Foldout for default UdonSharpBehaviour inspector."));
             if (foldoutDefaultFields)
                 base.OnInspectorGUI();
+        }
+
+        private void DrawMessages()
+        {
+            if (propertyParameterWriters.arraySize < Math.Min(dataBitCount, 256))
+                EditorGUILayout.HelpBox("There are not enough animators controllers on the behaviour.\nPlease select an asset folder and apply the animator controllers again.", MessageType.Error);
+            if (propertyKeyCoords.arraySize < Mathf.CeilToInt(dataBitCount / 256f))
+                EditorGUILayout.HelpBox("There are not enough key coordinates on the behaviour.\nPlease enter the seed and apply the keys again.", MessageType.Error);
         }
 
         private void DrawBanner()
@@ -463,22 +481,6 @@ namespace Nessie.Udon.SaveState.Internal
 
         private void DrawSaveStateUtilities()
         {
-            string asteriskFolder;
-            string asteriskSeed;
-            string asteriskName;
-            if (EditorGUIUtility.isProSkin)
-            {
-                asteriskFolder = assetFolderSelected == null ? "<color=#FC6D3F>*</color>" : "";
-                asteriskSeed = saveStateSeed.Length < 1 ? "<color=#B0FC58>*</color>" : "";
-                asteriskName = saveStateParameterName.Length < 1 ? "<color=#7ED5FC>*</color>" : "";
-            }
-            else
-            {
-                asteriskFolder = assetFolderSelected == null ? "<color=#AF0C0C>*</color>" : "";
-                asteriskSeed = saveStateSeed.Length < 1 ? "<color=#2D7C31>*</color>" : "";
-                asteriskName = saveStateParameterName.Length < 1 ? "<color=#0C6BC9>*</color>" : "";
-            }
-
             GUILayout.BeginVertical(styleHelpBox);
 
             EditorGUILayout.LabelField("Save State Utilities", EditorStyles.boldLabel);
@@ -487,7 +489,7 @@ namespace Nessie.Udon.SaveState.Internal
 
             GUILayout.BeginHorizontal();
 
-            GUILayout.Label(new GUIContent(contentAssetFolder.text + asteriskFolder, contentAssetFolder.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
+            GUILayout.Label(new GUIContent(contentAssetFolder.text + labelAsteriskFolder, contentAssetFolder.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
 
             EditorGUI.BeginChangeCheck();
             DefaultAsset newFolder = (DefaultAsset)EditorGUILayout.ObjectField(assetFolderSelected, typeof(DefaultAsset), true);
@@ -513,7 +515,7 @@ namespace Nessie.Udon.SaveState.Internal
 
             GUILayout.BeginHorizontal();
 
-            GUILayout.Label(new GUIContent(contentEncryptionSeed.text + asteriskSeed, contentEncryptionSeed.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
+            GUILayout.Label(new GUIContent(contentEncryptionSeed.text + labelAsteriskSeed, contentEncryptionSeed.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
 
             EditorGUI.BeginChangeCheck();
             saveStateSeed = EditorGUILayout.TextField(saveStateSeed);
@@ -526,7 +528,7 @@ namespace Nessie.Udon.SaveState.Internal
 
             GUILayout.BeginHorizontal();
 
-            GUILayout.Label(new GUIContent(contentParameterName.text + asteriskName, contentParameterName.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
+            GUILayout.Label(new GUIContent(contentParameterName.text + labelAsteriskName, contentParameterName.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
 
             EditorGUI.BeginChangeCheck();
             saveStateParameterName = EditorGUILayout.TextField(saveStateParameterName);
@@ -541,7 +543,7 @@ namespace Nessie.Udon.SaveState.Internal
 
             EditorGUI.BeginDisabledGroup(assetFolderSelected == null);
             EditorGUI.BeginDisabledGroup(saveStateParameterName.Length < 1);
-            if (GUILayout.Button(new GUIContent(contentWorldAssets.text + asteriskFolder + asteriskName, contentWorldAssets.tooltip), styleRichTextButton))
+            if (GUILayout.Button(new GUIContent(contentWorldAssets.text + labelAsteriskFolder + labelAsteriskName, contentWorldAssets.tooltip), styleRichTextButton))
             {
                 if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to generate and replace world assets in {assetFolderSelected.name}?", "Yes", "No"))
                 {
@@ -568,7 +570,7 @@ namespace Nessie.Udon.SaveState.Internal
             }
 
             EditorGUI.BeginDisabledGroup(saveStateSeed.Length < 1);
-            if (GUILayout.Button(new GUIContent(contentAvatarAssets.text + asteriskFolder + asteriskSeed + asteriskName, contentAvatarAssets.tooltip), styleRichTextButton))
+            if (GUILayout.Button(new GUIContent(contentAvatarAssets.text + labelAsteriskFolder + labelAsteriskSeed + labelAsteriskName, contentAvatarAssets.tooltip), styleRichTextButton))
             {
                 if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to generate and replace avatar assets in {assetFolderSelected.name}?", "Yes", "No"))
                 {
@@ -620,7 +622,7 @@ namespace Nessie.Udon.SaveState.Internal
             EditorGUI.EndDisabledGroup();
             EditorGUI.EndDisabledGroup();
 
-            if (GUILayout.Button(new GUIContent(contentApplyAnimators.text + asteriskFolder, contentApplyAnimators.tooltip), styleRichTextButton))
+            if (GUILayout.Button(new GUIContent(contentApplyAnimators.text + labelAsteriskFolder, contentApplyAnimators.tooltip), styleRichTextButton))
             {
                 if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to apply the animator controllers from {assetFolderSelected.name}?", "Yes", "No"))
                     SetSaveStateAnimators();
@@ -628,7 +630,7 @@ namespace Nessie.Udon.SaveState.Internal
             EditorGUI.EndDisabledGroup();
 
             EditorGUI.BeginDisabledGroup(saveStateSeed.Length < 1);
-            if (GUILayout.Button(new GUIContent(contentApplyKeys.text + asteriskSeed, contentApplyKeys.tooltip), styleRichTextButton))
+            if (GUILayout.Button(new GUIContent(contentApplyKeys.text + labelAsteriskSeed, contentApplyKeys.tooltip), styleRichTextButton))
             {
                 if (EditorUtility.DisplayDialog("SaveState", $"Are you sure you want to apply keys generated from \"{saveStateSeed}\"?", "Yes", "No"))
                     ApplyEncryptionKeys();
@@ -1178,6 +1180,20 @@ namespace Nessie.Udon.SaveState.Internal
 
             styleRichTextButton = new GUIStyle(GUI.skin.button);
             styleRichTextButton.richText = true;
+
+            // Content
+            if (EditorGUIUtility.isProSkin)
+            {
+                labelAsteriskFolder = assetFolderSelected == null ? "<color=#FC6D3F>*</color>" : "";
+                labelAsteriskSeed = saveStateSeed.Length < 1 ? "<color=#B0FC58>*</color>" : "";
+                labelAsteriskName = saveStateParameterName.Length < 1 ? "<color=#7ED5FC>*</color>" : "";
+            }
+            else
+            {
+                labelAsteriskFolder = assetFolderSelected == null ? "<color=#AF0C0C>*</color>" : "";
+                labelAsteriskSeed = saveStateSeed.Length < 1 ? "<color=#2D7C31>*</color>" : "";
+                labelAsteriskName = saveStateParameterName.Length < 1 ? "<color=#0C6BC9>*</color>" : "";
+            }
         }
 
         private void InitializeProperties()

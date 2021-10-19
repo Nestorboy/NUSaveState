@@ -271,7 +271,7 @@ MonoBehaviour:
     uid: 669cf5de-28ea-4b65-a599-220b7b5de1dc
     jsonData: '{"uid":"669cf5de-28ea-4b65-a599-220b7b5de1dc","layout":{"serializedVersion":"2","x":45.0,"y":540.0,"width":553.0,"height":347.0},"containedElements":["f85fc7fe-f44a-4ced-9ece-5e2fcef92ec0","5a29d556-f65c-4741-a2ad-79a130207aa3","7d0376d7-967e-49ac-8059-1b9b11d04cab","eb075ebc-3019-4ec4-a34f-c7636b9bcf3e","834ab163-aa41-45c9-b92c-cdd10da2101a"],"title":"Loaded","layer":0,"elementTypeColor":{"r":0.0,"g":0.0,"b":0.0,"a":0.0}}'
   viewTransform:
-    position: {x: 189.6, y: -9.6}
-    scale: 0.49717674
+    position: {x: 208.8, y: 99.2}
+    scale: 0.375937
   version: 1.0.0
   showAssembly: 0

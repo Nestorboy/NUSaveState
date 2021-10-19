@@ -104,6 +104,9 @@ namespace Nessie.Udon.SaveState
 
         private void Start()
         {
+            if (parameterWriters.Length < Mathf.Min(bufferByteCount * 8, 256) || dataKeyCoords.Length < Mathf.CeilToInt(bufferByteCount / 32f))
+                Debug.LogError("[<color=#00FF9F>SaveState</color>] NUSaveState is not set up properly.");
+
             if (gameObject.layer != 5)
                 Debug.LogWarning("[<color=#00FF9F>SaveState</color>] NUSaveState behaviour is not situated on the UI layer, this might prevent the behaviour from detecting data avatars.");
 
@@ -155,7 +158,7 @@ namespace Nessie.Udon.SaveState
                 if (dataStatus == 1)
                     _ClearData();
                 else
-                    _GetData();
+                    SendCustomEventDelayedFrames(nameof(_GetData), 1);
             }
             else if (dataStatus > 4)
             {
@@ -187,7 +190,7 @@ namespace Nessie.Udon.SaveState
             _ChangeAvatar();
         }
 
-        private void _SSHook()
+        private void _SSCallback()
         {
             CallbackReciever.SendCustomEvent(callbackEvents[dataStatus - 1]);
         }
@@ -236,7 +239,7 @@ namespace Nessie.Udon.SaveState
                 }
                 else
                 {
-                    _SSHook();
+                    _SSCallback();
                     dataStatus = 0;
                 }
             }
@@ -297,7 +300,7 @@ namespace Nessie.Udon.SaveState
             }
         }
 
-        private void _GetData() // Read data using finger rotations.
+        public void _GetData() // Read data using finger rotations.
         {
             int avatarByteCount = Mathf.Min(bufferByteCount - dataAvatarIndex * 32, 32);
             for (int boneIndex = 0; dataByteIndex < avatarByteCount; boneIndex++)
@@ -335,7 +338,7 @@ namespace Nessie.Udon.SaveState
                 Debug.Log("[<color=#00FF9F>SaveState</color>] Data has been loaded.");
             }
 
-            _SSHook();
+            _SSCallback();
 
             fallbackAvatarPedestal.SetAvatarUse(localPlayer);
 
@@ -351,7 +354,7 @@ namespace Nessie.Udon.SaveState
             keyDetector.enabled = false;
 
             dataStatus += 2;
-            _SSHook();
+            _SSCallback();
             dataStatus = 0;
         }
 
