@@ -512,11 +512,8 @@ namespace Nessie.Udon.SaveState.Internal
             DefaultAsset newFolder = (DefaultAsset)EditorGUILayout.ObjectField(preferences.Folder, typeof(DefaultAsset), true);
             if (EditorGUI.EndChangeCheck())
             {
-                if (newFolder == null || System.IO.Directory.Exists(AssetDatabase.GetAssetPath(newFolder))) // Simple fix to prevent non-folders from being selected.
-                {
-                    preferences.Folder = newFolder;
-                    assetFolderIndex = ArrayUtility.IndexOf(assetFolders, preferences.Folder);
-                }
+                preferences.Folder = newFolder;
+                assetFolderIndex = ArrayUtility.IndexOf(assetFolders, preferences.Folder);
             }
 
             EditorGUI.BeginChangeCheck();

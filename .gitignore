@@ -12,7 +12,8 @@ Assets/*
 
 **/ToDo*
 
-Assets/Nessie/Udon/NUSaveState/AssetFolders/**
+Assets/Nessie/Udon/NUSaveState/AssetFolders/*
+!Assets/Nessie/Udon/NUSaveState/AssetFolders/Example-World-Folder
 
 Assets/Nessie/Udon/NUSaveState/Avatar/Animators*
 Assets/Nessie/Udon/NUSaveState/Avatar/Expressions*

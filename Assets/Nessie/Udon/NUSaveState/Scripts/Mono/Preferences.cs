@@ -11,7 +11,43 @@ namespace Nessie.Udon.SaveState
     [System.Serializable]
     public class Preferences : MonoBehaviour
     {
-        public DefaultAsset Folder;
+        [SerializeField] private DefaultAsset folderAsset;
+        [SerializeField] private string folderPath;
+        public DefaultAsset Folder
+        {
+            get
+            {
+                if (folderAsset == null)
+                {
+                    if (folderPath != null)
+                    {
+                        folderAsset = AssetDatabase.LoadAssetAtPath<DefaultAsset>(folderPath);
+
+                        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+                    }
+                }
+                else if (AssetDatabase.GetAssetPath(folderAsset) != folderPath)
+                {
+                    folderPath = AssetDatabase.GetAssetPath(folderAsset);
+
+                    EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+                }
+
+                return folderAsset;
+            }
+            set
+            {
+                string newPath = AssetDatabase.GetAssetPath(value);
+                if (value == null || System.IO.Directory.Exists(newPath)) // Simple fix to prevent non-folders from being assigned.
+                {
+                    folderAsset = value;
+                    folderPath = newPath;
+
+                    EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+                }
+            }
+        }
+
         public string Seed = "";
         public string Parameter = "";
 
