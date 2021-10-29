@@ -7,7 +7,7 @@ using UdonSharp;
 
 namespace Nessie.Udon.SaveState
 {
-    [AddComponentMenu("Udon Sharp/Nessie/NUSaveState")]
+    [AddComponentMenu("Nessie/NUSaveState")]
     public class NUSaveState : UdonSharpBehaviour
     {
         #region Serialized Public Fields
@@ -308,7 +308,7 @@ namespace Nessie.Udon.SaveState
                 Quaternion muscleTarget = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[boneIndex]);
                 Quaternion muscleParent = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[boneIndex + 8]);
 
-                int bytes = Mathf.RoundToInt(InverseMuscle(muscleTarget, muscleParent) * 65536) & 0xFFFF; // 2 bytes per parameter.
+                int bytes = Mathf.RoundToInt(_InverseMuscle(muscleTarget, muscleParent) * 65536) & 0xFFFF; // 2 bytes per parameter.
                 outputBytes[dataByteIndex++ + dataAvatarIndex * 32] = (byte)(bytes & 0xFF);
                 if (dataByteIndex < avatarByteCount)
                     outputBytes[dataByteIndex++ + dataAvatarIndex * 32] = (byte)(bytes >> 8);
@@ -385,7 +385,7 @@ namespace Nessie.Udon.SaveState
             }
         }
 
-        private float InverseMuscle(Quaternion a, Quaternion b) // Funky numbers that make the world go round.
+        private float _InverseMuscle(Quaternion a, Quaternion b) // Funky numbers that make the world go round.
         {
             Quaternion deltaQ = Quaternion.Inverse(b) * a;
             float initialRange = Mathf.Abs(Mathf.Asin(deltaQ.x)) * 4 / Mathf.PI;
@@ -448,7 +448,6 @@ namespace Nessie.Udon.SaveState
             else if (typeName == typeof(Quaternion).FullName) return __WriteBufferQuaternion((value != null ? (Quaternion)value : Quaternion.identity), buffer, index);
             else if (typeName == typeof(Color).FullName) return __WriteBufferColor((value != null ? (Color)value : Color.clear), buffer, index);
             else if (typeName == typeof(Color32).FullName) return __WriteBufferColor32((value != null ? (Color32)value : (Color32)Color.clear), buffer, index);
-            else if (typeName == typeof(VRCPlayerApi).FullName) return __WriteBufferVRCPlayer((VRCPlayerApi)value, buffer, index);
             return index;
         }
 
@@ -477,7 +476,6 @@ namespace Nessie.Udon.SaveState
             else if (typeName == typeof(Quaternion).FullName) return __ReadBufferQuaternion(buffer);
             else if (typeName == typeof(Color).FullName) return __ReadBufferColor(buffer);
             else if (typeName == typeof(Color32).FullName) return __ReadBufferColor32(buffer);
-            else if (typeName == typeof(VRCPlayerApi).FullName) return __ReadBufferVRCPlayer(buffer);
             return null;
         }
 
@@ -671,9 +669,6 @@ namespace Nessie.Udon.SaveState
             index = __WriteBufferByte(value.a, buffer, index);
             return index;
         }
-
-        private VRCPlayerApi __ReadBufferVRCPlayer(byte[] buffer) => VRCPlayerApi.GetPlayerById(__ReadBufferInteger(buffer));
-        private int __WriteBufferVRCPlayer(VRCPlayerApi value, byte[] buffer, int index) => __WriteBufferInteger(Utilities.IsValid(value) ? value.playerId : -1, buffer, index);
 
         private const uint _FLOAT_SIGN_BIT = 0x80000000;
         private const uint _FLOAT_EXP_MASK = 0x7F800000;

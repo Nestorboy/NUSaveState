@@ -6,6 +6,7 @@ using VRC.Udon;
 using UdonSharp;
 using Nessie.Udon.SaveState;
 
+[AddComponentMenu("")]
 public class NUSaveState_Example_Sharp : UdonSharpBehaviour
 {
     // Simple declarations to reflect the Graph equivalents.

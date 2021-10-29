@@ -475,6 +475,71 @@ Transform:
   m_Father: {fileID: 980162996}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &841202960
+GameObject:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 841202961}
+  - component: {fileID: 841202962}
+  m_Layer: 0
+  m_Name: NUSS_DATA
+  m_TagString: EditorOnly
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &841202961
+Transform:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 841202960}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 879216625}
+  m_RootOrder: 1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &841202962
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 841202960}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e697ba967688de04d8addfb6fff21a77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  DataPreferences:
+    folderAsset: {fileID: 102900000, guid: 0ad1bc3859241ba469befd98bff0dede, type: 3}
+    folderPath: Assets/Nessie/Udon/NUSaveState/AssetFolders/Example-World-Folder
+    FolderIndex: 1
+    Seed: 404
+    Parameter: parameter
+  DataInstructions:
+  - udon: {fileID: 1538785986}
+    variables:
+    - Name: PlayerPosition
+      VariableType: 2
+      typeAssemblyName: UnityEngine.Vector3, UnityEngine.CoreModule, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
+    Variable:
+      Name: PlayerPosition
+      VariableType: 2
+      typeAssemblyName: UnityEngine.Vector3, UnityEngine.CoreModule, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
+    variableIndex: 0
+    BitCount: 96
+    VariableLabels:
+    - PlayerPosition (96)
 --- !u!1 &844761886
 GameObject:
   m_ObjectHideFlags: 0
@@ -1738,53 +1803,6 @@ MonoBehaviour:
   publicVariablesUnityEngineObjects:
   - {fileID: 879216626}
   publicVariablesSerializationDataFormat: 0
---- !u!1 &1624601707
-GameObject:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1624601708}
-  - component: {fileID: 1624601709}
-  m_Layer: 0
-  m_Name: NUSS_PREF
-  m_TagString: EditorOnly
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1624601708
-Transform:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1624601707}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
-  m_Father: {fileID: 879216625}
-  m_RootOrder: 1
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1624601709
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1624601707}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e697ba967688de04d8addfb6fff21a77, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  folderAsset: {fileID: 102900000, guid: 0ad1bc3859241ba469befd98bff0dede, type: 3}
-  folderPath: Assets/Nessie/Udon/NUSaveState/AssetFolders/Example-World-Folder
-  Seed: 404
-  Parameter: parameter
 --- !u!1 &1688460381
 GameObject:
   m_ObjectHideFlags: 0
