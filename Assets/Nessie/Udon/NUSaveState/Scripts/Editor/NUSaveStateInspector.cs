@@ -57,10 +57,10 @@ namespace Nessie.Udon.SaveState.Internal
         private SerializedProperty propertyEventReciever;
         private SerializedProperty propertyFallbackAvatar;
 
-        private SerializedProperty propertyBufferByteCount;
-        private SerializedProperty propertyBufferUdonBehaviours;
-        private SerializedProperty propertyBufferVariables;
-        private SerializedProperty propertyBufferTypes;
+        private SerializedProperty propertyByteCount;
+        private SerializedProperty propertyUdonBehaviours;
+        private SerializedProperty propertyVariables;
+        private SerializedProperty propertyTypes;
 
         private SerializedProperty propertyAvatarIDs;
         private SerializedProperty propertyKeyCoords;
@@ -128,7 +128,7 @@ namespace Nessie.Udon.SaveState.Internal
 
             #region Reorderable Lists
 
-            instructionList = new UnityEditorInternal.ReorderableList(serializedObject, propertyBufferUdonBehaviours, true, true, true, true);
+            instructionList = new UnityEditorInternal.ReorderableList(serializedObject, propertyUdonBehaviours, true, true, true, true);
             instructionList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
             {
                 if (!instructionList.serializedProperty.isExpanded) return;
@@ -211,9 +211,9 @@ namespace Nessie.Udon.SaveState.Internal
                 ArrayUtility.Add(ref data.DataInstructions, newData);
                 dataBitCount += newData.BitCount;
 
-                propertyBufferUdonBehaviours.arraySize++;
-                propertyBufferVariables.arraySize++;
-                propertyBufferTypes.arraySize++;
+                propertyUdonBehaviours.arraySize++;
+                propertyVariables.arraySize++;
+                propertyTypes.arraySize++;
 
                 SetSaveStateData();
             };
@@ -224,9 +224,9 @@ namespace Nessie.Udon.SaveState.Internal
                 dataBitCount -= data.DataInstructions[list.index].BitCount;
                 ArrayUtility.RemoveAt(ref data.DataInstructions, list.index);
 
-                propertyBufferUdonBehaviours.arraySize--;
-                propertyBufferVariables.arraySize--;
-                propertyBufferTypes.arraySize--;
+                propertyUdonBehaviours.arraySize--;
+                propertyVariables.arraySize--;
+                propertyTypes.arraySize--;
 
                 int avatarCount = Mathf.CeilToInt(dataBitCount / 256f);
                 if (avatarCount > propertyAvatarIDs.arraySize)
@@ -289,7 +289,23 @@ namespace Nessie.Udon.SaveState.Internal
             behaviourProxy = (NUSaveState)target;
             if (!UdonSharpEditorUtility.IsProxyBehaviour(behaviourProxy)) return;
 
-            if (styleBox == null) InitializeStyles();
+            if (styleBox == null)
+            {
+                InitializeStyles();
+            }
+
+            if (data == null)
+            {
+                data = NUSaveStateData.CreatePreferences(behaviourProxy);
+
+                dataSO = new SerializedObject(data);
+                dataSO.Update();
+
+                InitializeProperties();
+
+                GetSaveStateData();
+                SetSaveStateData();
+            }
 
             dataSO.Update();
 
@@ -594,25 +610,44 @@ namespace Nessie.Udon.SaveState.Internal
 
         private void GetSaveStateData()
         {
-            int udonSize = propertyBufferUdonBehaviours.arraySize;
-            int nameSize = propertyBufferVariables.arraySize;
-            int typeSize = propertyBufferTypes.arraySize;
+            int udonSize = propertyUdonBehaviours.arraySize;
+            int nameSize = propertyVariables.arraySize;
+            int typeSize = propertyTypes.arraySize;
             int instructionSize = data.DataInstructions.Length;
 
-            if (udonSize != instructionSize)
-                propertyBufferUdonBehaviours.arraySize = instructionSize;
-            if (nameSize != instructionSize)
-                propertyBufferVariables.arraySize = instructionSize;
-            if (typeSize != instructionSize)
-                propertyBufferTypes.arraySize = instructionSize;
+            int newSize = Math.Max(udonSize, Math.Max(nameSize, Math.Max(typeSize, instructionSize)));
+
+            if (udonSize < newSize)
+                propertyUdonBehaviours.arraySize = newSize;
+            if (nameSize < newSize)
+                propertyVariables.arraySize = newSize;
+            if (typeSize < newSize)
+                propertyTypes.arraySize = newSize;
 
             serializedObject.ApplyModifiedPropertiesWithoutUndo();
 
-            for (int i = 0; i < instructionSize; i++)
+            if (instructionSize < newSize) // Pull fields from the U# behaviour if array size mismatch. Helps with missing NUSS_DATA objects.
             {
-                UdonBehaviour oldUdonBehaviour = (UdonBehaviour)propertyBufferUdonBehaviours.GetArrayElementAtIndex(i).objectReferenceValue;
+                Array.Resize(ref data.DataInstructions, newSize);
 
-                data.DataInstructions[i].Udon = oldUdonBehaviour;
+                for (int i = 0; i < newSize; i++)
+                {
+                    if (i >= instructionSize)
+                        data.DataInstructions[i] = new NUSaveStateData.Instruction();
+
+                    UdonBehaviour oldUdonBehaviour = (UdonBehaviour)propertyUdonBehaviours.GetArrayElementAtIndex(i).objectReferenceValue;
+                    string oldVariableName = propertyVariables.GetArrayElementAtIndex(i).stringValue;
+                    string oldVariableType = propertyTypes.GetArrayElementAtIndex(i).stringValue;
+
+                    data.DataInstructions[i].Udon = oldUdonBehaviour;
+
+                    int newVariableIndex = Array.FindIndex(data.DataInstructions[i].Variables, var => var.Name == oldVariableName);
+                    if (newVariableIndex >= 0)
+                    {
+                        if (data.DataInstructions[i].Variables[newVariableIndex].Type.FullName == oldVariableType)
+                            data.DataInstructions[i].VariableIndex = newVariableIndex;
+                    }
+                }
             }
 
             dataBitCount = NUSaveStateData.BitSum(data.DataInstructions);
@@ -620,7 +655,7 @@ namespace Nessie.Udon.SaveState.Internal
 
         private void SetSaveStateData()
         {
-            propertyBufferByteCount.intValue = Mathf.CeilToInt(NUSaveStateData.BitSum(data.DataInstructions) / 8);
+            propertyByteCount.intValue = Mathf.CeilToInt(NUSaveStateData.BitSum(data.DataInstructions) / 8);
 
             for (int i = 0; i < data.DataInstructions.Length; i++)
             {
@@ -631,7 +666,7 @@ namespace Nessie.Udon.SaveState.Internal
         }
         private void SetSaveStateData(int index)
         {
-            propertyBufferByteCount.intValue = Mathf.CeilToInt(NUSaveStateData.BitSum(data.DataInstructions) / 8);
+            propertyByteCount.intValue = Mathf.CeilToInt(NUSaveStateData.BitSum(data.DataInstructions) / 8);
 
             Extensions.NUExtensions.Variable variable = data.DataInstructions[index].Variable;
 
@@ -639,9 +674,9 @@ namespace Nessie.Udon.SaveState.Internal
             string newVariableName = variable.Name;
             string newTypeName = variable.Type?.FullName;
 
-            propertyBufferUdonBehaviours.GetArrayElementAtIndex(index).objectReferenceValue = newUdonBehaviour;
-            propertyBufferVariables.GetArrayElementAtIndex(index).stringValue = newVariableName;
-            propertyBufferTypes.GetArrayElementAtIndex(index).stringValue = newTypeName;
+            propertyUdonBehaviours.GetArrayElementAtIndex(index).objectReferenceValue = newUdonBehaviour;
+            propertyVariables.GetArrayElementAtIndex(index).stringValue = newVariableName;
+            propertyTypes.GetArrayElementAtIndex(index).stringValue = newTypeName;
 
             serializedObject.ApplyModifiedProperties();
         }
@@ -1022,10 +1057,10 @@ namespace Nessie.Udon.SaveState.Internal
             propertyEventReciever = serializedObject.FindProperty(nameof(NUSaveState.CallbackReciever));
             propertyFallbackAvatar = serializedObject.FindProperty(nameof(NUSaveState.FallbackAvatarID));
 
-            propertyBufferByteCount = serializedObject.FindProperty("bufferByteCount");
-            propertyBufferUdonBehaviours = serializedObject.FindProperty("bufferUdonBehaviours");
-            propertyBufferVariables = serializedObject.FindProperty("bufferVariables");
-            propertyBufferTypes = serializedObject.FindProperty("bufferTypes");
+            propertyByteCount = serializedObject.FindProperty("bufferByteCount");
+            propertyUdonBehaviours = serializedObject.FindProperty("bufferUdonBehaviours");
+            propertyVariables = serializedObject.FindProperty("bufferVariables");
+            propertyTypes = serializedObject.FindProperty("bufferTypes");
 
             propertyAvatarIDs = serializedObject.FindProperty("dataAvatarIDs");
             propertyKeyCoords = serializedObject.FindProperty("dataKeyCoords");

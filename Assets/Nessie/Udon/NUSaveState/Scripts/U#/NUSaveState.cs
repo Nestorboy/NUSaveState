@@ -141,8 +141,11 @@ namespace Nessie.Udon.SaveState
             fallbackAvatarPedestal.transform.localPosition = new Vector3(1, 1, 0);
             fallbackAvatarPedestal.blueprintId = FallbackAvatarID;
 
-            // Get VRCStation due to reference being broken when set up through inspector.
+            // Prepare VRCStation, aka the "data writer".
             dataWriter = (VRCStation)GetComponent(typeof(VRCStation));
+            dataWriter.PlayerMobility = VRCStation.Mobility.Mobile;
+            dataWriter.canUseStationFromStation = false;
+            dataWriter.seated = false;
         }
 
         private void OnParticleCollision(GameObject other)
@@ -257,6 +260,8 @@ namespace Nessie.Udon.SaveState
 
         public void _SetData() // Write data by doing float additions.
         {
+            transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
+			
             dataWriter.ExitStation(localPlayer);
 
             if (dataBitIndex < 8)

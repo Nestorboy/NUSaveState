@@ -121,18 +121,18 @@ namespace Nessie.Udon.SaveState
                 {
                     udon = value;
 
-                    variables = value != null ? value.GetFilteredVariables(allowedTypes, ~NUExtensions.VariableType.Internal).ToArray() : new NUExtensions.Variable[0];
-                    VariableLabels = PrepareLabels(variables);
+                    Variables = value != null ? value.GetFilteredVariables(allowedTypes, ~NUExtensions.VariableType.Internal).ToArray() : new NUExtensions.Variable[0];
+                    VariableLabels = PrepareLabels(Variables);
 
-                    int newVariableIndex = Array.FindIndex(variables, var => var.Name == Variable.Name);
+                    int newVariableIndex = Array.FindIndex(Variables, var => var.Name == Variable.Name);
                     if (newVariableIndex >= 0)
-                        VariableIndex = variables[newVariableIndex].Type == Variable.Type ? newVariableIndex : -1;
+                        VariableIndex = Variables[newVariableIndex].Type == Variable.Type ? newVariableIndex : -1;
                     else
                         VariableIndex = newVariableIndex;
                 }
             }
 
-            [SerializeField] private NUExtensions.Variable[] variables;
+            public NUExtensions.Variable[] Variables;
             public NUExtensions.Variable Variable;
 
             [SerializeField] private int variableIndex = -1;
@@ -148,7 +148,7 @@ namespace Nessie.Udon.SaveState
 
                     if (value >= 0)
                     {
-                        Variable = variables[value];
+                        Variable = Variables[value];
                         BitCount = allowedTypesBits[Array.IndexOf(allowedTypes, Variable.Type)];
                     }
                     else

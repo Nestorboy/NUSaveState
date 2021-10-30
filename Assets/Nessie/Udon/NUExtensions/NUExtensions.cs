@@ -56,11 +56,8 @@ namespace Nessie.Udon.Extensions
             [SerializeField] private string typeAssemblyName;
             public Type Type
             {
-                get
-                {
-
-                    return typeAssemblyName != null ? Type.GetType(typeAssemblyName) : null;
-                }
+                get => typeAssemblyName != null ? Type.GetType(typeAssemblyName) : null;
+                set => typeAssemblyName = value.AssemblyQualifiedName;
             }
 
             public Variable(string name, VariableType variableType, Type type)
