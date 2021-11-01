@@ -12,7 +12,7 @@ NUSaveState uses an alternate (and Quest compatible!) method to load and save da
 To make the implementation as straight forward as possible there's also a custom inspector for the NUSaveState script, allowing for a quicker workflow, and then there are also several methods or events you can use to easily integrate it into your own worlds.
 
 This system uses 'Parameter Drivers' to write to a data avatar's parameters one bit per frame, and the data is then output through the finger bone rotations.
-Due to this systems reliance on avatar paratemeters and floats, there's a limit as to how precise the data can be, and as it stands right now, each avatar is used to store 256 bits, but there's no limit to how many data avatars you can chain together.
+Due to this systems reliance on avatar parameters and floats, there's a limit as to how precise the data can be, and as it stands right now, each avatar is used to store 256 bits, but there's no limit to how many data avatars you can chain together.
 
 ### Requirements
 - [Udon](https://vrchat.com/home/download)
