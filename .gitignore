@@ -2,8 +2,8 @@
 !.git
 !.github
 !.gitignore
-!.LICENCE
-!.README.md
+!LICENSE
+!README.md
 
 !Assets
 Assets/*
