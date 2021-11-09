@@ -75,10 +75,8 @@ namespace Nessie.Udon.SaveState
                 typeof(Vector2),
                 typeof(Vector3),
                 typeof(Vector4),
-                /* UI 1.5 Update
                 typeof(Vector2Int),
                 typeof(Vector3Int),
-                */
                 typeof(Quaternion),
                 typeof(Color),
                 typeof(Color32),
@@ -101,10 +99,8 @@ namespace Nessie.Udon.SaveState
                 64,
                 96,
                 128,
-                /* UI 1.5 Update
-                128,
-                128,
-                */
+                64,
+                96,
                 128,
                 128,
                 32,

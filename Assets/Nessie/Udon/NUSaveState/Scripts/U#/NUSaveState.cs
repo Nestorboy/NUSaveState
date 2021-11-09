@@ -446,10 +446,8 @@ namespace Nessie.Udon.SaveState
             else if (typeName == typeof(Vector2).FullName) return __WriteBufferVector2((Vector2)(value ?? Vector2.zero), buffer, index);
             else if (typeName == typeof(Vector3).FullName) return __WriteBufferVector3((Vector3)(value ?? Vector3.zero), buffer, index);
             else if (typeName == typeof(Vector4).FullName) return __WriteBufferVector4((Vector4)(value ?? Vector4.zero), buffer, index);
-            /* UI 1.5 Update
-            else if (type == typeof(Vector2Int).FullName) return __WriteBufferVector2Int((Vector2Int)(value ?? Vector2Int.zero), buffer, index);
-            else if (type == typeof(Vector3Int).FullName) return __WriteBufferVector3Int((Vector3Int)(value ?? Vector3Int.zero), buffer, index);
-            */
+            else if (typeName == typeof(Vector2Int).FullName) return __WriteBufferVector2Int((Vector2Int)(value ?? Vector2Int.zero), buffer, index);
+            else if (typeName == typeof(Vector3Int).FullName) return __WriteBufferVector3Int((Vector3Int)(value ?? Vector3Int.zero), buffer, index);
             else if (typeName == typeof(Quaternion).FullName) return __WriteBufferQuaternion((value != null ? (Quaternion)value : Quaternion.identity), buffer, index);
             else if (typeName == typeof(Color).FullName) return __WriteBufferColor((value != null ? (Color)value : Color.clear), buffer, index);
             else if (typeName == typeof(Color32).FullName) return __WriteBufferColor32((value != null ? (Color32)value : (Color32)Color.clear), buffer, index);
@@ -474,10 +472,8 @@ namespace Nessie.Udon.SaveState
             else if (typeName == typeof(Vector2).FullName) return __ReadBufferVector2(buffer);
             else if (typeName == typeof(Vector3).FullName) return __ReadBufferVector3(buffer);
             else if (typeName == typeof(Vector4).FullName) return __ReadBufferVector4(buffer);
-            /* UI 1.5 Update
-            else if (type == typeof(Vector2Int).FullName) return __ReadBufferVector2Int(buffer);
-            else if (type == typeof(Vector3Int).FullName) return __ReadBufferVector3Int(buffer);
-            */
+            else if (typeName == typeof(Vector2Int).FullName) return __ReadBufferVector2Int(buffer);
+            else if (typeName == typeof(Vector3Int).FullName) return __ReadBufferVector3Int(buffer);
             else if (typeName == typeof(Quaternion).FullName) return __ReadBufferQuaternion(buffer);
             else if (typeName == typeof(Color).FullName) return __ReadBufferColor(buffer);
             else if (typeName == typeof(Color32).FullName) return __ReadBufferColor32(buffer);
@@ -626,7 +622,6 @@ namespace Nessie.Udon.SaveState
             return index;
         }
 
-        /* UI 1.5 Update
         private Vector2Int __ReadBufferVector2Int(byte[] buffer) => new Vector2Int(__ReadBufferInteger(buffer), __ReadBufferInteger(buffer));
         private int __WriteBufferVector2Int(Vector2Int value, byte[] buffer, int index)
         {
@@ -643,7 +638,6 @@ namespace Nessie.Udon.SaveState
             index = __WriteBufferInteger(value.z, buffer, index);
             return index;
         }
-        */
 
         private Quaternion __ReadBufferQuaternion(byte[] buffer) => new Quaternion(__ReadBufferFloat(buffer), __ReadBufferFloat(buffer), __ReadBufferFloat(buffer), __ReadBufferFloat(buffer));
         private int __WriteBufferQuaternion(Quaternion value, byte[] buffer, int index)

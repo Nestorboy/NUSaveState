@@ -626,27 +626,25 @@ namespace Nessie.Udon.SaveState.Internal
 
             serializedObject.ApplyModifiedPropertiesWithoutUndo();
 
-            if (instructionSize < newSize) // Pull fields from the U# behaviour if array size mismatch. Helps with missing NUSS_DATA objects.
-            {
+            if (instructionSize != newSize)
                 Array.Resize(ref data.DataInstructions, newSize);
 
-                for (int i = 0; i < newSize; i++)
+            for (int i = 0; i < newSize; i++)
+            {
+                if (i >= instructionSize)
+                    data.DataInstructions[i] = new NUSaveStateData.Instruction();
+
+                UdonBehaviour oldUdonBehaviour = (UdonBehaviour)propertyUdonBehaviours.GetArrayElementAtIndex(i).objectReferenceValue;
+                string oldVariableName = propertyVariables.GetArrayElementAtIndex(i).stringValue;
+                string oldVariableType = propertyTypes.GetArrayElementAtIndex(i).stringValue;
+
+                data.DataInstructions[i].Udon = oldUdonBehaviour;
+
+                int newVariableIndex = Array.FindIndex(data.DataInstructions[i].Variables, var => var.Name == oldVariableName);
+                if (newVariableIndex >= 0)
                 {
-                    if (i >= instructionSize)
-                        data.DataInstructions[i] = new NUSaveStateData.Instruction();
-
-                    UdonBehaviour oldUdonBehaviour = (UdonBehaviour)propertyUdonBehaviours.GetArrayElementAtIndex(i).objectReferenceValue;
-                    string oldVariableName = propertyVariables.GetArrayElementAtIndex(i).stringValue;
-                    string oldVariableType = propertyTypes.GetArrayElementAtIndex(i).stringValue;
-
-                    data.DataInstructions[i].Udon = oldUdonBehaviour;
-
-                    int newVariableIndex = Array.FindIndex(data.DataInstructions[i].Variables, var => var.Name == oldVariableName);
-                    if (newVariableIndex >= 0)
-                    {
-                        if (data.DataInstructions[i].Variables[newVariableIndex].Type.FullName == oldVariableType)
-                            data.DataInstructions[i].VariableIndex = newVariableIndex;
-                    }
+                    if (data.DataInstructions[i].Variables[newVariableIndex].Type.FullName == oldVariableType)
+                        data.DataInstructions[i].VariableIndex = newVariableIndex;
                 }
             }
 
