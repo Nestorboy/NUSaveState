@@ -32,7 +32,7 @@ MonoBehaviour:
     PUSH, NUSaveState\r\n        PUSH, __instance_2\r\n        COPY\r\n        PUSH,
     __String_1\r\n        PUSH, __eventName_1\r\n        COPY\r\n        PUSH, __instance_2\r\n       
     PUSH, __eventName_1\r\n        EXTERN, \"VRCUdonCommonInterfacesIUdonEventReceiver.__SendCustomEvent__SystemString__SystemVoid\"\r\n       
-    JUMP, 0xFFFFFFFC\r\n    \r\n    .export _SSLoaded\r\n    \r\n    _SSLoaded:\r\n   
+    JUMP, 0xFFFFFFFC\r\n    \r\n    .export _SSPostLoad\r\n    \r\n    _SSPostLoad:\r\n   
     \r\n        PUSH, __instance_3\r\n        EXTERN, \"VRCSDKBaseNetworking.__get_LocalPlayer__VRCSDKBaseVRCPlayerApi\"\r\n       
     PUSH, __instance_3\r\n        PUSH, __instance_4\r\n        COPY\r\n        PUSH,
     __instance_3\r\n        PUSH, __teleportRot_0\r\n        EXTERN, \"VRCSDKBaseVRCPlayerApi.__GetRotation__UnityEngineQuaternion\"\r\n       
@@ -215,7 +215,7 @@ MonoBehaviour:
       - 7d0376d7-967e-49ac-8059-1b9b11d04cab
       nodeValues:
       - unityObjectValue: {fileID: 0}
-        stringValue: System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|_SSLoaded
+        stringValue: System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|_SSPostLoad
     - fullName: Get_Variable
       uid: 5a29d556-f65c-4741-a2ad-79a130207aa3
       position: {x: 75, y: 780}
@@ -269,9 +269,9 @@ MonoBehaviour:
     jsonData: '{"uid":"a99886fe-27fe-4294-811f-b00ba493f3f2","layout":{"serializedVersion":"2","x":45.0,"y":195.0,"width":553.0,"height":315.0},"containedElements":["4190a83c-6dbd-4a8a-b109-62ee7816922f","88074fc7-436b-4149-a343-79d11cee6599","6e1774cc-875e-40ca-8e2e-232edfb9c775","e561e0b6-e921-49b7-bd42-e76c7f9da36f"],"title":"Load","layer":0,"elementTypeColor":{"r":0.0,"g":0.0,"b":0.0,"a":0.0}}'
   - type: 2
     uid: 669cf5de-28ea-4b65-a599-220b7b5de1dc
-    jsonData: '{"uid":"669cf5de-28ea-4b65-a599-220b7b5de1dc","layout":{"serializedVersion":"2","x":45.0,"y":540.0,"width":553.0,"height":347.0},"containedElements":["f85fc7fe-f44a-4ced-9ece-5e2fcef92ec0","5a29d556-f65c-4741-a2ad-79a130207aa3","7d0376d7-967e-49ac-8059-1b9b11d04cab","eb075ebc-3019-4ec4-a34f-c7636b9bcf3e","834ab163-aa41-45c9-b92c-cdd10da2101a"],"title":"Loaded","layer":0,"elementTypeColor":{"r":0.0,"g":0.0,"b":0.0,"a":0.0}}'
+    jsonData: '{"uid":"669cf5de-28ea-4b65-a599-220b7b5de1dc","layout":{"serializedVersion":"2","x":45.0,"y":540.0,"width":544.0,"height":345.0},"containedElements":["f85fc7fe-f44a-4ced-9ece-5e2fcef92ec0","5a29d556-f65c-4741-a2ad-79a130207aa3","7d0376d7-967e-49ac-8059-1b9b11d04cab","eb075ebc-3019-4ec4-a34f-c7636b9bcf3e","834ab163-aa41-45c9-b92c-cdd10da2101a"],"title":"PostLoad","layer":0,"elementTypeColor":{"r":0.0,"g":0.0,"b":0.0,"a":0.0}}'
   viewTransform:
-    position: {x: 205.6, y: 121.6}
-    scale: 0.375937
+    position: {x: 146.4, y: 62.4}
+    scale: 0.43232757
   version: 1.0.0
   showAssembly: 0

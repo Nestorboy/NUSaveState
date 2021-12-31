@@ -19,26 +19,30 @@ namespace Nessie.Udon.SaveState
 
         #region Serialized Private Fields
 
-        // Instructions.
-        [SerializeField] private int bufferByteCount;
-        [SerializeField] private Component[] bufferUdonBehaviours;
-        [SerializeField] private string[] bufferVariables;
-        [SerializeField] private string[] bufferTypes;
+        [Header("Prefabs")]
+        [SerializeField] private GameObject stationPrefab;
+        [SerializeField] private Transform pedestalContainer;
+        [SerializeField] private GameObject pedestalPrefab;
 
+        [Header("Controllers")]
+        [SerializeField] private RuntimeAnimatorController[] parameterWriters;
+
+        [Header("Avatars")]
         [SerializeField] private string[] dataAvatarIDs;
         [SerializeField] private Vector3[] dataKeyCoords;
 
-        [SerializeField] private RuntimeAnimatorController[] parameterClearer; // Has to be an array to avoid an odd Udon serialization issue.
-        [SerializeField] private RuntimeAnimatorController[] parameterWriters;
+        [Header("Instructions")]
+        [SerializeField] private int bufferByteCount;
+        [SerializeField] private int bufferBoolCount;
+        [SerializeField] private Component[] bufferUdonBehaviours;
+        [SerializeField] private string[] bufferVariables;
+        [SerializeField] private string[] bufferTypes;
 
         #endregion Serialized Private Fields
 
         #region Private Fields
 
         private VRCPlayerApi localPlayer;
-
-        private Transform pedestalContainer;
-        private GameObject pedestalPrefab;
 
         private BoxCollider keyDetector;
         private VRCStation dataWriter;
@@ -88,37 +92,63 @@ namespace Nessie.Udon.SaveState
             "_SSSaveFailed",
             "_SSLoadFailed",
             "_SSPostSave",
-            "_SSPostLoad"
+            "_SSPostLoad",
+            "_SSProgress"
         };
         private bool avatarIsLoading;
         private int dataStatus = 0;
 
-        private float dataAvatarTimeout;
+        private float avatarCurrentDuration;
+        private float avatarTimeoutDuration = 10f;
+        private float avatarUnloadDuration = 2f;
+		
         private int dataAvatarIndex;
         private int dataByteIndex;
-        private int dataBitIndex;
 
         #endregion Private Fields
+
+        #region Public Fields
+
+        [NonSerialized] public float Progress;
+        private float dataProgress
+        {
+            set
+            {
+                Progress = value;
+
+                if (CallbackReciever)
+                    CallbackReciever.SendCustomEvent(callbackEvents[6]);
+
+                // Debug.Log(String.Format("[NUSS] Progress: {0:P2}%", value));
+            }
+            get
+            {
+                return Progress;
+            }
+        }
+
+        #endregion Public Fields
 
         #region Unity Events
 
         private void Start()
         {
-            if (parameterWriters.Length < Mathf.Min(bufferByteCount * 8, 256) || dataKeyCoords.Length < Mathf.CeilToInt(bufferByteCount / 32f))
-                Debug.LogError("[<color=#00FF9F>SaveState</color>] NUSaveState is not set up properly.");
-
-            if (gameObject.layer != 5)
-                Debug.LogWarning("[<color=#00FF9F>SaveState</color>] NUSaveState behaviour is not situated on the UI layer, this might prevent the behaviour from detecting data avatars.");
-
             localPlayer = Networking.LocalPlayer;
 
-            // Workaround for prefab serialization issues. Angy. >:(
-            // (Though please do tell if you happen to know a better way around this. - Nestorboy#7647)
-            pedestalContainer = transform.GetChild(0);
-            pedestalPrefab = pedestalContainer.GetChild(0).gameObject;
+            int avatarCount = Mathf.CeilToInt(bufferByteCount / 32f);
 
-            // Prevent other people from being moved over to the location of the SaveState, moving them to the world origin instead.
-            transform.name = $"{localPlayer.displayName} {localPlayer.GetHashCode()}";
+            // Validation.
+            if (parameterWriters.Length < 1)
+                Debug.LogError("[<color=#00FF9F>SaveState</color>] NUSaveState is missing animator controllers.");
+
+            if (dataAvatarIDs.Length < avatarCount)
+                Debug.LogError("[<color=#00FF9F>SaveState</color>] NUSaveState is missing avatar blueprints.");
+
+            if (dataKeyCoords.Length < avatarCount)
+                Debug.LogError("[<color=#00FF9F>SaveState</color>] NUSaveState is missing key coordinates.");
+
+            if (gameObject.layer != 5)
+                Debug.LogError("[<color=#00FF9F>SaveState</color>] NUSaveState behaviour is not situated on the UI layer.");
 
             inputBytes = new byte[bufferByteCount];
             outputBytes = new byte[bufferByteCount];
@@ -126,8 +156,8 @@ namespace Nessie.Udon.SaveState
             keyDetector = GetComponent<BoxCollider>();
 
             // Prepare data avatar pedestals.
-            dataAvatarPedestals = new VRC_AvatarPedestal[dataAvatarIDs.Length];
-            for (int i = 0; i < dataAvatarIDs.Length; i++)
+            dataAvatarPedestals = new VRC_AvatarPedestal[avatarCount];
+            for (int i = 0; i < dataAvatarPedestals.Length; i++)
             {
                 dataAvatarPedestals[i] = (VRC_AvatarPedestal)VRCInstantiate(pedestalPrefab).GetComponent(typeof(VRC_AvatarPedestal));
                 dataAvatarPedestals[i].transform.SetParent(pedestalContainer, false);
@@ -142,30 +172,36 @@ namespace Nessie.Udon.SaveState
             fallbackAvatarPedestal.blueprintId = FallbackAvatarID;
 
             // Prepare VRCStation, aka the "data writer".
-            dataWriter = (VRCStation)GetComponent(typeof(VRCStation));
-            dataWriter.PlayerMobility = VRCStation.Mobility.Mobile;
+            GameObject newStation = VRCInstantiate(stationPrefab); // Instantiate a new station to make it use a relative object path remotely.
+            newStation.transform.SetParent(stationPrefab.transform.parent, false);
+
+            dataWriter = (VRCStation)newStation.GetComponent(typeof(VRCStation));
+            if (localPlayer != null) // Prevent an error from being throw in the editor.
+                dataWriter.name = $"{localPlayer.displayName} {localPlayer.GetHashCode()}"; // Rename the station to make the path different for each user so others can't occupy it.
+            dataWriter.PlayerMobility = VRCStation.Mobility.Immobilize;
             dataWriter.canUseStationFromStation = false;
-            dataWriter.seated = false;
         }
 
         private void OnParticleCollision(GameObject other)
         {
             if (avatarIsLoading)
             {
-                Debug.Log($"[<color=#00FF9F>SaveState</color>] Detected buffer avatar: {dataAvatarIndex}.");
+                Debug.Log($"[<color=#00FF9F>SaveState</color>] Detected buffer avatar: {dataAvatarIndex}");
 
-                dataAvatarTimeout = 0;
+                avatarCurrentDuration = 0f;
                 avatarIsLoading = false;
                 keyDetector.enabled = false;
 
                 if (dataStatus == 1)
-                    _ClearData();
+                {
+                    SendCustomEventDelayedFrames(nameof(_ClearData), 2); // 2
+                }
                 else
                     SendCustomEventDelayedFrames(nameof(_GetData), 1);
             }
             else if (dataStatus > 4)
             {
-                dataAvatarTimeout = 2f;
+                avatarCurrentDuration = avatarUnloadDuration;
             }
         }
 
@@ -175,10 +211,21 @@ namespace Nessie.Udon.SaveState
 
         public void _SSSave()
         {
-            if (dataStatus > 0 && dataStatus < 3) return;
+            if (dataStatus > 0)
+            {
+                Debug.LogWarning($"[<color=#00FF9F>SaveState</color>] Cannot save until the NUSaveState is idle. Status: {dataStatus}");
+                return;
+            }
+
+            dataProgress = 0;
+
             dataStatus = 1;
 
             _PackData();
+
+            dataWriter.transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation()); // Put user in station to prevent movement and set the velocity parameters to 0.
+            dataWriter.animatorController = null;
+            dataWriter.UseStation(localPlayer);
 
             dataAvatarIndex = 0;
             _ChangeAvatar();
@@ -186,7 +233,14 @@ namespace Nessie.Udon.SaveState
 
         public void _SSLoad()
         {
-            if (dataStatus > 0 && dataStatus < 3) return;
+            if (dataStatus > 0)
+            {
+                Debug.LogWarning($"[<color=#00FF9F>SaveState</color>] Cannot save until the NUSaveState is idle. Status: {dataStatus}");
+                return;
+            }
+
+            dataProgress = 0;
+
             dataStatus = 2;
 
             dataAvatarIndex = 0;
@@ -202,15 +256,14 @@ namespace Nessie.Udon.SaveState
 
         #region SaveState Data
 
-        private void _ChangeAvatar()
+        public void _ChangeAvatar()
         {
-            dataBitIndex = 0;
             dataByteIndex = 0;
 
             Debug.Log($"[<color=#00FF9F>SaveState</color>] Switching avatar to buffer avatar: {dataAvatarIndex}.");
             dataAvatarPedestals[dataAvatarIndex].SetAvatarUse(localPlayer);
 
-            dataAvatarTimeout = 30;
+            avatarCurrentDuration = avatarTimeoutDuration;
             avatarIsLoading = true;
             keyDetector.enabled = true;
             _LookForAvatar();
@@ -218,13 +271,13 @@ namespace Nessie.Udon.SaveState
 
         public void _LookForAvatar()
         {
-            keyDetector.center = transform.InverseTransformPoint(localPlayer.GetRotation() * dataKeyCoords[dataAvatarIndex] + localPlayer.GetPosition());
+            keyDetector.center = transform.InverseTransformPoint(localPlayer.GetBonePosition(HumanBodyBones.Hips) + localPlayer.GetBoneRotation(HumanBodyBones.Hips) * dataKeyCoords[dataAvatarIndex]);
 
             if (avatarIsLoading)
             {
-                if (dataAvatarTimeout > 0)
+                if (avatarCurrentDuration > 0)
                 {
-                    dataAvatarTimeout -= Time.deltaTime;
+                    avatarCurrentDuration -= Time.deltaTime;
                     SendCustomEventDelayedFrames(nameof(_LookForAvatar), 1);
                 }
                 else
@@ -235,9 +288,9 @@ namespace Nessie.Udon.SaveState
             }
             else if (dataStatus > 4)
             {
-                if (dataAvatarTimeout > 0)
+                if (avatarCurrentDuration > 0)
                 {
-                    dataAvatarTimeout -= Time.deltaTime;
+                    avatarCurrentDuration -= Time.deltaTime;
                     SendCustomEventDelayedFrames(nameof(_LookForAvatar), 1);
                 }
                 else
@@ -248,79 +301,77 @@ namespace Nessie.Udon.SaveState
             }
         }
 
-        private void _ClearData() // Reset all the parameters before writing to them.
+        public void _ClearData() // Initiate the data writing by changing the animator controller to one that stores the velocities.
         {
-            transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
-            dataWriter.animatorController = parameterClearer[0];
-            localPlayer.UseAttachedStation();
+            dataWriter.ExitStation(localPlayer);
+            dataWriter.animatorController = parameterWriters[0];
+            dataWriter.UseStation(localPlayer);
 
-            dataBitIndex = 0;
-            SendCustomEventDelayedFrames(nameof(_SetData), 2);
+            _SetData();
         }
 
         public void _SetData() // Write data by doing float additions.
         {
-            transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
-			
-            dataWriter.ExitStation(localPlayer);
+            int avatarByteOffset = dataAvatarIndex * 32;
+            int avatarByteCount = Mathf.Min(bufferByteCount - avatarByteOffset, 32);
 
-            if (dataBitIndex < 8)
+            int byte1 = dataByteIndex % 6 == 0 ? 256 : 0;
+            byte1 |= dataByteIndex < avatarByteCount ? inputBytes[dataByteIndex++ + avatarByteOffset] : 0;
+            int byte2 = dataByteIndex < avatarByteCount ? inputBytes[dataByteIndex++ + avatarByteOffset] : 0;
+            int byte3 = dataByteIndex < avatarByteCount ? inputBytes[dataByteIndex++ + avatarByteOffset] : 0;
+
+            // Add 1/512th to avoid precision issues as this wont affect the conditionals in the animator.
+            // Divide by 256 to normalize the range of a byte.
+            // Lastly divide by 16 to account for the avatar's velocity parameter transition speed, this is then in turn multiplied by 16 in the animator controller so that it's normalized again.
+            Vector3 newVelocity = (new Vector3(byte1, byte2, byte3) + (Vector3.one / 8f)) / 256f / 32f; // 8 data bits and 1 control bit (0-511)
+            localPlayer.SetVelocity(localPlayer.GetRotation() * newVelocity);
+
+            //string debugBits = $"{Convert.ToString(byte1, 2).PadLeft(8, '0')}, {Convert.ToString(byte2, 2).PadLeft(8, '0')}, {Convert.ToString(byte3, 2).PadLeft(8, '0')}";
+            //string debugVels = $"{newVelocity.x}, {newVelocity.y}, {newVelocity.z}";
+            //Debug.Log($"[<color=#00FF9F>SaveState</color>] Batch {Mathf.CeilToInt(dataByteIndex / 3f)}: {debugBits} : {debugVels}");
+
+            if (dataByteIndex < avatarByteCount)
             {
-                if (((inputBytes[dataByteIndex + dataAvatarIndex * 32] >> dataBitIndex) & 1) == 1)
-                {
-                    transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation());
-                    dataWriter.animatorController = parameterWriters[dataBitIndex + dataByteIndex * 8];
-                    localPlayer.UseAttachedStation();
+                dataProgress = (float)(dataByteIndex + avatarByteOffset) / bufferByteCount;
 
-                    dataBitIndex++;
-                    SendCustomEventDelayedFrames(nameof(_SetData), 1);
-                }
-                else
-                {
-                    dataBitIndex++;
-                    _SetData();
-                }
+                SendCustomEventDelayedFrames(nameof(_SetData), 1, VRC.Udon.Common.Enums.EventTiming.LateUpdate);
             }
             else
             {
-                dataBitIndex = 0;
-                dataByteIndex++;
-
-                if (dataByteIndex + dataAvatarIndex * 32 >= bufferByteCount)
+                if (dataByteIndex + avatarByteOffset < bufferByteCount)
                 {
-                    _FinishedData();
+                    dataProgress = (float)(dataByteIndex + avatarByteOffset) / bufferByteCount;
+
+                    dataAvatarIndex++;
+                    SendCustomEventDelayedFrames(nameof(_ChangeAvatar), 10);
                 }
                 else
                 {
-                    if (dataByteIndex < 32)
-                    {
-                        _SetData();
-                    }
-                    else
-                    {
-                        dataAvatarIndex++;
-                        _ChangeAvatar();
-                    }
+                    SendCustomEventDelayedFrames(nameof(_FinishedData), 10);
                 }
             }
         }
 
         public void _GetData() // Read data using finger rotations.
         {
-            int avatarByteCount = Mathf.Min(bufferByteCount - dataAvatarIndex * 32, 32);
+            int avatarByteOffset = dataAvatarIndex * 32;
+            int avatarByteCount = Mathf.Min(bufferByteCount - avatarByteOffset, 32);
+
             for (int boneIndex = 0; dataByteIndex < avatarByteCount; boneIndex++)
             {
                 Quaternion muscleTarget = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[boneIndex]);
                 Quaternion muscleParent = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[boneIndex + 8]);
 
                 int bytes = Mathf.RoundToInt(_InverseMuscle(muscleTarget, muscleParent) * 65536) & 0xFFFF; // 2 bytes per parameter.
-                outputBytes[dataByteIndex++ + dataAvatarIndex * 32] = (byte)(bytes & 0xFF);
+                outputBytes[dataByteIndex++ + avatarByteOffset] = (byte)(bytes & 0xFF);
                 if (dataByteIndex < avatarByteCount)
-                    outputBytes[dataByteIndex++ + dataAvatarIndex * 32] = (byte)(bytes >> 8);
+                    outputBytes[dataByteIndex++ + avatarByteOffset] = (byte)(bytes >> 8);
             }
 
-            if (dataByteIndex + dataAvatarIndex * 32 < bufferByteCount)
+            if (dataByteIndex + avatarByteOffset < bufferByteCount)
             {
+                dataProgress = (float)avatarByteOffset / bufferByteCount;
+
                 dataAvatarIndex++;
                 _ChangeAvatar();
             }
@@ -330,10 +381,15 @@ namespace Nessie.Udon.SaveState
             }
         }
 
-        private void _FinishedData()
+        public void _FinishedData()
         {
+            dataProgress = 1;
+
             if (dataStatus == 1)
             {
+                dataWriter.ExitStation(localPlayer); // Only exit the station once the last animator states have been reached.
+                localPlayer.Immobilize(false);
+
                 Debug.Log($"[<color=#00FF9F>SaveState</color>] Data has been saved.");
             }
             else
@@ -347,7 +403,7 @@ namespace Nessie.Udon.SaveState
 
             fallbackAvatarPedestal.SetAvatarUse(localPlayer);
 
-            dataAvatarTimeout = 30;
+            avatarCurrentDuration = avatarUnloadDuration;
             dataStatus += 4;
             keyDetector.enabled = true;
             _LookForAvatar();
@@ -355,6 +411,12 @@ namespace Nessie.Udon.SaveState
 
         private void _FailedData()
         {
+            if (dataStatus == 1)
+            {
+                dataWriter.ExitStation(localPlayer);
+                localPlayer.Immobilize(false);
+            }
+
             avatarIsLoading = false;
             keyDetector.enabled = false;
 
@@ -367,12 +429,18 @@ namespace Nessie.Udon.SaveState
         {
             int bufferLength = 0;
             byte[] bufferBytes = __PrepareWriteBuffer();
-            for (int i = 0; bufferLength < bufferBytes.Length; i++)
+
+            for (int i = 0; i < bufferUdonBehaviours.Length; i++) 
             {
                 if (bufferUdonBehaviours[i] == null || bufferVariables[i] == null) return;
 
                 object value = ((UdonBehaviour)bufferUdonBehaviours[i]).GetProgramVariable(bufferVariables[i]);
                 bufferLength = __WriteBufferTypedObject(value, bufferTypes[i], bufferBytes, bufferLength);
+            }
+
+            for (int i = 0; i < _boolBuffer.Length; i++) // Append the bools at the end of the buffer.
+            {
+                bufferLength = __WriteBufferByte(_boolBuffer[i], bufferBytes, bufferLength);
             }
 
             inputBytes = __FinalizeWriteBuffer(bufferBytes, bufferLength);
@@ -381,7 +449,10 @@ namespace Nessie.Udon.SaveState
         private void _UnpackData()
         {
             byte[] bufferBytes = __PrepareReadBuffer(outputBytes);
-            for (int i = 0; _currentBufferIndex < bufferBytes.Length; i++)
+
+            Array.Copy(bufferBytes, bufferBytes.Length - _boolBuffer.Length, _boolBuffer, 0, _boolBuffer.Length); // Pull bools from the end of the buffer.
+
+            for (int i = 0; i < bufferUdonBehaviours.Length; i++)
             {
                 if (bufferUdonBehaviours[i] == null || bufferVariables[i] == null) return;
 
@@ -409,9 +480,15 @@ namespace Nessie.Udon.SaveState
         private int _currentBufferIndex = 0;
         private byte[] _tempBuffer = null;
 
+        private int _currentBoolIndex = 0;
+        private byte[] _boolBuffer = null;
+
         private byte[] __PrepareWriteBuffer()
         {
             if (_tempBuffer == null) _tempBuffer = new byte[bufferByteCount];
+            if (_boolBuffer == null) _boolBuffer = new byte[Mathf.CeilToInt(bufferBoolCount / 8f)];
+
+            _currentBoolIndex = 0;
             return _tempBuffer;
         }
 
@@ -424,7 +501,10 @@ namespace Nessie.Udon.SaveState
 
         private byte[] __PrepareReadBuffer(byte[] buffer)
         {
+            if (_boolBuffer == null) _boolBuffer = new byte[Mathf.CeilToInt(bufferBoolCount / 8f)];
+
             _currentBufferIndex = 0;
+            _currentBoolIndex = 0;
             return buffer;
         }
 
@@ -442,7 +522,7 @@ namespace Nessie.Udon.SaveState
             else if (typeName == typeof(float).FullName) return __WriteBufferFloat((float)(value ?? 0.0f), buffer, index);
             else if (typeName == typeof(double).FullName) return __WriteBufferDouble((double)(value ?? 0.0), buffer, index);
             else if (typeName == typeof(decimal).FullName) return __WriteBufferDecimal((decimal)(value ?? 0m), buffer, index);
-            else if (typeName == typeof(bool).FullName) return __WriteBufferBoolean((bool)(value ?? false), buffer, index);
+            else if (typeName == typeof(bool).FullName) return __WriteBufferBoolean((bool)(value ?? false), buffer, index); // Special case
             else if (typeName == typeof(Vector2).FullName) return __WriteBufferVector2((Vector2)(value ?? Vector2.zero), buffer, index);
             else if (typeName == typeof(Vector3).FullName) return __WriteBufferVector3((Vector3)(value ?? Vector3.zero), buffer, index);
             else if (typeName == typeof(Vector4).FullName) return __WriteBufferVector4((Vector4)(value ?? Vector4.zero), buffer, index);
@@ -468,7 +548,7 @@ namespace Nessie.Udon.SaveState
             else if (typeName == typeof(float).FullName) return __ReadBufferFloat(buffer);
             else if (typeName == typeof(double).FullName) return __ReadBufferDouble(buffer);
             else if (typeName == typeof(decimal).FullName) return __ReadBufferDecimal(buffer);
-            else if (typeName == typeof(bool).FullName) return __ReadBufferBoolean(buffer);
+            else if (typeName == typeof(bool).FullName) return __ReadBufferBoolean(buffer); // Special case
             else if (typeName == typeof(Vector2).FullName) return __ReadBufferVector2(buffer);
             else if (typeName == typeof(Vector3).FullName) return __ReadBufferVector3(buffer);
             else if (typeName == typeof(Vector4).FullName) return __ReadBufferVector4(buffer);
@@ -480,10 +560,11 @@ namespace Nessie.Udon.SaveState
             return null;
         }
 
-        private bool __ReadBufferBoolean(byte[] buffer) => buffer[_currentBufferIndex++] != 0;
-        private int __WriteBufferBoolean(bool value, byte[] buffer, int index)
+        private bool __ReadBufferBoolean(byte[] buffer) => (_boolBuffer[_currentBoolIndex / 8] >> 7 - _currentBoolIndex++ & 1) != 0; // Special case
+        private int __WriteBufferBoolean(bool value, byte[] buffer, int index) // Special case
         {
-            buffer[index++] = value ? (byte)1 : (byte)0;
+            if (value) _boolBuffer[_currentBoolIndex / 8] |= (byte)(1 << 7 - _currentBoolIndex++);
+
             return index;
         }
 
@@ -672,7 +753,6 @@ namespace Nessie.Udon.SaveState
         private const uint _FLOAT_SIGN_BIT = 0x80000000;
         private const uint _FLOAT_EXP_MASK = 0x7F800000;
         private const uint _FLOAT_FRAC_MASK = 0x007FFFFF;
-
         private float __ReadBufferFloat(byte[] buffer)
         {
             uint value = __ReadBufferUnsignedInteger(buffer);
@@ -754,87 +834,87 @@ namespace Nessie.Udon.SaveState
             return __WriteBufferUnsignedInteger(tmp, buffer, index);
         }
 
+        private const ulong _DOUBLE_SIGN_BIT = 0x8000000000000000;
+        private const ulong _DOUBLE_EXP_MASK = 0x7FF0000000000000;
+        private const ulong _DOUBLE_FRAC_MASK = 0x000FFFFFFFFFFFFF;
         private double __ReadBufferDouble(byte[] buffer)
         {
-            return double.Parse(__ReadBufferStringAscii(buffer));
+            ulong value = __ReadBufferUnsignedLong(buffer);
+            if (value == 0.0 || value == _DOUBLE_SIGN_BIT) return 0.0;
+
+            long exp = (long)((value & _DOUBLE_EXP_MASK) >> 52);
+            long frac = (long)(value & _DOUBLE_FRAC_MASK);
+            bool negate = (value & _DOUBLE_SIGN_BIT) == _DOUBLE_SIGN_BIT;
+
+            if (exp == 0x7FF)
+            {
+                if (frac == 0) return negate ? double.NegativeInfinity : double.PositiveInfinity;
+                return double.NaN;
+            }
+
+            bool normal = exp != 0x000;
+            if (normal) exp -= 1023;
+            else exp = -1022;
+
+            double result = frac / (double)(2 << 51);
+            if (normal) result += 1.0;
+
+            result *= Math.Pow(2, exp);
+            if (negate) result = -result;
+
+            return result;
         }
         private int __WriteBufferDouble(double value, byte[] buffer, int index)
         {
-            return __WriteBufferStringAscii(value.ToString("R"), buffer, index);
-        }
-        /*
-            private const ulong _DOUBLE_SIGN_BIT = 0x8000000000000000;
-            private const ulong _DOUBLE_EXP_MASK = 0x7FF0000000000000;
-            private const ulong _DOUBLE_FRAC_MASK = 0x000FFFFFFFFFFFFF;
-            private double __ReadBufferDouble(byte[] buffer) {
-                ulong value = __ReadBufferUnsignedLong(buffer);
-                if(value == 0 || value == _DOUBLE_SIGN_BIT) return 0.0;
-                long exp = (long)((value & _DOUBLE_EXP_MASK) >> 52);
-                long frac = (long)(value & _DOUBLE_FRAC_MASK);
-                bool negate = (value & _DOUBLE_SIGN_BIT) == _DOUBLE_SIGN_BIT;
-                if(exp == 0x7FF) {
-                    if(frac == 0) return negate ? double.NegativeInfinity : double.PositiveInfinity;
-                    return double.NaN;
-                }
-                bool normal = exp != 0x000;
-                if(normal) exp -= 1023;
-                else exp = -1022;
-                double result = frac / (double)(2 << 51);
-                if(normal) result += 1.0;
-                result *= Math.Pow(2, exp); // Math.Pow not exposed in Udon!
-                if(negate) result = -result;
-                return result;
+            ulong tmp = 0;
+            if (double.IsNaN(value))
+            {
+                tmp = _DOUBLE_EXP_MASK | _DOUBLE_FRAC_MASK;
             }
-            private int __WriteBufferDouble(double value, byte[] buffer, int index) {
-                ulong tmp = 0;
-                if(double.IsNaN(value)) {
-                    tmp = _DOUBLE_EXP_MASK | _DOUBLE_FRAC_MASK;
-                } else if(double.IsInfinity(value)) {
-                    tmp = _DOUBLE_EXP_MASK;
-                    if(double.IsNegativeInfinity(value)) tmp |= _DOUBLE_SIGN_BIT;
-                } else if(value != 0.0) {
-                    if(value < 0.0) {
-                        value = -value;
-                        tmp |= _DOUBLE_SIGN_BIT;
-                    }
-                    long exp = 0;
-                    while(value >= 2.0) {
-                        value *= 0.5;
-                        ++exp;
-                    }
-                    bool normal = true;
-                    while(value < 1.0) {
-                        if(exp == -1022) {
-                            normal = false;
-                            break;
-                        }
-                        value *= 2.0;
-                        --exp;
-                    }
-                    if(normal) {
-                        value -= 1.0;
-                        exp += 1023;
-                    } else exp = 0;
-                    tmp |= Convert.ToUInt64(exp << 23) & _DOUBLE_EXP_MASK;
-                    tmp |= Convert.ToUInt64(value * (2 << 22)) & _DOUBLE_FRAC_MASK;
-                }
-                return __WriteBufferUnsignedLong(tmp, buffer, index);
+            else if (double.IsInfinity(value))
+            {
+                tmp = _DOUBLE_EXP_MASK;
+                if (double.IsNegativeInfinity(value)) tmp |= _DOUBLE_SIGN_BIT;
             }
-        */
+            else if (value != 0.0)
+            {
+                if (value < 0.0)
+                {
+                    value = -value;
+                    tmp |= _DOUBLE_SIGN_BIT;
+                }
 
-        private string __ReadBufferStringAscii(byte[] buffer)
-        {
-            int bytesCount = __ReadBufferInteger(buffer);
+                long exp = 0;
+                while (value >= 2.0)
+                {
+                    value *= 0.5;
+                    ++exp;
+                }
 
-            char[] chars = new char[bytesCount];
-            for (var i = 0; i < bytesCount; ++i) chars[i] = Convert.ToChar(buffer[_currentBufferIndex++] & 0x7F);
-            return new string(chars);
-        }
-        private int __WriteBufferStringAscii(string str, byte[] buffer, int index)
-        {
-            index = __WriteBufferInteger(str.Length, buffer, index);
-            for (var i = 0; i < str.Length; ++i) buffer[index++] = (byte)(str[i] & 0x7F);
-            return index;
+                bool normal = true;
+                while (value < 1.0)
+                {
+                    if (exp == -1022)
+                    {
+                        normal = false;
+                        break;
+                    }
+                    value *= 2.0;
+                    --exp;
+                }
+
+                if (normal)
+                {
+                    value -= 1.0;
+                    exp += 1023;
+                }
+                else exp = 0;
+
+                tmp |= Convert.ToUInt64(exp << 52) & _DOUBLE_EXP_MASK;
+                tmp |= Convert.ToUInt64(value * (2 << 51)) & _DOUBLE_FRAC_MASK;
+            }
+
+            return __WriteBufferUnsignedLong(tmp, buffer, index);
         }
 
         #endregion Buffer Utilities

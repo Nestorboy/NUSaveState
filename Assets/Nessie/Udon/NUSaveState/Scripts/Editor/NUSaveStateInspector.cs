@@ -58,6 +58,7 @@ namespace Nessie.Udon.SaveState.Internal
         private SerializedProperty propertyFallbackAvatar;
 
         private SerializedProperty propertyByteCount;
+        private SerializedProperty propertyBoolCount;
         private SerializedProperty propertyUdonBehaviours;
         private SerializedProperty propertyVariables;
         private SerializedProperty propertyTypes;
@@ -65,7 +66,6 @@ namespace Nessie.Udon.SaveState.Internal
         private SerializedProperty propertyAvatarIDs;
         private SerializedProperty propertyKeyCoords;
 
-        private SerializedProperty propertyParameterClearer;
         private SerializedProperty propertyParameterWriters;
 
         private Texture2D iconGitHub;
@@ -89,7 +89,7 @@ namespace Nessie.Udon.SaveState.Internal
         private GUIContent contentApplyAnimators = new GUIContent("Apply Save State Animators", "Applies animator controllers from the selected folder.");
         private GUIContent contentApplyKeys = new GUIContent("Apply Save State Keys", "Generates keys used to identify the specified data avatars.");
 
-        private GUIContent contentEventReciever = new GUIContent("Callback Reciever", "UdonBehaviour which recieves the following callback events:\n_SSSaved _SSSaveFailed _SSPostSave\n_SSLoaded _SSLoadFailed _SSPostLoad");
+        private GUIContent contentEventReciever = new GUIContent("Callback Reciever", "UdonBehaviour which recieves the following callback events:\n_SSSaved _SSSaveFailed _SSPostSave\n_SSLoaded _SSLoadFailed _SSPostLoad\n_SSProgress");
         private GUIContent contentFallbackAvatar = new GUIContent("Fallback Avatar", "Blueprint ID of the avatar which is switched to when the data processing is done.");
 
         private GUIContent contentInstructionList = new GUIContent("Data Instructions", "List of UdonBehaviours variables used when saving or loading data.");
@@ -126,6 +126,8 @@ namespace Nessie.Udon.SaveState.Internal
             GetSaveStateData();
             SetSaveStateData();
 
+            dataBitCount = NUSaveStateData.BitSum(data.DataInstructions);
+
             #region Reorderable Lists
 
             instructionList = new UnityEditorInternal.ReorderableList(serializedObject, propertyUdonBehaviours, true, true, true, true);
@@ -152,6 +154,7 @@ namespace Nessie.Udon.SaveState.Internal
                         propertyAvatarIDs.arraySize = avatarCount;
                     }
 
+                    SetSaveStateDataCounts();
                     SetSaveStateData(index);
                 }
 
@@ -171,6 +174,7 @@ namespace Nessie.Udon.SaveState.Internal
                         propertyAvatarIDs.arraySize = avatarCount;
                     }
 
+                    SetSaveStateDataCounts();
                     SetSaveStateData(index);
                 }
             };
@@ -309,6 +313,8 @@ namespace Nessie.Udon.SaveState.Internal
 
             dataSO.Update();
 
+            dataBitCount = NUSaveStateData.BitSum(data.DataInstructions);
+
             DrawBanner();
 
             DrawMessages();
@@ -348,9 +354,11 @@ namespace Nessie.Udon.SaveState.Internal
 
         private void DrawMessages()
         {
-            if (propertyParameterWriters.arraySize < Math.Min(dataBitCount, 256))
-                EditorGUILayout.HelpBox("There are not enough animators controllers on the behaviour.\nPlease select an asset folder and apply the animator controllers again.", MessageType.Error);
-            if (propertyKeyCoords.arraySize < Mathf.CeilToInt(dataBitCount / 256f))
+            int activeAvatarCount = Mathf.CeilToInt(dataBitCount / 256f);
+
+            if (propertyParameterWriters.arraySize < Math.Min(activeAvatarCount, 1))
+                EditorGUILayout.HelpBox("There are not enough animator controllers on the behaviour.\nPlease select an asset folder and apply the animator controller(s) again.", MessageType.Error);
+            if (propertyKeyCoords.arraySize < activeAvatarCount)
                 EditorGUILayout.HelpBox("There are not enough key coordinates on the behaviour.\nPlease enter the seed and apply the keys again.", MessageType.Error);
         }
 
@@ -443,16 +451,16 @@ namespace Nessie.Udon.SaveState.Internal
             }
 
             using (var horizontalGroup = new GUILayout.HorizontalScope())
-                {
-                    GUILayout.Label(new GUIContent(contentEncryptionSeed.text + labelAsteriskSeed, contentEncryptionSeed.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
-                    EditorGUILayout.PropertyField(propertyEncryptionSeed, GUIContent.none);
-                }
+            {
+                GUILayout.Label(new GUIContent(contentEncryptionSeed.text + labelAsteriskSeed, contentEncryptionSeed.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
+                EditorGUILayout.PropertyField(propertyEncryptionSeed, GUIContent.none);
+            }
 
             using (var horizontalGroup = new GUILayout.HorizontalScope())
-                {
-                    GUILayout.Label(new GUIContent(contentParameterName.text + labelAsteriskName, contentParameterName.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
-                    EditorGUILayout.PropertyField(propertyParameterName, GUIContent.none);
-                }
+            {
+                GUILayout.Label(new GUIContent(contentParameterName.text + labelAsteriskName, contentParameterName.tooltip), styleRichTextLabel, GUILayout.Width(EditorGUIUtility.labelWidth));
+                EditorGUILayout.PropertyField(propertyParameterName, GUIContent.none);
+            }
 
             if (EditorGUI.EndChangeCheck())
                 dataSO.ApplyModifiedProperties();
@@ -610,62 +618,32 @@ namespace Nessie.Udon.SaveState.Internal
 
         private void GetSaveStateData()
         {
+            int instructionSize = data.DataInstructions.Length;
             int udonSize = propertyUdonBehaviours.arraySize;
             int nameSize = propertyVariables.arraySize;
             int typeSize = propertyTypes.arraySize;
-            int instructionSize = data.DataInstructions.Length;
 
-            int newSize = Math.Max(udonSize, Math.Max(nameSize, Math.Max(typeSize, instructionSize)));
-
-            if (udonSize < newSize)
-                propertyUdonBehaviours.arraySize = newSize;
-            if (nameSize < newSize)
-                propertyVariables.arraySize = newSize;
-            if (typeSize < newSize)
-                propertyTypes.arraySize = newSize;
+            if (udonSize < instructionSize)
+                propertyUdonBehaviours.arraySize = instructionSize;
+            if (nameSize < instructionSize)
+                propertyVariables.arraySize = instructionSize;
+            if (typeSize < instructionSize)
+                propertyTypes.arraySize = instructionSize;
 
             serializedObject.ApplyModifiedPropertiesWithoutUndo();
-
-            if (instructionSize != newSize)
-                Array.Resize(ref data.DataInstructions, newSize);
-
-            for (int i = 0; i < newSize; i++)
-            {
-                if (i >= instructionSize)
-                    data.DataInstructions[i] = new NUSaveStateData.Instruction();
-
-                UdonBehaviour oldUdonBehaviour = (UdonBehaviour)propertyUdonBehaviours.GetArrayElementAtIndex(i).objectReferenceValue;
-                string oldVariableName = propertyVariables.GetArrayElementAtIndex(i).stringValue;
-                string oldVariableType = propertyTypes.GetArrayElementAtIndex(i).stringValue;
-
-                data.DataInstructions[i].Udon = oldUdonBehaviour;
-
-                int newVariableIndex = Array.FindIndex(data.DataInstructions[i].Variables, var => var.Name == oldVariableName);
-                if (newVariableIndex >= 0)
-                {
-                    if (data.DataInstructions[i].Variables[newVariableIndex].Type.FullName == oldVariableType)
-                        data.DataInstructions[i].VariableIndex = newVariableIndex;
-                }
-            }
 
             dataBitCount = NUSaveStateData.BitSum(data.DataInstructions);
         }
 
         private void SetSaveStateData()
         {
-            propertyByteCount.intValue = Mathf.CeilToInt(NUSaveStateData.BitSum(data.DataInstructions) / 8);
+            SetSaveStateDataCounts();
 
             for (int i = 0; i < data.DataInstructions.Length; i++)
-            {
                 SetSaveStateData(i);
-            }
-
-            serializedObject.ApplyModifiedProperties();
         }
         private void SetSaveStateData(int index)
         {
-            propertyByteCount.intValue = Mathf.CeilToInt(NUSaveStateData.BitSum(data.DataInstructions) / 8);
-
             Extensions.NUExtensions.Variable variable = data.DataInstructions[index].Variable;
 
             UdonBehaviour newUdonBehaviour = data.DataInstructions[index].Udon;
@@ -679,28 +657,30 @@ namespace Nessie.Udon.SaveState.Internal
             serializedObject.ApplyModifiedProperties();
         }
 
+        private void SetSaveStateDataCounts()
+        {
+            Undo.RecordObject(behaviourProxy, "Apply Data Counts");
+
+            propertyByteCount.intValue = Mathf.CeilToInt(NUSaveStateData.BitSum(data.DataInstructions) / 8f);
+
+            int boolCount = 0;
+            foreach (NUSaveStateData.Instruction instruction in data.DataInstructions)
+                if (instruction.Variable.Type == typeof(bool))
+                    boolCount++;
+            propertyBoolCount.intValue = boolCount;
+
+            serializedObject.ApplyModifiedProperties();
+        }
+
         private void SetSaveStateAnimators()
         {
             string pathAssetFolder = AssetDatabase.GetAssetPath(data.DataPreferences.Folder);
 
-            int minBitCount = Math.Min(dataBitCount, 256);
+            int avatarCount = Mathf.CeilToInt(dataBitCount / 256f);
 
-            string[] clearerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Clearer", new string[] { pathAssetFolder });
-            string[] writerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController l:SaveState-Writer", new string[] { pathAssetFolder });
+            string[] writerControllerGUIDs = AssetDatabase.FindAssets("t:AnimatorController", new string[] { pathAssetFolder });
 
-            if (clearerControllerGUIDs.Length < 1 || writerControllerGUIDs.Length < minBitCount)
-            {
-                if (clearerControllerGUIDs.Length < 1 && writerControllerGUIDs.Length < minBitCount)
-                    Debug.LogWarning("[<color=#00FF9F>SaveState</color>] Couldn't find parameter Clearer or enough parameter Writers.", data.DataPreferences.Folder);
-                else if (clearerControllerGUIDs.Length < 1)
-                    Debug.LogWarning("[<color=#00FF9F>SaveState</color>] Couldn't find parameter Clearer.", data.DataPreferences.Folder);
-                else if (writerControllerGUIDs.Length < minBitCount)
-                    Debug.LogWarning("[<color=#00FF9F>SaveState</color>] Couldn't find enough parameter Writers.", data.DataPreferences.Folder);
-                return;
-            }
-
-            AnimatorController[] clearingController = new AnimatorController[] { (AnimatorController)AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(clearerControllerGUIDs[0])) };
-            AnimatorController[] writingControllers = new AnimatorController[minBitCount];
+            AnimatorController[] writingControllers = new AnimatorController[1];
 
             for (int controllerIndex = 0; controllerIndex < writingControllers.Length; controllerIndex++)
             {
@@ -709,11 +689,8 @@ namespace Nessie.Udon.SaveState.Internal
 
             Undo.RecordObject(behaviourProxy, "Apply animator controllers");
 
-            propertyParameterClearer.arraySize = 1;
-            propertyParameterClearer.GetArrayElementAtIndex(0).objectReferenceValue = clearingController[0];
-
-            propertyParameterWriters.arraySize = minBitCount;
-            for (int i = 0; i < minBitCount; i++)
+            propertyParameterWriters.arraySize = writingControllers.Length;
+            for (int i = 0; i < writingControllers.Length; i++)
                 propertyParameterWriters.GetArrayElementAtIndex(i).objectReferenceValue = writingControllers[i];
 
             serializedObject.ApplyModifiedProperties();
@@ -756,65 +733,240 @@ namespace Nessie.Udon.SaveState.Internal
         {
             string assetFolderPath = AssetDatabase.GetAssetPath(data.DataPreferences.Folder);
 
-            // Prepare AnimatorController used for clearing data.
-            AnimatorController newClearerController = AnimatorController.CreateAnimatorControllerAtPath($"{assetFolderPath}/SaveState-{data.DataPreferences.Parameter}-clear.controller");
-            AnimatorStateMachine newClearerStateMachine = newClearerController.layers[0].stateMachine;
-            newClearerStateMachine.entryPosition = new Vector2(-30, 0);
-            newClearerStateMachine.anyStatePosition = new Vector2(-30, 50);
-            newClearerStateMachine.exitPosition = new Vector2(-30, 100);
+            int avatarCount = Mathf.CeilToInt(dataBitCount / 256f);
 
-            // Prepare AnimatorState used for clearing data.
-            AnimatorState newClearerState = newClearerStateMachine.AddState("Write", new Vector3(200, 0));
+            AnimatorController controller = AnimatorController.CreateAnimatorControllerAtPath($"{assetFolderPath}/SaveState-{data.DataPreferences.Parameter}.controller");
 
-            // Prepare VRC Behaviour used for clearing data.
-            var newClearerVRCParameterDriver = newClearerState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+            string[] velocityNames = new string[] { "VelocityX", "VelocityY", "VelocityZ" }; // Used when preparing the Parameters and Byte Layers.
+            
+            #region Parameters
 
-            var newClearerParameters = new List<VRC_AvatarParameterDriver.Parameter>();
-            for (int parameterIndex = 0; parameterIndex < 16; parameterIndex++)
+            for (int i = 0; i < velocityNames.Length; i++)
+                controller.AddParameter(new AnimatorControllerParameter() { name = velocityNames[i], type = AnimatorControllerParameterType.Float, defaultFloat = 0 });
+
+            controller.AddParameter(new AnimatorControllerParameter() { name = "IgnoreTransition", type = AnimatorControllerParameterType.Bool, defaultBool = true });
+
+            controller.AddParameter(new AnimatorControllerParameter() { name = "Batch", type = AnimatorControllerParameterType.Int, defaultInt = 0 });
+
+            for (int byteIndex = 0; byteIndex < 32; byteIndex++) // Prepare dummy parameters used to transfer the velocity parameters.
             {
-                var newParameter = new VRC_AvatarParameterDriver.Parameter()
-                {
-                    name = $"{data.DataPreferences.Parameter}_{parameterIndex}",
-                    value = 0,
-                    type = VRC_AvatarParameterDriver.ChangeType.Set
-                };
-                newClearerParameters.Add(newParameter);
+                controller.AddParameter(new AnimatorControllerParameter() { name = $"b{byteIndex}", type = AnimatorControllerParameterType.Float, defaultFloat = 0 });
             }
 
-            newClearerVRCParameterDriver.parameters = newClearerParameters;
+            #endregion Parameters
 
-            AssetDatabase.SetLabels(newClearerController, new string[] { "SaveState-Clearer" });
+            #region Animations
 
-            for (int controllerIndex = 0; controllerIndex < 256; controllerIndex++)
+            AnimationClip[][] byteClips = new AnimationClip[32][];
+            for (int layerIndex = 0; layerIndex < byteClips.Length; layerIndex++)
             {
-                EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({controllerIndex}/{256})", (float)controllerIndex / 256);
+                byteClips[layerIndex] = new AnimationClip[8];
 
-                // Prepare AnimatorController.
-                AnimatorController newWriterController = AnimatorController.CreateAnimatorControllerAtPath($"{assetFolderPath}/SaveState-{data.DataPreferences.Parameter}_{controllerIndex / 16}-bit_{controllerIndex % 16}.controller");
-                AnimatorStateMachine newWriterStateMachine = newWriterController.layers[0].stateMachine;
-                newWriterStateMachine.entryPosition = new Vector2(-30, 0);
-                newWriterStateMachine.anyStatePosition = new Vector2(-30, 50);
-                newWriterStateMachine.exitPosition = new Vector2(-30, 100);
+                for (int clipIndex = 0; clipIndex < 8; clipIndex++)
+                {
+                    float subtractionValue = 1f / Mathf.Pow(2, clipIndex + 1);
 
-                // Prepare AnimatorState.
-                AnimatorState newWriterState = newWriterStateMachine.AddState("Write", new Vector3(200, 0));
+                    AnimationClip byteClip = new AnimationClip() { name = $"b{layerIndex}-{subtractionValue}".Replace(",", ".") };
 
-                // Prepare VRC Behaviour.
-                var VRCParameterDriver = newWriterState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
-                VRCParameterDriver.parameters = new List<VRC_AvatarParameterDriver.Parameter>()
+                    byteClip.SetCurve("", typeof(Animator), $"b{layerIndex}", AnimationCurve.Linear(0, 0 - subtractionValue, 1, 1 - subtractionValue));
+
+                    byteClips[layerIndex][clipIndex] = byteClip;
+                    AssetDatabase.AddObjectToAsset(byteClip, controller);
+                }
+            }
+
+            AnimationClip[] transferClips = new AnimationClip[32];
+            for (int byteIndex = 0; byteIndex < transferClips.Length; byteIndex++)
+            {
+                AnimationClip transferClip = new AnimationClip() { name = $"b{byteIndex}-transfer" };
+
+                // Subtract the control bit (1/32th) and multiply by 32. Here's the max range for example: (1 - 0.03125) * 32 = 1 * 32 - 0.03125 * 32 = 32 - 1 = 31
+                transferClip.SetCurve("", typeof(Animator), $"b{byteIndex}", byteIndex % 6 == 0 ? AnimationCurve.Linear(0, -1, 1, 31) : AnimationCurve.Linear(0, 0, 1, 32));
+
+                transferClips[byteIndex] = transferClip;
+                AssetDatabase.AddObjectToAsset(transferClip, controller);
+            }
+
+            AnimationClip[] identityClips = new AnimationClip[32];
+            for (int byteIndex = 0; byteIndex < identityClips.Length; byteIndex++)
+            {
+                AnimationClip identityClip = new AnimationClip() { name = $"b{byteIndex}-identity" };
+
+                identityClip.SetCurve("", typeof(Animator), $"b{byteIndex}", AnimationCurve.Linear(0, 0, 1, 1)); // Create animations used to prevent animated floats from resetting when not animated.
+
+                identityClips[byteIndex] = identityClip;
+                AssetDatabase.AddObjectToAsset(identityClip, controller);
+            }
+
+            #endregion Animations
+
+            #region Batch Layer
+
+            AnimatorStateMachine batchMachine = controller.layers[0].stateMachine;
+            batchMachine.entryPosition = new Vector2(0, 0);
+            batchMachine.anyStatePosition = new Vector2(0, 50);
+            batchMachine.exitPosition = new Vector2(0, 100);
+
+            AnimatorState[] batchStates = new AnimatorState[12];
+
+            // Empty default state to avoid having the animator controller get stuck.
+            batchStates[0] = batchMachine.AddState("Default", new Vector3(200, 0));
+            batchStates[0].writeDefaultValues = false;
+
+            int driverParameterIndex = 0;
+            for (int stateIndex = 1; stateIndex < batchStates.Length; stateIndex++)
+            {
+                batchStates[stateIndex] = batchMachine.AddState($"Batch {stateIndex}", new Vector3(200, 100 * stateIndex));
+                batchStates[stateIndex].writeDefaultValues = false;
+
+                var batchTransition = batchStates[stateIndex - 1].AddTransition(batchStates[stateIndex]);
+                batchTransition.duration = 0;
+                batchTransition.exitTime = 0;
+                batchTransition.hasExitTime = false;
+                batchTransition.AddCondition(stateIndex % 2 == 0 ? AnimatorConditionMode.Less : AnimatorConditionMode.Greater, 0.03125f, "VelocityX");
+
+                var batchDriver = batchStates[stateIndex].AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+                // batchDriver.debugString = $"[NUSS] Batch: {stateIndex}";
+
+                var batchParameters = new List<VRC_AvatarParameterDriver.Parameter>()
                 {
                     new VRC_AvatarParameterDriver.Parameter()
                     {
-                        name = $"{data.DataPreferences.Parameter}_{controllerIndex / 16}",
-                        value = 1 / Mathf.Pow(2, 16 - controllerIndex % 16),
-                        type = VRC_AvatarParameterDriver.ChangeType.Add
+                        name = "Batch",
+                        value = 1,
+                        type = VRC_AvatarParameterDriver.ChangeType.Add,
                     }
                 };
 
-                AssetDatabase.SetLabels(newWriterController, new string[] { "SaveState-Writer" });
+                for (int i = 0; i < 1 + (stateIndex % 2) && driverParameterIndex < 16; i++)
+                {
+                    batchParameters.Add(new VRC_AvatarParameterDriver.Parameter()
+                    {
+                        name = $"{data.DataPreferences.Parameter}_{driverParameterIndex++}",
+                        value = 0,
+                        type = VRC_AvatarParameterDriver.ChangeType.Set
+                    });
+                }
+
+                batchDriver.parameters = batchParameters;
             }
 
-            EditorUtility.ClearProgressBar();
+            #endregion Batch Layer
+
+            #region Byte Layers
+
+            for (int layerIndex = 0; layerIndex < 32; layerIndex++)
+            {
+                int parameterIndex = layerIndex;
+
+                AnimatorControllerLayer byteLayer = new AnimatorControllerLayer()
+                {
+                    name = $"byte {layerIndex}",
+                    defaultWeight = 1,
+                    stateMachine = new AnimatorStateMachine()
+                    {
+                        name = $"byte {layerIndex}",
+                        hideFlags = HideFlags.HideInHierarchy,
+
+                        entryPosition = new Vector2(0, 0),
+                        anyStatePosition = new Vector2(0, 50),
+                        exitPosition = new Vector2(0, 100)
+                    }
+                };
+
+                AssetDatabase.AddObjectToAsset(byteLayer.stateMachine, controller);
+                controller.AddLayer(byteLayer);
+
+                AnimatorStateMachine byteMachine = byteLayer.stateMachine;
+
+                AnimatorState transferState = byteMachine.AddState("Transfer", new Vector3(200, 0));
+                transferState.writeDefaultValues = false;
+                transferState.timeParameterActive = true;
+                transferState.timeParameter = velocityNames[layerIndex % 3];
+                transferState.motion = transferClips[parameterIndex];
+
+                AnimatorState finalState = byteMachine.AddState("Finished", new Vector3(200, 1700));
+                finalState.writeDefaultValues = false;
+
+                AnimatorState[] byteStates = new AnimatorState[16];
+                for (int stepIndex = 0; stepIndex < 8; stepIndex++)
+                {
+                    float bitDenominator = Mathf.Pow(2, stepIndex + 1);
+
+                    byteStates[stepIndex * 2 + 1] = byteMachine.AddState($"Ignore {stepIndex}", new Vector3(300, 200 + stepIndex * 200));
+                    byteStates[stepIndex * 2 + 1].writeDefaultValues = false;
+                    byteStates[stepIndex * 2 + 1].timeParameterActive = true;
+                    byteStates[stepIndex * 2 + 1].timeParameter = $"b{parameterIndex}";
+                    byteStates[stepIndex * 2 + 1].motion = identityClips[parameterIndex];
+
+                    byteStates[stepIndex * 2] = byteMachine.AddState($"b{parameterIndex}-(1/{bitDenominator})", new Vector3(100, 200 + stepIndex * 200));
+                    byteStates[stepIndex * 2].writeDefaultValues = false;
+                    byteStates[stepIndex * 2].timeParameterActive = true;
+                    byteStates[stepIndex * 2].timeParameter = $"b{parameterIndex}";
+                    byteStates[stepIndex * 2].motion = byteClips[parameterIndex][stepIndex];
+
+                    if (stepIndex > 0)
+                    {
+                        for (int i = 0; i < 2; i++)
+                        {
+                            var ignoreTransition = byteStates[(stepIndex - 1) * 2 + i].AddTransition(byteStates[stepIndex * 2 + 1]);
+                            ignoreTransition.duration = 0;
+                            ignoreTransition.exitTime = 0;
+                            ignoreTransition.hasExitTime = false;
+                            ignoreTransition.AddCondition(AnimatorConditionMode.Less, 1 / bitDenominator, $"b{parameterIndex}");
+
+                            var writeTransition = byteStates[(stepIndex - 1) * 2 + i].AddTransition(byteStates[stepIndex * 2]);
+                            writeTransition.duration = 0;
+                            writeTransition.exitTime = 0;
+                            writeTransition.hasExitTime = false;
+                            writeTransition.AddCondition(AnimatorConditionMode.If, 0, "IgnoreTransition");
+                        }
+                    }
+                    else
+                    {
+                        var ignoreTransition = transferState.AddTransition(byteStates[stepIndex * 2 + 1]);
+                        ignoreTransition.duration = 0;
+                        ignoreTransition.exitTime = 0;
+                        ignoreTransition.hasExitTime = false;
+                        ignoreTransition.AddCondition(AnimatorConditionMode.Less, 1 / bitDenominator, $"b{parameterIndex}");
+                        ignoreTransition.AddCondition(AnimatorConditionMode.Equals, layerIndex / 3 + 1, "Batch");
+
+                        var writeTransition = transferState.AddTransition(byteStates[stepIndex * 2]);
+                        writeTransition.duration = 0;
+                        writeTransition.exitTime = 0;
+                        writeTransition.hasExitTime = false;
+                        writeTransition.AddCondition(AnimatorConditionMode.Equals, layerIndex / 3 + 1, "Batch");
+                    }
+
+                    var byteDriver = byteStates[stepIndex * 2].AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+                    // byte debugByte = (byte)(1 << (7 - stepIndex));
+                    // byteDriver.debugString = $"[NUSS] b{layerIndex} += {Convert.ToString(debugByte, 2).PadLeft(8, '0')}";
+
+                    byteDriver.parameters = new List<VRC_AvatarParameterDriver.Parameter>()
+                    {
+                        new VRC_AvatarParameterDriver.Parameter()
+                        {
+                            name = $"{data.DataPreferences.Parameter}_{layerIndex / 2}",
+                            value = 1 / Mathf.Pow(2, stepIndex + (layerIndex & 1 ^ 1) * 8 + 1),
+                            type = VRC_AvatarParameterDriver.ChangeType.Add
+                        }
+                    };
+                }
+
+                var finalTransitionL = byteStates[14].AddTransition(finalState);
+                finalTransitionL.duration = 0;
+                finalTransitionL.exitTime = 0;
+                finalTransitionL.hasExitTime = false;
+                finalTransitionL.AddCondition(AnimatorConditionMode.If, 0, "IgnoreTransition");
+
+                var finalTransitionR = byteStates[15].AddTransition(finalState);
+                finalTransitionR.duration = 0;
+                finalTransitionR.exitTime = 0;
+                finalTransitionR.hasExitTime = false;
+                finalTransitionR.AddCondition(AnimatorConditionMode.If, 0, "IgnoreTransition");
+            }
+
+            #endregion Byte Layers
         }
 
         private List<string> PrepareAvatarAnimators(out AnimatorController[] controllers)
@@ -841,7 +993,7 @@ namespace Nessie.Udon.SaveState.Internal
                 for (int j = 0; j < i; j++)
                 {
                     Vector3 vec = keyCoordinates[j] - keyCoordinates[i];
-                    if (Mathf.Abs(vec.x) < 1 && Mathf.Abs(vec.y) < 2 && Mathf.Abs(vec.z) < 1)
+                    if (Mathf.Abs(vec.x) < 1 && Mathf.Abs(vec.y) < 1 && Mathf.Abs(vec.z) < 1)
                     {
                         i--;
                         break;
@@ -852,9 +1004,9 @@ namespace Nessie.Udon.SaveState.Internal
             // Create animator for each avatar.
             for (int avatarIndex = 0; avatarIndex < avatarCount; avatarIndex++)
             {
-                EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing Animator Controllers... ({avatarIndex}/{avatarCount})", (float)avatarIndex / avatarCount);
+                EditorUtility.DisplayProgressBar("NUSaveState", $"Preparing animator controllers... ({avatarIndex}/{avatarCount})", (float)avatarIndex / avatarCount);
 
-                // Prepare AnimatorController.
+                // Prepare animator controller.
                 string newControllerPath = $"{pathAnimatorsFolder}/SaveState-Avatar_{avatarIndex}-{data.DataPreferences.Parameter}.controller";
                 assetPaths.Add(newControllerPath);
 
@@ -903,11 +1055,12 @@ namespace Nessie.Udon.SaveState.Internal
                 AnimationClip newBaseClip = new AnimationClip() { name = "SaveState-Base" };
 
                 newBaseClip.SetCurve("", typeof(Animator), "RootT.y", AnimationCurve.Constant(0, 0, 1));
-                newBaseClip.SetCurve("SaveState-Key", typeof(GameObject), "m_IsActive", AnimationCurve.Constant(0, 0, 1));
+                newBaseClip.SetCurve("SaveState-Avatar/hips/SaveState-Key", typeof(GameObject), "m_IsActive", AnimationCurve.Constant(0, 0, 1));
 
-                newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.x", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].x));
-                newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.y", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].y));
-                newBaseClip.SetCurve("SaveState-Key", typeof(Transform), "m_LocalPosition.z", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].z));
+                keyCoordinates[avatarIndex] /= 100; // Account for the scale of the armature.
+                newBaseClip.SetCurve("SaveState-Avatar/hips/SaveState-Key", typeof(Transform), "m_LocalPosition.x", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].x));
+                newBaseClip.SetCurve("SaveState-Avatar/hips/SaveState-Key", typeof(Transform), "m_LocalPosition.y", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].y));
+                newBaseClip.SetCurve("SaveState-Avatar/hips/SaveState-Key", typeof(Transform), "m_LocalPosition.z", AnimationCurve.Constant(0, 0, keyCoordinates[avatarIndex].z));
                 for (int i = 0; i < muscleNames.Length; i++)
                 {
                     newBaseClip.SetCurve("", typeof(Animator), $"{muscleNames[i]}2 Stretched", AnimationCurve.Constant(0, 0, 0.81002f));
@@ -1056,6 +1209,7 @@ namespace Nessie.Udon.SaveState.Internal
             propertyFallbackAvatar = serializedObject.FindProperty(nameof(NUSaveState.FallbackAvatarID));
 
             propertyByteCount = serializedObject.FindProperty("bufferByteCount");
+            propertyBoolCount = serializedObject.FindProperty("bufferBoolCount");
             propertyUdonBehaviours = serializedObject.FindProperty("bufferUdonBehaviours");
             propertyVariables = serializedObject.FindProperty("bufferVariables");
             propertyTypes = serializedObject.FindProperty("bufferTypes");
@@ -1063,7 +1217,6 @@ namespace Nessie.Udon.SaveState.Internal
             propertyAvatarIDs = serializedObject.FindProperty("dataAvatarIDs");
             propertyKeyCoords = serializedObject.FindProperty("dataKeyCoords");
 
-            propertyParameterClearer = serializedObject.FindProperty("parameterClearer");
             propertyParameterWriters = serializedObject.FindProperty("parameterWriters");
         }
 

@@ -6,7 +6,7 @@ using VRC.Udon;
 using UdonSharp;
 using Nessie.Udon.SaveState;
 
-[AddComponentMenu("")]
+[AddComponentMenu("")] // Hide the example script from the component menu.
 public class NUSaveState_Example_Sharp : UdonSharpBehaviour
 {
     // Simple declarations to reflect the Graph equivalents.
@@ -26,7 +26,7 @@ public class NUSaveState_Example_Sharp : UdonSharpBehaviour
 
     #region Callbacks
 
-    public void _SSLoaded()
+    public void _SSPostLoad()
     {
         Networking.LocalPlayer.TeleportTo(PlayerPosition, Networking.LocalPlayer.GetRotation());
     }

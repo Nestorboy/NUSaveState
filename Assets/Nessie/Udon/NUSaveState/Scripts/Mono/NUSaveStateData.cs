@@ -71,7 +71,7 @@ namespace Nessie.Udon.SaveState
                 typeof(float),
                 typeof(double),
                 typeof(decimal),
-                typeof(bool),
+                typeof(bool), // Special Case
                 typeof(Vector2),
                 typeof(Vector3),
                 typeof(Vector4),
@@ -95,7 +95,7 @@ namespace Nessie.Udon.SaveState
                 32,
                 16,
                 128,
-                1,
+                1, // Special Case
                 64,
                 96,
                 128,

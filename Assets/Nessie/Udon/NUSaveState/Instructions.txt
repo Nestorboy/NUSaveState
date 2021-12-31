@@ -2,23 +2,29 @@ Instructions:
 In order to save or load data, respectively call _SSSave or _SSLoad on the NUSaveState behaviour.
 Once _SSSave is called, it uses the variable instruction list to get program variables from all the specified Udon programs and stores them.
 Once _SSLoad is called, it begins gathering the data from the avatars, and once done, it sets the program variables on the specified Udon programs.
-It is recommended to use _SSLoaded once the data has been loaded in order to initialize it in your world.
+It is recommended to use _SSLoaded or _SSPostLoad once the data has been loaded in order to initialize it in your world.
 
 Callbacks:
-The Event Reciever can be used to keep executing code once the data has finished being processed.
+The Callback Reciever recieves custom events from the NUSaveState behaviour in order for you to use the events to initialize and update your scripts accordingly.
+
 _SSSaved is called as soon as all the data has been saved.
 _SSLoaded is called as soon as all the data has been loaded.
+
 _SSSaveFailed is called when saving data failed.
 _SSLoadFailed is called when loading data failed.
+
 _SSPostSave is called after saving the data and the user has switched out of the last data avatar.
 _SSPostLoad is called after loading the data and the user has switched out of the last data avatar.
 
+_SSProgress is called every frame when the variable called "Progress" has been update.
+Progress is a float ranging from 0 to 1, and it's set to 0 once you initially start saving or loading, and then 1 when it's done.
+
 Notes:
 Every avatar can store up to 32 bytes or 256 bits, but there's no limit to how many avatars you can use.
-It takes 1 frame to write a bit, so it would take ~256 frames to set all bits on an avatar to 1.
-Reading 32 bytes can be done almost instantly once an avatar is loaded.
+It takes roughly 22 frames to write to all 256 bits on an avatar, but we can't predict the time it takes to load avatars.
+Reading 32 bytes can be done almost instantly once an avatar has been detected.
 
-Pre-made:
+Pre-built avatars:
 Encryption Seed: 404
 Parameter Name: parameter
 Avatar IDs in order:
