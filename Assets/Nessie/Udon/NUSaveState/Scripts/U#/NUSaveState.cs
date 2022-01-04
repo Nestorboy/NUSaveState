@@ -560,10 +560,11 @@ namespace Nessie.Udon.SaveState
             return null;
         }
 
-        private bool __ReadBufferBoolean(byte[] buffer) => (_boolBuffer[_currentBoolIndex / 8] >> 7 - _currentBoolIndex++ & 1) != 0; // Special case
+        private bool __ReadBufferBoolean(byte[] buffer) => (_boolBuffer[_currentBoolIndex / 8] >> 7 - (_currentBoolIndex++ % 8) & 1) != 0; // Special case
         private int __WriteBufferBoolean(bool value, byte[] buffer, int index) // Special case
         {
-            if (value) _boolBuffer[_currentBoolIndex / 8] |= (byte)(1 << 7 - _currentBoolIndex++);
+            if (value) _boolBuffer[_currentBoolIndex / 8] |= (byte)(1 << 7 - (_currentBoolIndex % 8));
+            _currentBoolIndex++;
 
             return index;
         }
