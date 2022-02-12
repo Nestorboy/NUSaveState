@@ -369,7 +369,7 @@ namespace Nessie.Udon.SaveState
                     LogError($"Data verification failed at index {i}: {inputData[i]:X2} doesn't match {writtenData[i]:X2}! Write should be restarted!");
                     failReason = $"Data verification failed at index {i}: {inputData[i]:X2} doesn't match {writtenData[i]:X2}";
                     _FailedData();
-                    break;
+                    return;
                 }
             }
 
@@ -378,11 +378,11 @@ namespace Nessie.Udon.SaveState
                 dataProgress = (float)(dataByteIndex + avatarByteOffset) / bufferByteCount;
 
                 dataAvatarIndex++;
-                SendCustomEventDelayedFrames(nameof(_ChangeAvatar), 10);
+                _ChangeAvatar();
             }
             else
             {
-                SendCustomEventDelayedFrames(nameof(_FinishedData), 10);
+                _FinishedData();
             }
         }
 
