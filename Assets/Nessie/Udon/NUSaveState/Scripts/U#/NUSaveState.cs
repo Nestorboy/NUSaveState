@@ -126,6 +126,8 @@ namespace Nessie.Udon.SaveState
                 return Progress;
             }
         }
+        
+        [NonSerialized] public string failReason;
 
         #endregion Public Fields
 
@@ -139,16 +141,16 @@ namespace Nessie.Udon.SaveState
 
             // Validation.
             if (parameterWriters.Length < 1)
-                Debug.LogError("[<color=#00FF9F>SaveState</color>] NUSaveState is missing animator controllers.");
+                LogError("NUSaveState is missing animator controllers.");
 
             if (dataAvatarIDs.Length < avatarCount)
-                Debug.LogError("[<color=#00FF9F>SaveState</color>] NUSaveState is missing avatar blueprints.");
+                LogError("NUSaveState is missing avatar blueprints.");
 
             if (dataKeyCoords.Length < avatarCount)
-                Debug.LogError("[<color=#00FF9F>SaveState</color>] NUSaveState is missing key coordinates.");
+                LogError("NUSaveState is missing key coordinates.");
 
             if (gameObject.layer != 5)
-                Debug.LogError("[<color=#00FF9F>SaveState</color>] NUSaveState behaviour is not situated on the UI layer.");
+                LogError("NUSaveState behaviour is not situated on the UI layer.");
 
             inputBytes = new byte[bufferByteCount];
             outputBytes = new byte[bufferByteCount];
@@ -186,7 +188,7 @@ namespace Nessie.Udon.SaveState
         {
             if (avatarIsLoading)
             {
-                Debug.Log($"[<color=#00FF9F>SaveState</color>] Detected buffer avatar: {dataAvatarIndex}");
+                Log($"Detected buffer avatar: {dataAvatarIndex}");
 
                 avatarCurrentDuration = 0f;
                 avatarIsLoading = false;
@@ -221,8 +223,8 @@ namespace Nessie.Udon.SaveState
 
             dataStatus = 1;
 
-            _PackData();
-
+            inputBytes = _PackData();
+            
             dataWriter.transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation()); // Put user in station to prevent movement and set the velocity parameters to 0.
             dataWriter.animatorController = null;
             dataWriter.UseStation(localPlayer);
@@ -260,7 +262,7 @@ namespace Nessie.Udon.SaveState
         {
             dataByteIndex = 0;
 
-            Debug.Log($"[<color=#00FF9F>SaveState</color>] Switching avatar to buffer avatar: {dataAvatarIndex}.");
+            Log($"Switching avatar to buffer avatar: {dataAvatarIndex}.");
             dataAvatarPedestals[dataAvatarIndex].SetAvatarUse(localPlayer);
 
             avatarCurrentDuration = avatarTimeoutDuration;
@@ -282,7 +284,8 @@ namespace Nessie.Udon.SaveState
                 }
                 else
                 {
-                    Debug.LogError("[<color=#00FF9F>SaveState</color>] Data avatar took too long to load or avatar ID is mismatched.");
+                    LogError("Data avatar took too long to load or avatar ID is mismatched.");
+                    failReason = "Data avatar took too long to load or avatar ID is mismatched.";
                     _FailedData();
                 }
             }
@@ -312,6 +315,8 @@ namespace Nessie.Udon.SaveState
 
         public void _SetData() // Write data by doing float additions.
         {
+            //Log($"Writing data for avatar {dataAvatarIndex}: data byte index {dataByteIndex}");
+            
             int avatarByteOffset = dataAvatarIndex * 32;
             int avatarByteCount = Mathf.Min(bufferByteCount - avatarByteOffset, 32);
 
@@ -328,7 +333,7 @@ namespace Nessie.Udon.SaveState
 
             //string debugBits = $"{Convert.ToString(byte1, 2).PadLeft(8, '0')}, {Convert.ToString(byte2, 2).PadLeft(8, '0')}, {Convert.ToString(byte3, 2).PadLeft(8, '0')}";
             //string debugVels = $"{newVelocity.x}, {newVelocity.y}, {newVelocity.z}";
-            //Debug.Log($"[<color=#00FF9F>SaveState</color>] Batch {Mathf.CeilToInt(dataByteIndex / 3f)}: {debugBits} : {debugVels}");
+            //Log($"Batch {Mathf.CeilToInt(dataByteIndex / 3f)}: {debugBits} : {debugVels}");
 
             if (dataByteIndex < avatarByteCount)
             {
@@ -338,37 +343,59 @@ namespace Nessie.Udon.SaveState
             }
             else
             {
-                if (dataByteIndex + avatarByteOffset < bufferByteCount)
-                {
-                    dataProgress = (float)(dataByteIndex + avatarByteOffset) / bufferByteCount;
+                SendCustomEventDelayedFrames(nameof(_VerifyData), 10, VRC.Udon.Common.Enums.EventTiming.LateUpdate);
+            }
+        }
 
-                    dataAvatarIndex++;
-                    SendCustomEventDelayedFrames(nameof(_ChangeAvatar), 10);
-                }
-                else
+        /// <summary>
+        /// Verifies if the written data matches the input data. If succesful, queues the next write or finishes write operation.
+        /// </summary>
+        public void _VerifyData()
+        {
+            int avatarByteOffset = dataAvatarIndex * 32;
+            int avatarByteCount = Mathf.Min(bufferByteCount - avatarByteOffset, 32);
+            
+            //verify if the write was succesful
+            byte[] inputData = new byte[avatarByteCount];
+            Array.Copy(inputBytes, avatarByteOffset, inputData, 0, avatarByteCount);
+
+            byte[] writtenData = _GetAvatarBytes();
+
+            //compare
+            for (int i = 0; i < inputData.Length; i++)
+            {
+                if (inputData[i] != writtenData[i])
                 {
-                    SendCustomEventDelayedFrames(nameof(_FinishedData), 10);
+                    LogError($"Data verification failed at index {i}: {inputData[i]:X2} doesn't match {writtenData[i]:X2}! Write should be restarted!");
+                    failReason = $"Data verification failed at index {i}: {inputData[i]:X2} doesn't match {writtenData[i]:X2}";
+                    _FailedData();
+                    break;
                 }
+            }
+
+            if (dataByteIndex + avatarByteOffset < bufferByteCount)
+            {
+                dataProgress = (float)(dataByteIndex + avatarByteOffset) / bufferByteCount;
+
+                dataAvatarIndex++;
+                SendCustomEventDelayedFrames(nameof(_ChangeAvatar), 10);
+            }
+            else
+            {
+                SendCustomEventDelayedFrames(nameof(_FinishedData), 10);
             }
         }
 
         public void _GetData() // Read data using finger rotations.
         {
             int avatarByteOffset = dataAvatarIndex * 32;
-            int avatarByteCount = Mathf.Min(bufferByteCount - avatarByteOffset, 32);
-
-            for (int boneIndex = 0; dataByteIndex < avatarByteCount; boneIndex++)
-            {
-                Quaternion muscleTarget = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[boneIndex]);
-                Quaternion muscleParent = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[boneIndex + 8]);
-
-                int bytes = Mathf.RoundToInt(_InverseMuscle(muscleTarget, muscleParent) * 65536) & 0xFFFF; // 2 bytes per parameter.
-                outputBytes[dataByteIndex++ + avatarByteOffset] = (byte)(bytes & 0xFF);
-                if (dataByteIndex < avatarByteCount)
-                    outputBytes[dataByteIndex++ + avatarByteOffset] = (byte)(bytes >> 8);
-            }
-
-            if (dataByteIndex + avatarByteOffset < bufferByteCount)
+            
+            byte[] data = _GetAvatarBytes();
+            
+            //copy output data into outputBytes array
+            Array.Copy(data, 0, outputBytes, avatarByteOffset, data.Length);
+            
+            if (avatarByteOffset + data.Length < bufferByteCount)
             {
                 dataProgress = (float)avatarByteOffset / bufferByteCount;
 
@@ -381,6 +408,33 @@ namespace Nessie.Udon.SaveState
             }
         }
 
+        /// <summary>
+        /// Returns byte array containing current avatar data
+        /// </summary>
+        public byte[] _GetAvatarBytes()
+        {
+            int avatarByteOffset = dataAvatarIndex * 32;
+            int avatarByteCount = Mathf.Min(bufferByteCount - avatarByteOffset, 32);
+
+            byte[] output = new byte[avatarByteCount];
+            
+            int byteIndex = 0;
+            
+            for (int boneIndex = 0; byteIndex < avatarByteCount; boneIndex++)
+            {
+                Quaternion muscleTarget = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[boneIndex]);
+                Quaternion muscleParent = localPlayer.GetBoneRotation((HumanBodyBones)dataBones[boneIndex + 8]);
+
+                int bytes = Mathf.RoundToInt(_InverseMuscle(muscleTarget, muscleParent) * 65536) & 0xFFFF; // 2 bytes per parameter.
+
+                output[byteIndex++] = (byte)(bytes & 0xFF);
+                if (byteIndex < avatarByteCount)
+                    output[byteIndex++] = (byte)(bytes >> 8);
+            }
+
+            return output;
+        }
+
         public void _FinishedData()
         {
             dataProgress = 1;
@@ -390,13 +444,14 @@ namespace Nessie.Udon.SaveState
                 dataWriter.ExitStation(localPlayer); // Only exit the station once the last animator states have been reached.
                 localPlayer.Immobilize(false);
 
-                Debug.Log($"[<color=#00FF9F>SaveState</color>] Data has been saved.");
+                Log("Data has been saved.");
             }
             else
             {
-                _UnpackData();
+                byte[] bufferBytes = __PrepareReadBuffer(outputBytes);
+                _UnpackData(bufferBytes);
 
-                Debug.Log("[<color=#00FF9F>SaveState</color>] Data has been loaded.");
+                Log("Data has been loaded.");
             }
 
             _SSCallback();
@@ -425,31 +480,35 @@ namespace Nessie.Udon.SaveState
             dataStatus = 0;
         }
 
-        private void _PackData()
+        /// <summary>
+        /// Returns packed version of input data as byte array
+        /// </summary>
+        private byte[] _PackData()
         {
             int bufferLength = 0;
             byte[] bufferBytes = __PrepareWriteBuffer();
 
             for (int i = 0; i < bufferUdonBehaviours.Length; i++) 
             {
-                if (bufferUdonBehaviours[i] == null || bufferVariables[i] == null) return;
+                if (bufferUdonBehaviours[i] == null || bufferVariables[i] == null) return new byte[bufferLength];
 
                 object value = ((UdonBehaviour)bufferUdonBehaviours[i]).GetProgramVariable(bufferVariables[i]);
                 bufferLength = __WriteBufferTypedObject(value, bufferTypes[i], bufferBytes, bufferLength);
             }
 
-            for (int i = 0; i < _boolBuffer.Length; i++) // Append the bools at the end of the buffer.
+            foreach (byte t in _boolBuffer)
             {
-                bufferLength = __WriteBufferByte(_boolBuffer[i], bufferBytes, bufferLength);
+                bufferLength = __WriteBufferByte(t, bufferBytes, bufferLength);
             }
 
-            inputBytes = __FinalizeWriteBuffer(bufferBytes, bufferLength);
+            return __FinalizeWriteBuffer(bufferBytes, bufferLength);
         }
 
-        private void _UnpackData()
+        /// <summary>
+        /// Writes back bufferBytes from avatar to target behaviours
+        /// </summary>
+        private void _UnpackData(byte[] bufferBytes)
         {
-            byte[] bufferBytes = __PrepareReadBuffer(outputBytes);
-
             Array.Copy(bufferBytes, bufferBytes.Length - _boolBuffer.Length, _boolBuffer, 0, _boolBuffer.Length); // Pull bools from the end of the buffer.
 
             for (int i = 0; i < bufferUdonBehaviours.Length; i++)
@@ -472,6 +531,16 @@ namespace Nessie.Udon.SaveState
 
         #endregion SaveState Data
 
+        private void Log(string log)
+        {
+            Debug.Log($"[<color=#00FF9F>SaveState</color>] {log}");
+        }
+        
+        private void LogError(string log)
+        {
+            Debug.LogError($"[<color=#00FF9F>SaveState</color>] {log}");
+        }
+        
         #region Buffer Utilities
 
         // Thank you Genesis for the bit converter code!
@@ -494,7 +563,7 @@ namespace Nessie.Udon.SaveState
 
         private byte[] __FinalizeWriteBuffer(byte[] buffer, int length)
         {
-            var finalBuffer = new byte[length];
+            byte[] finalBuffer = new byte[length];
             Array.Copy(buffer, finalBuffer, length);
             return finalBuffer;
         }
