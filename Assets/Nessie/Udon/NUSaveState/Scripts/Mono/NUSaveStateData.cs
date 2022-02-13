@@ -93,7 +93,7 @@ namespace Nessie.Udon.SaveState
                 8,
                 16,
                 32,
-                16,
+                64,
                 128,
                 1, // Special Case
                 64,
