@@ -532,7 +532,7 @@ namespace Nessie.Udon.SaveState
                 ushort bytes = _ReadParameter(boneIndex);
                 output[byteIndex++ + avatarByteOffset] = (byte)(bytes & 0xFF);
                 if (byteIndex < avatarByteCount)
-                    output[byteIndex++ + avatarByteOffset] = (byte)(bytes >> 8);
+                    output[byteIndex++ + avatarByteOffset] = (byte)(bytes >> (ushort)8);
             }
 
             return output;
