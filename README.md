@@ -1,11 +1,4 @@
-# Nessie's Udon Prefabs
-
-A collection of Udon prefabs for VRChat.
-
-## NUDebugger
-\*WIP
-
-## NUSaveState
+# NUSaveState
 
 ### Description
 NUSaveState uses an alternate (and Quest compatible!) method to load and save data for and with Udon, and it's built with both Udon Graph and U# users in mind.
