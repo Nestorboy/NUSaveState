@@ -109,22 +109,14 @@ namespace Nessie.Udon.SaveState
             [SerializeField] private UdonBehaviour udon;
             public UdonBehaviour Udon
             {
-                get
-                {
-                    return udon;
-                }
+                get => udon;
                 set
                 {
                     udon = value;
 
                     Variables = value != null ? value.GetFilteredVariables(allowedTypes, ~NUExtensions.VariableType.Internal).ToArray() : new NUExtensions.Variable[0];
                     VariableLabels = PrepareLabels(Variables);
-
-                    int newVariableIndex = Array.FindIndex(Variables, var => var.Name == Variable.Name);
-                    if (newVariableIndex >= 0)
-                        VariableIndex = Variables[newVariableIndex].Type == Variable.Type ? newVariableIndex : -1;
-                    else
-                        VariableIndex = newVariableIndex;
+                    VariableIndex = Array.IndexOf(Variables, Variable);
                 }
             }
 
@@ -134,10 +126,7 @@ namespace Nessie.Udon.SaveState
             [SerializeField] private int variableIndex = -1;
             public int VariableIndex
             {
-                get
-                {
-                    return variableIndex;
-                }
+                get => variableIndex;
                 set
                 {
                     variableIndex = value;
