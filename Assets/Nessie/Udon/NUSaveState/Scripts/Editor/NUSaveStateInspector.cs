@@ -358,6 +358,9 @@ namespace Nessie.Udon.SaveState.Internal
 
             if (propertyParameterWriters.arraySize < Math.Min(activeAvatarCount, 1))
                 EditorGUILayout.HelpBox("There are not enough animator controllers on the behaviour.\nPlease select an asset folder and apply the animator controller(s) again.", MessageType.Error);
+            else if (!propertyParameterWriters.GetArrayElementAtIndex(0).objectReferenceValue)
+                EditorGUILayout.HelpBox("There is a missing animator controller on the behaviour.\nPlease select an asset folder and apply the animator controller(s) again.", MessageType.Error);
+
             if (propertyKeyCoords.arraySize < activeAvatarCount)
                 EditorGUILayout.HelpBox("There are not enough key coordinates on the behaviour.\nPlease enter the seed and apply the keys again.", MessageType.Error);
         }
