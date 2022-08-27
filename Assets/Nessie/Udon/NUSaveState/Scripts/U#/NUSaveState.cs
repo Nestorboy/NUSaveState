@@ -344,6 +344,7 @@ namespace Nessie.Udon.SaveState
             }
             else
             {
+                localPlayer.SetVelocity(Vector3.zero);
                 SendCustomEventDelayedFrames(nameof(_VerifyData), 10);
             }
         }
@@ -530,9 +531,9 @@ namespace Nessie.Udon.SaveState
             for (int boneIndex = 0; byteIndex < avatarByteCount; boneIndex++)
             {
                 ushort bytes = _ReadParameter(boneIndex);
-                output[byteIndex++ + avatarByteOffset] = (byte)(bytes & 0xFF);
+                output[byteIndex++] = (byte)(bytes & 0xFF);
                 if (byteIndex < avatarByteCount)
-                    output[byteIndex++ + avatarByteOffset] = (byte)(bytes >> (ushort)8);
+                    output[byteIndex++] = (byte)(bytes >> (ushort)8);
             }
 
             return output;
