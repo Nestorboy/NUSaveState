@@ -344,7 +344,6 @@ namespace Nessie.Udon.SaveState
             }
             else
             {
-                localPlayer.SetVelocity(Vector3.zero);
                 SendCustomEventDelayedFrames(nameof(_VerifyData), 10);
             }
         }
@@ -376,6 +375,7 @@ namespace Nessie.Udon.SaveState
             }
 
             // Continue if write was successful.
+            localPlayer.SetVelocity(Vector3.zero); // Reset velocity before finishing or changing avatar.
             if (dataByteIndex + avatarByteOffset < bufferByteCount)
             {
                 dataProgress = (float)(dataByteIndex + avatarByteOffset) / bufferByteCount;
@@ -945,7 +945,7 @@ namespace Nessie.Udon.SaveState
             if (normal) exp -= 1023;
             else exp = -1022;
 
-            double result = frac / (double)(2 << 51);
+            double result = frac / (double)(2UL << 51);
             if (normal) result += 1.0;
 
             result *= Math.Pow(2, exp);
@@ -1000,7 +1000,7 @@ namespace Nessie.Udon.SaveState
                 else exp = 0;
 
                 tmp |= Convert.ToUInt64(exp << 52) & _DOUBLE_EXP_MASK;
-                tmp |= Convert.ToUInt64(value * (2 << 51)) & _DOUBLE_FRAC_MASK;
+                tmp |= Convert.ToUInt64(value * (2UL << 51)) & _DOUBLE_FRAC_MASK;
             }
 
             return __WriteBufferUnsignedLong(tmp, buffer, index);
