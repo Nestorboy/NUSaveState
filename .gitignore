@@ -1,22 +1,35 @@
-*
+/*
 !.git
 !.github
 !.gitignore
 !LICENSE
 !README.md
 
+# Main directories
 !Assets
 Assets/*
 !Assets/Nessie
-!Assets/Nessie/**
+!Assets/Nessie.meta
+Assets/Nessie/*
+!Assets/Nessie/Resources
+!Assets/Nessie/Resources.meta
+!Assets/Nessie/Udon
+!Assets/Nessie/Udon.meta
+Assets/Nessie/Udon/*
+!Assets/Nessie/Udon/NUExtensions
+!Assets/Nessie/Udon/NUExtensions.meta
+!Assets/Nessie/Udon/NUSaveState
+!Assets/Nessie/Udon/NUSaveState.meta
 
-**/ToDo*
-
+# Exceptions
 Assets/Nessie/Udon/NUSaveState/AssetFolders/*
 !Assets/Nessie/Udon/NUSaveState/AssetFolders/Example-World-Folder
+!Assets/Nessie/Udon/NUSaveState/AssetFolders/Example-World-Folder.meta
 
 Assets/Nessie/Udon/NUSaveState/Avatar/Animators*
 Assets/Nessie/Udon/NUSaveState/Avatar/Expressions*
 Assets/Nessie/Udon/NUSaveState/Avatar/Prefabs*
 
 Assets/Nessie/Udon/NUSaveState/ExampleTesting*
+
+**/ToDo.*
