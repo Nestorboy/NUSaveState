@@ -74,13 +74,9 @@ namespace Nessie.Udon.Extensions
                 typeAssemblyName = type.AssemblyQualifiedName;
             }
 
-            public Variable(Variable source)
-            {
-                Name = source.Name;
-                VariableType = source.VariableType;
-
-                typeAssemblyName = source.typeAssemblyName;
-            }
+            public Variable(Variable source, Type type) : this (source.Name, source.VariableType, type) { }
+            
+            public Variable(Variable source) : this (source.Name, source.VariableType, source.Type) { }
         }
 
         #endregion Public Structs
