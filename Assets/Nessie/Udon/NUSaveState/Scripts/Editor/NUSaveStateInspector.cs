@@ -114,7 +114,7 @@ namespace Nessie.Udon.SaveState.Internal
 
             GetAssetFolders();
 
-            data = NUSaveStateData.GetPreferences(behaviourProxy) ?? NUSaveStateData.CreatePreferences(behaviourProxy);
+            data = NUSaveStateData.GetPreferences(behaviourProxy);
             if (data.DataPreferences.Folder == null || System.IO.Directory.Exists(AssetDatabase.GetAssetPath(data.DataPreferences.Folder)))
                 data.DataPreferences.FolderIndex = ArrayUtility.IndexOf(assetFolders, data.DataPreferences.Folder);
 
@@ -298,19 +298,6 @@ namespace Nessie.Udon.SaveState.Internal
                 InitializeStyles();
             }
 
-            if (data == null)
-            {
-                data = NUSaveStateData.CreatePreferences(behaviourProxy);
-
-                dataSO = new SerializedObject(data);
-                dataSO.Update();
-
-                InitializeProperties();
-
-                GetSaveStateData();
-                SetSaveStateData();
-            }
-
             dataSO.Update();
 
             dataBitCount = NUSaveStateData.BitSum(data.DataInstructions);
@@ -344,9 +331,9 @@ namespace Nessie.Udon.SaveState.Internal
                 EditorGUI.EndDisabledGroup();
 
                 EditorGUI.BeginChangeCheck();
-                bool toggleVisibility = EditorGUILayout.Toggle(contentDataToggle, data.hideFlags == HideFlags.None);
+                bool toggleVisibility = EditorGUILayout.Toggle(contentDataToggle, data.Visible);
                 if (EditorGUI.EndChangeCheck())
-                    data.SetVisibility(toggleVisibility);
+                    data.Visible = toggleVisibility;
 
                 base.OnInspectorGUI();
             }
@@ -355,11 +342,13 @@ namespace Nessie.Udon.SaveState.Internal
         private void DrawMessages()
         {
             int activeAvatarCount = Mathf.CeilToInt(dataBitCount / 256f);
-
-            if (propertyParameterWriters.arraySize < Math.Min(activeAvatarCount, 1))
-                EditorGUILayout.HelpBox("There are not enough animator controllers on the behaviour.\nPlease select an asset folder and apply the animator controller(s) again.", MessageType.Error);
+            if (propertyParameterWriters.arraySize < 1)
+            {
+                if (activeAvatarCount > 0)
+                    EditorGUILayout.HelpBox("There are not enough animator controllers on the behaviour.\nPlease select an asset folder and apply the animator controller again.", MessageType.Error);
+            }
             else if (!propertyParameterWriters.GetArrayElementAtIndex(0).objectReferenceValue)
-                EditorGUILayout.HelpBox("There is a missing animator controller on the behaviour.\nPlease select an asset folder and apply the animator controller(s) again.", MessageType.Error);
+                EditorGUILayout.HelpBox("There is a missing animator controller on the behaviour.\nPlease select an asset folder and apply the animator controller again.", MessageType.Error);
 
             if (propertyKeyCoords.arraySize < activeAvatarCount)
                 EditorGUILayout.HelpBox("There are not enough key coordinates on the behaviour.\nPlease enter the seed and apply the keys again.", MessageType.Error);
