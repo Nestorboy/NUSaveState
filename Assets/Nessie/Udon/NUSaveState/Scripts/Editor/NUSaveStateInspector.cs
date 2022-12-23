@@ -54,7 +54,7 @@ namespace Nessie.Udon.SaveState.Internal
         private SerializedProperty propertyEncryptionSeed;
         private SerializedProperty propertyParameterName;
 
-        private SerializedProperty propertyEventReciever;
+        private SerializedProperty propertyEventReceiver;
         private SerializedProperty propertyFallbackAvatar;
 
         private SerializedProperty propertyByteCount;
@@ -89,7 +89,7 @@ namespace Nessie.Udon.SaveState.Internal
         private GUIContent contentApplyAnimators = new GUIContent("Apply Save State Animators", "Applies animator controllers from the selected folder.");
         private GUIContent contentApplyKeys = new GUIContent("Apply Save State Keys", "Generates keys used to identify the specified data avatars.");
 
-        private GUIContent contentEventReciever = new GUIContent("Callback Reciever", "UdonBehaviour which recieves the following callback events:\n_SSSaved _SSSaveFailed _SSPostSave\n_SSLoaded _SSLoadFailed _SSPostLoad\n_SSProgress");
+        private GUIContent contentEventReciever = new GUIContent("Callback Receiver", "UdonBehaviour which receives the following callback events:\n_SSSaved _SSSaveFailed _SSPostSave\n_SSLoaded _SSLoadFailed _SSPostLoad\n_SSProgress");
         private GUIContent contentFallbackAvatar = new GUIContent("Fallback Avatar", "Blueprint ID of the avatar which is switched to when the data processing is done.");
 
         private GUIContent contentInstructionList = new GUIContent("Data Instructions", "List of UdonBehaviours variables used when saving or loading data.");
@@ -573,7 +573,7 @@ namespace Nessie.Udon.SaveState.Internal
             GUILayout.BeginVertical(styleBox);
 
             EditorGUI.BeginChangeCheck();
-            EditorGUILayout.PropertyField(propertyEventReciever, contentEventReciever);
+            EditorGUILayout.PropertyField(propertyEventReceiver, contentEventReciever);
             EditorGUILayout.PropertyField(propertyFallbackAvatar, contentFallbackAvatar);
             if (EditorGUI.EndChangeCheck())
                 serializedObject.ApplyModifiedProperties();
@@ -1197,7 +1197,7 @@ namespace Nessie.Udon.SaveState.Internal
             propertyEncryptionSeed = dataSO.FindProperty(nameof(NUSaveStateData.DataPreferences)).FindPropertyRelative(nameof(NUSaveStateData.Preferences.Seed));
             propertyParameterName = dataSO.FindProperty(nameof(NUSaveStateData.DataPreferences)).FindPropertyRelative(nameof(NUSaveStateData.Preferences.Parameter));
 
-            propertyEventReciever = serializedObject.FindProperty(nameof(NUSaveState.CallbackReciever));
+            propertyEventReceiver = serializedObject.FindProperty(nameof(NUSaveState.CallbackReceiver));
             propertyFallbackAvatar = serializedObject.FindProperty(nameof(NUSaveState.FallbackAvatarID));
 
             propertyByteCount = serializedObject.FindProperty("bufferByteCount");

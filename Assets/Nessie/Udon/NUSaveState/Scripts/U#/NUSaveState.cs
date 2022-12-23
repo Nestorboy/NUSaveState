@@ -4,6 +4,7 @@ using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 using UdonSharp;
+using UnityEngine.Serialization;
 
 namespace Nessie.Udon.SaveState
 {
@@ -11,8 +12,9 @@ namespace Nessie.Udon.SaveState
     public class NUSaveState : UdonSharpBehaviour
     {
         #region Serialized Public Fields
-
-        public UdonBehaviour CallbackReciever;
+        
+        [FormerlySerializedAs("CallbackReciever")]
+        public UdonBehaviour CallbackReceiver;
         public string FallbackAvatarID = "avtr_c38a1615-5bf5-42b4-84eb-a8b6c37cbd11";
 
         #endregion Serialized Public Fields
@@ -116,8 +118,8 @@ namespace Nessie.Udon.SaveState
             {
                 Progress = value;
 
-                if (CallbackReciever)
-                    CallbackReciever.SendCustomEvent(callbackEvents[6]);
+                if (CallbackReceiver)
+                    CallbackReceiver.SendCustomEvent(callbackEvents[6]);
 
                 // Debug.Log(String.Format("[NUSS] Progress: {0:P2}%", value));
             }
@@ -251,7 +253,7 @@ namespace Nessie.Udon.SaveState
 
         private void _SSCallback()
         {
-            CallbackReciever.SendCustomEvent(callbackEvents[dataStatus - 1]);
+            CallbackReceiver.SendCustomEvent(callbackEvents[dataStatus - 1]);
         }
 
         #endregion SaveState API
