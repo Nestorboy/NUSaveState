@@ -63,7 +63,7 @@ namespace Nessie.Udon.Extensions
             public Type Type
             {
                 get => typeAssemblyName != null ? Type.GetType(typeAssemblyName) : null;
-                set => typeAssemblyName = value.AssemblyQualifiedName;
+                set => typeAssemblyName = value?.AssemblyQualifiedName;
             }
 
             public Variable(string name, VariableType variableType, Type type)
