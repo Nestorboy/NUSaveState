@@ -83,7 +83,22 @@ namespace Nessie.Udon.Extensions
 
         #region Public Extensions
 
-        public static List<Event> GetEvents(this UdonBehaviour udon, EventType eventType = EventType.Any)
+        public static VariableType GetSymbolVariableType(this IUdonSymbolTable symbolTable, string symbol)
+        {
+            if (symbol.StartsWith("__"))
+            {
+                return VariableType.Internal;
+            }
+            
+            if (symbolTable.HasExportedSymbol(symbol))
+            {
+                return VariableType.Public;
+            }
+
+            return VariableType.Private;
+        }
+
+        public static List<Event> GetEvents(this UdonBehaviour udon, EventType eventTypeFilter = EventType.Any)
         {
             List<Event> events = new List<Event>();
 
@@ -94,11 +109,11 @@ namespace Nessie.Udon.Extensions
             string[] entries = entryTable.GetSymbols().ToArray();
             foreach (string entry in entries)
             {
-                if (eventType.HasFlag(EventType.Exposed) && !entry.StartsWith("_"))
+                if (eventTypeFilter.HasFlag(EventType.Exposed) && !entry.StartsWith("_"))
                 {
                     events.Add(new Event(entry, EventType.Exposed));
                 }
-                else if (eventType.HasFlag(EventType.Protected) && entry.StartsWith("_"))
+                else if (eventTypeFilter.HasFlag(EventType.Protected) && entry.StartsWith("_"))
                 {
                     events.Add(new Event(entry, EventType.Protected));
                 }
@@ -107,7 +122,7 @@ namespace Nessie.Udon.Extensions
             return events;
         }
 
-        public static List<Variable> GetVariables(this UdonBehaviour udon, VariableType variableType = VariableType.Any)
+        public static List<Variable> GetVariables(this UdonBehaviour udon, VariableType variableTypeFilter = VariableType.Any)
         {
             List<Variable> variables = new List<Variable>();
 
@@ -120,30 +135,18 @@ namespace Nessie.Udon.Extensions
 
             foreach (string symbol in symbols)
             {
-                if (symbol.StartsWith("__"))
-                {
-                    if (variableType.HasFlag(VariableType.Internal))
-                        variables.Add(new Variable(symbol, VariableType.Internal, symbolTable.GetSymbolType(symbol)));
-                }
-                else
-                {
-                    if (symbolTable.HasExportedSymbol(symbol))
-                    {
-                        if (variableType.HasFlag(VariableType.Public))
-                            variables.Add(new Variable(symbol, VariableType.Public, symbolTable.GetSymbolType(symbol)));
-                    }
-                    else
-                    {
-                        if (variableType.HasFlag(VariableType.Private))
-                            variables.Add(new Variable(symbol, VariableType.Private, symbolTable.GetSymbolType(symbol)));
-                    }
-                }
+                VariableType varType = symbolTable.GetSymbolVariableType(symbol);
+                if (!variableTypeFilter.HasFlag(varType))
+                    continue;
+                
+                Type type = symbolTable.GetSymbolType(symbol);
+                variables.Add(new Variable(symbol, varType, type));
             }
 
             return variables;
         }
 
-        public static List<Variable> GetFilteredVariables(this UdonBehaviour udon, Type[] filter, VariableType variableType = VariableType.Any)
+        public static List<Variable> GetFilteredVariables(this UdonBehaviour udon, Type[] typeFilter, VariableType variableTypeFilter = VariableType.Any)
         {
             List<Variable> variables = new List<Variable>();
             if (!udon.programSource) return variables;
@@ -154,33 +157,22 @@ namespace Nessie.Udon.Extensions
 
             foreach (string symbol in symbols)
             {
+                VariableType varType = symbolTable.GetSymbolVariableType(symbol);
+                if (!variableTypeFilter.HasFlag(varType))
+                    continue;
+                
                 Type type = symbolTable.GetSymbolType(symbol);
-
-                if (filter.Contains(type))
-                {
-                    if (symbol.StartsWith("__"))
-                    {
-                        if (variableType.HasFlag(VariableType.Internal))
-                            variables.Add(new Variable(symbol, VariableType.Internal, type));
-                    }
-                    else
-                    {
-                        if (symbolTable.HasExportedSymbol(symbol))
-                        {
-                            if (variableType.HasFlag(VariableType.Public))
-                                variables.Add(new Variable(symbol, VariableType.Public, type));
-                        }
-                        else
-                        {
-                            if (variableType.HasFlag(VariableType.Private))
-                                variables.Add(new Variable(symbol, VariableType.Private, type));
-                        }
-                    }
-                }
+                if (!typeFilter.Contains(type))
+                    continue;
+                
+                variables.Add(new Variable(symbol, varType, type));
             }
 
             return variables;
         }
+
+        public static List<Variable> GetFilteredVariables(this UdonBehaviour udon, Type typeFilter, VariableType variableTypeFilter = VariableType.Any)
+            => GetFilteredVariables(udon, new Type[]{typeFilter}, variableTypeFilter);
 
         #endregion Public Extensions
     }
