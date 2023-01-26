@@ -2,178 +2,35 @@
 
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using VRC.Udon;
+using VRC.SDKBase.Editor.BuildPipeline;
 using Nessie.Udon.Extensions;
+using Nessie.Udon.SaveState.Data;
+using UnityEditor.Animations;
+using BindingFlags = System.Reflection.BindingFlags;
 
 namespace Nessie.Udon.SaveState
 {
     [AddComponentMenu(""), DisallowMultipleComponent]
-    public class NUSaveStateData : MonoBehaviour
+    public class NUSaveStateData : MonoBehaviour, IVRCSDKBuildRequestedCallback
     {
-        #region Public Classes
-
-        [Serializable]
-        public class Preferences
-        {
-            [SerializeField] private DefaultAsset folderAsset;
-            [SerializeField] private string folderPath;
-            public DefaultAsset Folder
-            {
-                get
-                {
-                    if (folderAsset == null)
-                    {
-                        if (folderPath != null)
-                        {
-                            folderAsset = AssetDatabase.LoadAssetAtPath<DefaultAsset>(folderPath);
-                        }
-                    }
-                    else if (AssetDatabase.GetAssetPath(folderAsset) != folderPath)
-                    {
-                        folderPath = AssetDatabase.GetAssetPath(folderAsset);
-                    }
-
-                    return folderAsset;
-                }
-                set
-                {
-                    string newPath = AssetDatabase.GetAssetPath(value);
-                    if (value == null || System.IO.Directory.Exists(newPath)) // Simple fix to prevent non-folders from being assigned.
-                    {
-                        folderAsset = value;
-                        folderPath = newPath;
-                    }
-                }
-            }
-
-            public int FolderIndex = -1;
-
-            public string Seed = "";
-            public string Parameter = "";
-        }
-
-        [Serializable]
-        public class Instruction
-        {
-            private static readonly Type[] allowedTypes = new Type[]
-            {
-                typeof(int),
-                typeof(uint),
-                typeof(long),
-                typeof(ulong),
-                typeof(short),
-                typeof(ushort),
-                typeof(byte),
-                typeof(sbyte),
-                typeof(char),
-                typeof(float),
-                typeof(double),
-                typeof(decimal),
-                typeof(bool), // Special Case
-                typeof(Vector2),
-                typeof(Vector3),
-                typeof(Vector4),
-                typeof(Vector2Int),
-                typeof(Vector3Int),
-                typeof(Quaternion),
-                typeof(Color),
-                typeof(Color32),
-            };
-            private static readonly int[] allowedTypesBits = new int[]
-            {
-                32,
-                32,
-                64,
-                64,
-                16,
-                16,
-                8,
-                8,
-                16,
-                32,
-                64,
-                128,
-                1, // Special Case
-                64,
-                96,
-                128,
-                64,
-                96,
-                128,
-                128,
-                32,
-            };
-
-            [SerializeField] private UdonBehaviour udon;
-            public UdonBehaviour Udon
-            {
-                get => udon;
-                set
-                {
-                    udon = value;
-
-                    Variables = value != null ? value.GetFilteredVariables(allowedTypes, ~NUExtensions.VariableType.Internal).ToArray() : new NUExtensions.Variable[0];
-                    VariableLabels = PrepareLabels(Variables);
-                    VariableIndex = Array.IndexOf(Variables, Variable);
-                }
-            }
-
-            public NUExtensions.Variable[] Variables;
-            public NUExtensions.Variable Variable;
-
-            [SerializeField] private int variableIndex = -1;
-            public int VariableIndex
-            {
-                get => variableIndex;
-                set
-                {
-                    variableIndex = value;
-
-                    if (value >= 0)
-                    {
-                        Variable = Variables[value];
-                        BitCount = allowedTypesBits[Array.IndexOf(allowedTypes, Variable.Type)];
-                    }
-                    else
-                    {
-                        Variable = new NUExtensions.Variable();
-                        BitCount = 0;
-                    }
-                }
-            }
-
-            public int BitCount;
-
-            public string[] VariableLabels = new string[0];
-            private string[] PrepareLabels(NUExtensions.Variable[] variables)
-            {
-                string[] variableLabels = new string[variables.Length];
-
-                for (int i = 0; i < variableLabels.Length; i++)
-                {
-                    int bitCount = allowedTypesBits[Array.IndexOf(allowedTypes, variables[i].Type)];
-                    variableLabels[i] = $"{variables[i].Name} ({bitCount})";
-                }
-
-                return variableLabels;
-            }
-
-            public Instruction ShallowCopy()
-            {
-                return (Instruction)MemberwiseClone();
-            }
-        }
-
-        #endregion Public Classes
-
         #region Public Fields
 
-        public Preferences DataPreferences = new Preferences();
-        public Instruction[] DataInstructions = new Instruction[0];
+        public AvatarSlot[] AvatarSlots;
+        
+        [FormerlySerializedAs("DataPreferences")]
+        public Legacy.Preferences Preferences;
+        
+        //[Obsolete("This is a legacy field used for backwards compatibility, instructions are now stored in AvatarSlots instead.")]
+        [FormerlySerializedAs("DataInstructions")]
+        public Legacy.Instruction[] Instructions;
 
         #endregion Public Fields
+
+        public int callbackOrder => 0;
 
         private bool visible;
 
@@ -186,20 +43,120 @@ namespace Nessie.Udon.SaveState
                 SetVisibility(visible);
             }
         }
+
+        private void OnValidate()
+        {
+            //Debug.Log("NUSaveStateData: OnValidate");
+            
+            UpdateInstructions();
+        }
+        
+        public bool OnBuildRequested(VRCSDKRequestedBuildType requestedBuildType)
+        {
+            if (requestedBuildType != VRCSDKRequestedBuildType.Scene)
+            {
+                return true;
+            }
+            
+            // TODO: Figure out why this causes an exception.
+            //if (TryGetComponent(out NUSaveState saveState))
+            //    ApplyAvatarSlots(saveState);
+            
+            return true;
+        }
+        
+        public void UpdateInstructions()
+        {
+            if (AvatarSlots == null)
+                return;
+
+            foreach (AvatarSlot slot in AvatarSlots)
+            {
+                AvatarData data = slot.Data;
+                int varSlotCount = data && (data.VariableSlots != null) ? data.VariableSlots.Length : 0;
+                Instruction[] newInstructions = new Instruction[varSlotCount];
+
+                for (int i = 0; i < varSlotCount; i++)
+                {
+                    newInstructions[i] = i < slot.Instructions.Length ? slot.Instructions[i] : new Instruction();
+
+                    newInstructions[i].Slot = data.VariableSlots[i];
+                }
+                
+                slot.Instructions = newInstructions;
+            }
+        }
+        
+        public void ApplyAvatarSlots(NUSaveState saveState)
+        {
+            if (!saveState)
+                return;
+            
+            if (AvatarSlots == null)
+                return;
+
+            int avatarCount = AvatarSlots.Length;
+            
+            AnimatorController[] writers = new AnimatorController[avatarCount];
+            string[] avatarIDs = new string[avatarCount];
+            Vector3[] coordinates = new Vector3[avatarCount];
+            int[] bitCounts = new int[avatarCount];
+            Component[][] udonBehaviours = new Component[avatarCount][];
+            string[][] variableNames = new string[avatarCount][];
+            TypeEnum[][] variableTypes = new TypeEnum[avatarCount][];
+            
+            //(Component, string, TypeEnum)[][] avatarInstructions = new Tuple<Component, string, TypeEnum>[avatarCount][];
+            for (int avatarIndex = 0; avatarIndex < avatarCount; avatarIndex++)
+            {
+                AvatarSlot slot = AvatarSlots[avatarIndex];
+                int instructionCount = slot.Instructions.Length;
+                AvatarData data = slot.Data;
+                if (data)
+                {
+                    writers[avatarIndex] = data.ParameterWriter;
+                    avatarIDs[avatarIndex] = data.AvatarBlueprint;
+                    coordinates[avatarIndex] = data.GetKeyCoordinate() * 50f;
+                    bitCounts[avatarIndex] = data.BitCount;
+                }
+                udonBehaviours[avatarIndex] = new Component[instructionCount];
+                variableNames[avatarIndex] = new string[instructionCount];
+                variableTypes[avatarIndex] = new TypeEnum[instructionCount];
+
+                for (int instructionIndex = 0; instructionIndex < instructionCount; instructionIndex++)
+                {
+                    Instruction instruction = slot.Instructions[instructionIndex];
+                    NUExtensions.Variable variable = instruction.Variable;
+
+                    UdonBehaviour udon = instruction.Udon;
+                    string name = variable.Name;
+                    TypeEnum type = BitUtilities.GetTypeEnum(variable.Type);
+
+                    udonBehaviours[avatarIndex][instructionIndex] = udon;
+                    variableNames[avatarIndex][instructionIndex] = name;
+                    variableTypes[avatarIndex][instructionIndex] = type;
+                }
+            }
+
+            BindingFlags fieldFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+            void SetFieldValue<T>(T obj, string name, object value)
+            {
+                var field = typeof(T).GetField(name, fieldFlags);
+                field?.SetValue(obj, value);
+            }
+
+            SetFieldValue(saveState, "parameterWriters", writers);
+            
+            SetFieldValue(saveState, "dataAvatarIDs", avatarIDs);
+            SetFieldValue(saveState, "bufferBitCounts", bitCounts);
+            
+            SetFieldValue(saveState, "bufferUdonBehaviours", udonBehaviours);
+            SetFieldValue(saveState, "bufferVariables", variableNames);
+            SetFieldValue(saveState, "bufferTypes", variableTypes);
+        }
         
         #region Public Methods
-
-        static public int BitSum(Instruction[] instructions)
-        {
-            int bitCount = 0;
-
-            foreach (Instruction instruction in instructions)
-                bitCount += instruction.BitCount;
-
-            return bitCount;
-        }
-
-        static public NUSaveStateData GetPreferences(NUSaveState behaviour)
+        
+        public static NUSaveStateData GetPreferences(NUSaveState behaviour)
         {
             NUSaveStateData oldData = behaviour.GetComponent<NUSaveStateData>();
             if (oldData)
@@ -242,7 +199,7 @@ namespace Nessie.Udon.SaveState
             return newData;
         }
 
-        static public NUSaveStateData CreatePreferences(NUSaveState behaviour)
+        public static NUSaveStateData CreatePreferences(NUSaveState behaviour)
         {
             NUSaveStateData data = behaviour.gameObject.AddComponent<NUSaveStateData>();
             data.tag = "EditorOnly";
