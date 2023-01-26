@@ -17,7 +17,7 @@ MonoBehaviour:
   ParameterWriter: {fileID: 9100000, guid: 468796a8979414641a2c2ee2d283bd12, type: 2}
   IsLegacy: 1
   ParameterName: parameter
-  KeyCoordinate: {x: 22.538, y: -29.34, z: 5.6534}
+  KeyCoordinate: {x: 0.45076, y: -0.5868, z: 0.113068}
   VariableSlots:
   - Name: GUID0
     TypeEnum: 4

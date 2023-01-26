@@ -420,11 +420,14 @@ namespace Nessie.Udon.SaveState.Internal
             if (!GUILayout.Button(EditorStyles.ContentMigrateData))
                 return;
             
+            if (!AssetGenerator.TrySaveFolderInProjectPanel("Avatar Data Folder", AssetGenerator.PathAvatars, "SOs", out string dataPath))
+                return;
+            
             try
             {
                 AssetDatabase.StartAssetEditing();
 
-                string[] avatarDataPaths = AssetGenerator.MigrateSaveStateData(saveState, data);
+                string[] avatarDataPaths = AssetGenerator.MigrateSaveStateData(saveState, data, dataPath);
                 Legacy.Instruction[][] avatarInstructions = AssetGenerator.SplitAvatarInstructions(data.Instructions);
                 propAvatarSlots.arraySize = avatarDataPaths.Length;
                 for (int i = 0; i < avatarDataPaths.Length; i++)

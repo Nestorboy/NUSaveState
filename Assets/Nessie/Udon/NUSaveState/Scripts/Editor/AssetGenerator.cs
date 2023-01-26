@@ -544,14 +544,14 @@ namespace Nessie.Udon.SaveState
             return pathUnityPackage;
         }
         
-        public static string[] MigrateSaveStateData(NUSaveState saveState, NUSaveStateData data) // Does not account for overlapping data. E.g. Float split between two avatars.
+        public static string[] MigrateSaveStateData(NUSaveState saveState, NUSaveStateData data, string folderPath) // Does not account for overlapping data. E.g. Float split between two avatars.
         {
             if (!(data.Instructions?.Length > 0))
             {
                 return null;
             }
 
-            ReadyPath(PathAvatarSOs);
+            ReadyPath(folderPath);
 
             Legacy.Preferences preferences = data.Preferences;
             SerializedObject so = new SerializedObject(saveState);
@@ -582,13 +582,13 @@ namespace Nessie.Udon.SaveState
 
                 if (avatarData.IsLegacy && avatarIndex < propAvatarCoordinates.arraySize)
                 {
-                    avatarData.KeyCoordinate = propAvatarCoordinates.GetArrayElementAtIndex(avatarIndex).vector3Value;
+                    avatarData.KeyCoordinate = propAvatarCoordinates.GetArrayElementAtIndex(avatarIndex).vector3Value / 50f;
                 }
                 
                 avatarData.VariableSlots = InstructionsToVariableSlots(avatarInstructions[avatarIndex]);
                 avatarData.BitCount = avatarData.VariableSlots.GetBitSum();
                 
-                string newAvatarDataPath = AssetDatabase.GenerateUniqueAssetPath($"{PathAvatarSOs}/Avatar_Data.asset");
+                string newAvatarDataPath = AssetDatabase.GenerateUniqueAssetPath($"{folderPath}/Avatar_Data.asset");
                 avatarDataPaths[avatarIndex] = newAvatarDataPath;
                 AssetDatabase.CreateAsset(avatarData, newAvatarDataPath);
             }
