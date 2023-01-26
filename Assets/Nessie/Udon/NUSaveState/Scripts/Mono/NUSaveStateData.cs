@@ -147,6 +147,7 @@ namespace Nessie.Udon.SaveState
             SetFieldValue(saveState, "parameterWriters", writers);
             
             SetFieldValue(saveState, "dataAvatarIDs", avatarIDs);
+            SetFieldValue(saveState, "dataKeyCoords", coordinates);
             SetFieldValue(saveState, "bufferBitCounts", bitCounts);
             
             SetFieldValue(saveState, "bufferUdonBehaviours", udonBehaviours);
