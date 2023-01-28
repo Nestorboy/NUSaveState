@@ -376,14 +376,14 @@ namespace Nessie.Udon.SaveState.Internal
             if (!GUILayout.Button(EditorStyles.ContentAvatarAssets)) 
                 return;
 
-            if (!AssetGenerator.TrySaveFolderInProjectPanel("Avatar Package Folder", AssetGenerator.PathAvatars, "Packages", out string packagePath))
+            if (!AssetGenerator.TrySaveFolderInProjectPanel("Avatar Package Folder", AssetGenerator.PathAvatar, "Packages", out string packagePath))
                 return;
             
-            string pathTemplateArmature = $"{AssetGenerator.PathAvatars}/Template/SaveState-Avatar.fbx";
-            string pathTemplatePrefab = $"{AssetGenerator.PathAvatars}/Template/SaveState-Avatar-Template.prefab";
+            string pathTemplateArmature = $"{AssetGenerator.PathAvatar}/Template/SaveState-Avatar.fbx";
+            string pathTemplatePrefab = $"{AssetGenerator.PathAvatar}/Template/SaveState-Avatar-Template.prefab";
             if (!System.IO.File.Exists(pathTemplateArmature) || !System.IO.File.Exists(pathTemplatePrefab))
             {
-                DebugUtilities.LogError($"Could not find all of the template assets at {AssetGenerator.PathAvatars}/Template/");
+                DebugUtilities.LogError($"Could not find all of the template assets at {AssetGenerator.PathAvatar}/Template/");
 
                 return;
             }
@@ -414,7 +414,7 @@ namespace Nessie.Udon.SaveState.Internal
             if (!GUILayout.Button(EditorStyles.ContentMigrateData))
                 return;
             
-            if (!AssetGenerator.TrySaveFolderInProjectPanel("Avatar Data Folder", AssetGenerator.PathAvatars, "SOs", out string dataPath))
+            if (!AssetGenerator.TrySaveFolderInProjectPanel("Avatar Data Folder", AssetGenerator.PathAvatar, "SOs", out string dataPath))
                 return;
             
             try

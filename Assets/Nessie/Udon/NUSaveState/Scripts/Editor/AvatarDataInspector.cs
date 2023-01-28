@@ -219,10 +219,10 @@ namespace Nessie.Udon.SaveState.Internal
         {
             if (!GUILayout.Button(EditorStyles.ContentAvatarAssets))
                 return;
-            
-            if (!AssetGenerator.TrySaveFolderInProjectPanel("Avatar Package Folder", AssetGenerator.PathNUSaveState, "Avatar", out string packageFolder))
-                return;
 
+            if (!AssetGenerator.TrySaveFolderInProjectPanel("Avatar Package Folder", AssetGenerator.PathAvatar, "Packages", out string packageFolder))
+                return;
+            
             try
             {
                 AssetDatabase.StartAssetEditing();

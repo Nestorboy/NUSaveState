@@ -21,12 +21,13 @@ namespace Nessie.Udon.SaveState
 
         public static readonly string PathWorldAnimators = $"{PathWorld}/Animators";
         
-        public static readonly string PathAvatars = $"{PathNUSaveState}/Avatar";
+        public static readonly string PathAvatar = $"{PathNUSaveState}/Avatar";
         
-        public static readonly string PathAvatarAnimators = $"{PathAvatars}/Animators";
-        private static readonly string PathAvatarExpressions = $"{PathAvatars}/Expressions";
-        private static readonly string PathAvatarPrefabs = $"{PathAvatars}/Prefabs";
-        private static readonly string PathAvatarSOs = $"{PathAvatars}/SOs";
+        public static readonly string PathAvatarAnimators = $"{PathAvatar}/Animators";
+        private static readonly string PathAvatarExpressions = $"{PathAvatar}/Expressions";
+        private static readonly string PathAvatarPackages = $"{PathAvatar}/Packages";
+        private static readonly string PathAvatarPrefabs = $"{PathAvatar}/Prefabs";
+        private static readonly string PathAvatarSOs = $"{PathAvatar}/SOs";
 
         private static readonly string[] MuscleNames = new string[]
         {
@@ -477,7 +478,7 @@ namespace Nessie.Udon.SaveState
             
             string prefabPath = $"{folderPath}/SaveState-Avatar_{avatar.name}.prefab";
             
-            GameObject templatePrefab = PrefabUtility.LoadPrefabContents($"{PathAvatars}/Template/SaveState-Avatar-Template.prefab");
+            GameObject templatePrefab = PrefabUtility.LoadPrefabContents($"{PathAvatar}/Template/SaveState-Avatar-Template.prefab");
             
             VRCAvatarDescriptor newAvatarDescriptor = templatePrefab.GetComponent<VRCAvatarDescriptor>();
             newAvatarDescriptor.expressionsMenu = menu;
@@ -512,19 +513,21 @@ namespace Nessie.Udon.SaveState
         
         public static string CreateAvatarPackage(AvatarData avatar, string folderPath)
         {
-            var controller = CreateAvatarAnimator(avatar, $"{folderPath}/Animators");
-            var menu = CreateAvatarMenu(avatar, $"{folderPath}/Expressions");
-            var parameters = CreateAvatarParameters(avatar, $"{folderPath}/Expressions");
+            ReadyPath(folderPath);
+            
+            var controller = CreateAvatarAnimator(avatar, $"{PathAvatar}/Animators");
+            var menu = CreateAvatarMenu(avatar, $"{PathAvatar}/Expressions");
+            var parameters = CreateAvatarParameters(avatar, $"{PathAvatar}/Expressions");
             
             string[] assetPaths = new string[]
             {
                 AssetDatabase.GetAssetPath(controller),
                 AssetDatabase.GetAssetPath(menu),
                 AssetDatabase.GetAssetPath(parameters),
-                CreateAvatarPrefab(avatar, controller, menu, parameters, $"{folderPath}/Prefabs"),
+                CreateAvatarPrefab(avatar, controller, menu, parameters, $"{PathAvatar}/Prefabs"),
                     
-                PathAvatars + "/Materials/Surface.mat",
-                PathAvatars + "/Template/SaveState-Avatar.fbx",
+                PathAvatar + "/Materials/Surface.mat",
+                PathAvatar + "/Template/SaveState-Avatar.fbx",
             };
             
             // TODO: Get dependencies instead of being hard-coded.
@@ -681,6 +684,8 @@ namespace Nessie.Udon.SaveState
 
         public static bool TrySaveFolderInProjectPanel(string title, string folder, string defaultName, out string path)
         {
+            ReadyPath($"{folder}/{defaultName}");
+            
             string absPath = EditorUtility.SaveFolderPanel(title, folder, defaultName);
             if (absPath.Length == 0)
             {
