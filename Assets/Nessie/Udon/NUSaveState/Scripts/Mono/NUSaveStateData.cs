@@ -19,6 +19,8 @@ namespace Nessie.Udon.SaveState
     {
         #region Public Fields
 
+        public bool Visible;
+        
         public AvatarSlot[] AvatarSlots;
         
         [FormerlySerializedAs("DataPreferences")]
@@ -28,8 +30,6 @@ namespace Nessie.Udon.SaveState
         [FormerlySerializedAs("DataInstructions")]
         public Legacy.Instruction[] Instructions;
 
-        public bool Visible;
-        
         #endregion Public Fields
 
         public int callbackOrder => 0;

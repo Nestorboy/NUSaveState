@@ -243,6 +243,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e697ba967688de04d8addfb6fff21a77, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  Visible: 0
   AvatarSlots: []
   Preferences:
     folderAsset: {fileID: 0}
@@ -251,7 +252,6 @@ MonoBehaviour:
     Seed: 
     Parameter: 
   Instructions: []
-  Visible: 0
 --- !u!1 &8000936732478632563
 GameObject:
   m_ObjectHideFlags: 0
