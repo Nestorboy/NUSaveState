@@ -34,6 +34,7 @@ namespace Nessie.Udon.SaveState.Internal
         private SerializedProperty propFallbackAvatar;
 
         private SerializedProperty propAvatarSlots;
+        private SerializedProperty propDataVisible;
 
         #endregion Private Fields
 
@@ -45,7 +46,7 @@ namespace Nessie.Udon.SaveState.Internal
             saveStateSO = serializedObject;
             if (!UdonSharpEditorUtility.IsProxyBehaviour(saveState)) return;
             
-            data = NUSaveStateData.GetPreferences(saveState);
+            data = NUSaveStateData.GetData(saveState);
 
             data.UpdateInstructions();
             dataSO = new SerializedObject(data);
@@ -248,16 +249,11 @@ namespace Nessie.Udon.SaveState.Internal
             foldoutDefaultFields = EditorGUILayout.Foldout(foldoutDefaultFields, EditorStyles.ContentDefault);
             if (foldoutDefaultFields)
             {
-                EditorGUI.BeginDisabledGroup(true);
+                using (new EditorGUI.DisabledScope(true))
+                    EditorGUILayout.ObjectField(EditorStyles.ContentData, data, typeof(NUSaveStateData), true);
 
-                EditorGUILayout.ObjectField(EditorStyles.ContentData, data, typeof(NUSaveStateData), true);
-                
-                EditorGUI.EndDisabledGroup();
-
-                EditorGUI.BeginChangeCheck();
-                bool toggleVisibility = EditorGUILayout.Toggle(EditorStyles.ContentDataToggle, data.Visible);
-                if (EditorGUI.EndChangeCheck())
-                    data.Visible = toggleVisibility;
+                EditorGUILayout.PropertyField(propDataVisible);
+                dataSO.ApplyModifiedProperties();
 
                 base.OnInspectorGUI();
             }
@@ -467,6 +463,7 @@ namespace Nessie.Udon.SaveState.Internal
             propFallbackAvatar = saveStateSO.FindProperty(nameof(NUSaveState.FallbackAvatarID));
             
             propAvatarSlots = dataSO.FindProperty(nameof(NUSaveStateData.AvatarSlots));
+            propDataVisible = dataSO.FindProperty(nameof(NUSaveStateData.Visible));
         }
         
         #endregion Resources

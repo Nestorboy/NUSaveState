@@ -28,25 +28,17 @@ namespace Nessie.Udon.SaveState
         [FormerlySerializedAs("DataInstructions")]
         public Legacy.Instruction[] Instructions;
 
+        public bool Visible;
+        
         #endregion Public Fields
 
         public int callbackOrder => 0;
-
-        private bool visible;
-
-        public bool Visible
-        {
-            get => visible;
-            set
-            {
-                visible = value;
-                SetVisibility(visible);
-            }
-        }
-
+        
         private void OnValidate()
         {
             //Debug.Log("NUSaveStateData: OnValidate");
+            
+            UpdateVisibility();
             
             UpdateInstructions();
         }
@@ -157,66 +149,66 @@ namespace Nessie.Udon.SaveState
         
         #region Public Methods
         
-        public static NUSaveStateData GetPreferences(NUSaveState behaviour)
+        public static NUSaveStateData GetData(NUSaveState saveState)
         {
-            NUSaveStateData oldData = behaviour.GetComponent<NUSaveStateData>();
-            if (oldData)
+            if (!saveState.TryGetComponent(out NUSaveStateData data))
             {
-                oldData.SetVisibility(oldData.Visible);
-                return oldData;
+                data = CreatePreferences(saveState);
             }
 
-            NUSaveStateData newData = CreatePreferences(behaviour);
-            Transform parent = behaviour.transform;
-
-            // Look for legacy data, and if found, convert it.
-            for (int i = 0; i < parent.childCount; i++)
+            if (TryGetLegacyData(saveState, out NUSaveStateData legacyData))
             {
-                Transform dataTransform = parent.GetChild(i);
-                NUSaveStateData dataBehaviour = dataTransform.GetComponent<NUSaveStateData>();
-
-                if (dataBehaviour != null)
-                {
-                    if (oldData == null)
-                    {
-                        oldData = dataBehaviour;
-                        EditorUtility.CopySerialized(oldData, newData);
-                    }
-
-                    DestroyImmediate(dataBehaviour.gameObject);
-
-                    EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-                }
-                else if (dataTransform.name == "NUSS_DATA" || dataTransform.name == "NUSS_PREF")
-                {
-                    DestroyImmediate(dataTransform.gameObject);
-
-                    EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-                }
+                EditorUtility.CopySerialized(legacyData, data);
+                DestroyImmediate(legacyData.gameObject);
             }
 
-            newData.SetVisibility(newData.Visible);
-            
-            return newData;
-        }
+            data.UpdateVisibility();
 
-        public static NUSaveStateData CreatePreferences(NUSaveState behaviour)
-        {
-            NUSaveStateData data = behaviour.gameObject.AddComponent<NUSaveStateData>();
-            data.tag = "EditorOnly";
-            data.hideFlags = HideFlags.HideInInspector; // Fix initialization
-
-            EditorUtility.SetDirty(data);
-            PrefabUtility.RecordPrefabInstancePropertyModifications(data);
-            //EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-            
             return data;
         }
 
-        // TODO: Find proper HideFlag dirtying fix that works with prefabs.
-        private void SetVisibility(bool show)
+        private static bool TryGetLegacyData(NUSaveState saveState, out NUSaveStateData legacyData)
         {
-            if (show)
+            legacyData = null;
+            Transform parent = saveState.transform;
+            bool foundData = false;
+            foreach (Transform child in parent)
+            {
+                if (child.TryGetComponent(out NUSaveStateData data))
+                {
+                    if (!foundData)
+                    {
+                        foundData = true;
+                        legacyData = data;
+                        continue;
+                    }
+                }
+                else if (child.name == "NUSS_DATA" || child.name == "NUSS_PREF")
+                {
+
+                }
+                else
+                {
+                    continue;
+                }
+                
+                EditorSceneManager.MarkSceneDirty(child.gameObject.scene);
+                DestroyImmediate(child.gameObject);
+            }
+            
+            return foundData;
+        }
+
+        private static NUSaveStateData CreatePreferences(NUSaveState behaviour)
+        {
+            NUSaveStateData data = behaviour.gameObject.AddComponent<NUSaveStateData>();
+            EditorUtility.SetDirty(data);
+            return data;
+        }
+
+        private void UpdateVisibility()
+        {
+            if (Visible)
             {
                 hideFlags &= ~HideFlags.HideInInspector;
             }
@@ -224,16 +216,8 @@ namespace Nessie.Udon.SaveState
             {
                 hideFlags |= HideFlags.HideInInspector;
             }
-
-            EditorUtility.SetDirty(this);
-            PrefabUtility.RecordPrefabInstancePropertyModifications(this);
-            
-            //PrefabUtility.SavePrefabAsset(gameObject);
-            //EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-            //EditorApplication.DirtyHierarchyWindowSorting();
-            //EditorApplication.RepaintHierarchyWindow();
         }
-
+        
         #endregion Public Methods
     }
 }
