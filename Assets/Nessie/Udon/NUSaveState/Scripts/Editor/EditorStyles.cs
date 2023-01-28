@@ -1,5 +1,5 @@
-﻿using System;
-using UnityEditor;
+﻿
+using System;
 using UnityEngine;
 
 namespace Nessie.Udon.SaveState.Internal

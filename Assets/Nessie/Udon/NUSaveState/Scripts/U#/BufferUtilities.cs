@@ -26,7 +26,6 @@
 // https://gist.github.com/NGenesis/4dbc68228f8abff292812dfff0638c47
 
 using System;
-using UdonSharp;
 using UnityEngine;
 
 namespace Nessie.Udon.SaveState

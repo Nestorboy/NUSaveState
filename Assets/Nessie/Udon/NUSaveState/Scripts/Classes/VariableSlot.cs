@@ -1,7 +1,6 @@
 ﻿#if UNITY_EDITOR
 
 using System;
-using UnityEngine;
 
 namespace Nessie.Udon.SaveState.Data
 {

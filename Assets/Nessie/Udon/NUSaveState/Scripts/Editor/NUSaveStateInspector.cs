@@ -1,16 +1,14 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
 using VRC.Udon;
-using VRC.SDK3.Avatars.Components;
-using VRC.SDK3.Avatars.ScriptableObjects;
 using UdonSharpEditor;
 using Nessie.Udon.Extensions;
 using Nessie.Udon.SaveState.Data;
-using AnimatorController = UnityEditor.Animations.AnimatorController;
 
 namespace Nessie.Udon.SaveState.Internal
 {
