@@ -281,13 +281,10 @@ namespace Nessie.Udon.SaveState
                     switch (status)
                     {
                         case StatusEnum.Processing:
-                            Debug.Log("Switch Saving: " + callbackEvents[0]);
                             return callbackEvents[0];
                         case StatusEnum.Failed:
-                            Debug.Log("Switch Saving: " + callbackEvents[2]);
                             return callbackEvents[2];
                         case StatusEnum.Finished:
-                            Debug.Log("Switch Saving: " + callbackEvents[4]);
                             return callbackEvents[4];
                     }
                     
@@ -298,13 +295,10 @@ namespace Nessie.Udon.SaveState
                     switch (status)
                     {
                         case StatusEnum.Processing:
-                            Debug.Log("Switch Loading: " + callbackEvents[1]);
                             return callbackEvents[1];
                         case StatusEnum.Failed:
-                            Debug.Log("Switch Loading: " + callbackEvents[3]);
                             return callbackEvents[3];
                         case StatusEnum.Finished:
-                            Debug.Log("Switch Loading: " + callbackEvents[5]);
                             return callbackEvents[5];
                     }
 
@@ -484,9 +478,7 @@ namespace Nessie.Udon.SaveState
             }
             else
             {
-                Debug.Log("----------\n");
                 UnpackData(bufferBytes);
-                Debug.Log("----------\n");
 
                 Debug.Log("Data has been loaded.");
             }
@@ -600,7 +592,6 @@ namespace Nessie.Udon.SaveState
                     DeconstructInstruction(avatarIndex, instructionIndex, out UdonBehaviour udon, out string variableName, out TypeEnum variableType);
 
                     object value = BufferUtilities.ReadBufferTypedObject(ref bitIndex, buffer, variableType);
-                    Debug.Log($"{variableName}: {value} ({variableType})");
                     if (udon != null) udon.SetProgramVariable(variableName, value);
                 }
             }
