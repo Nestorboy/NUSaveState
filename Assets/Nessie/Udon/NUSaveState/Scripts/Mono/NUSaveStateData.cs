@@ -1,14 +1,15 @@
 ﻿#if UNITY_EDITOR
 
+using UnityEditor;
+using UnityEditor.Animations;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Serialization;
-using UnityEditor;
-using UnityEditor.SceneManagement;
-using VRC.Udon;
 using VRC.SDKBase.Editor.BuildPipeline;
+using VRC.Udon;
+using VRC.Udon.Serialization.OdinSerializer;
 using Nessie.Udon.Extensions;
 using Nessie.Udon.SaveState.Data;
-using UnityEditor.Animations;
 using BindingFlags = System.Reflection.BindingFlags;
 
 namespace Nessie.Udon.SaveState
@@ -140,10 +141,40 @@ namespace Nessie.Udon.SaveState
             SetFieldValue(saveState, "dataAvatarIDs", avatarIDs);
             SetFieldValue(saveState, "dataKeyCoords", coordinates);
             SetFieldValue(saveState, "bufferBitCounts", bitCounts);
+
+            if (PrefabUtility.IsPartOfPrefabInstance(saveState))
+            {
+                UnitySerializationUtility.RegisterPrefabModificationsChange(saveState, new System.Collections.Generic.List<PrefabModification>()
+                {
+                    new PrefabModification()
+                    {
+                        ModificationType = PrefabModificationType.Value,
+                        Path = "bufferUdonBehaviours",
+                        ModifiedValue = udonBehaviours,
+                    },
+                    new PrefabModification()
+                    {
+                        ModificationType = PrefabModificationType.Value,
+                        Path = "bufferVariables",
+                        ModifiedValue = variableNames,
+                    },
+                    new PrefabModification()
+                    {
+                        ModificationType = PrefabModificationType.Value,
+                        Path = "bufferTypes",
+                        ModifiedValue = variableTypes,
+                    },
+                    
+                });
+            }
+            else
+            {
+                SetFieldValue(saveState, "bufferUdonBehaviours", udonBehaviours);
+                SetFieldValue(saveState, "bufferVariables", variableNames);
+                SetFieldValue(saveState, "bufferTypes", variableTypes);
+            }
             
-            SetFieldValue(saveState, "bufferUdonBehaviours", udonBehaviours);
-            SetFieldValue(saveState, "bufferVariables", variableNames);
-            SetFieldValue(saveState, "bufferTypes", variableTypes);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(saveState);
         }
         
         #region Public Methods
