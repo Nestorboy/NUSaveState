@@ -98,7 +98,6 @@ namespace Nessie.Udon.SaveState
             "_SSProgress"
         };
         private bool avatarIsLoading;
-        private int dataStatus = 0;
         private ModeEnum mode;
         private StatusEnum status;
 
@@ -228,13 +227,12 @@ namespace Nessie.Udon.SaveState
         {
             if (status != StatusEnum.Idle)
             {
-                Debug.LogWarning($"Cannot save until the NUSaveState is idle. Status: {dataStatus}");
+                Debug.LogWarning($"Cannot save until the NUSaveState is idle. Status: {status}");
                 return;
             }
 
             dataProgress = 0;
-
-            dataStatus = 1;
+            
             mode = ModeEnum.Saving;
             status = StatusEnum.Processing;
 
@@ -252,13 +250,12 @@ namespace Nessie.Udon.SaveState
         {
             if (status != StatusEnum.Idle)
             {
-                Debug.LogWarning($"Cannot save until the NUSaveState is idle. Status: {dataStatus}");
+                Debug.LogWarning($"Cannot save until the NUSaveState is idle. Status: {status}");
                 return;
             }
 
             dataProgress = 0;
-
-            dataStatus = 2;
+            
             mode = ModeEnum.Loading;
             status = StatusEnum.Processing;
 
@@ -271,11 +268,8 @@ namespace Nessie.Udon.SaveState
             if (!CallbackReceiver)
                 return;
             
-            CallbackReceiver.SendCustomEvent(callbackEvents[dataStatus - 1]);
-            Debug.Log($"Callback: {callbackEvents[dataStatus - 1]} ({dataStatus - 1})");
             string callback = _GetCallback(mode, status);
-            Debug.Log($"Enums: {callback} ({mode} {status})");
-            //CallbackReceiver.SendCustomEvent(callback);
+            CallbackReceiver.SendCustomEvent(callback);
         }
 
         private string _GetCallback(ModeEnum mode, StatusEnum status)
@@ -366,7 +360,7 @@ namespace Nessie.Udon.SaveState
                 else
                 {
                     _SSCallback();
-                    dataStatus = 0; status = StatusEnum.Idle;
+                    status = StatusEnum.Idle;
                 }
             }
         }
@@ -503,7 +497,7 @@ namespace Nessie.Udon.SaveState
                 fallbackAvatarPedestal.SetAvatarUse(localPlayer);
 
             avatarCurrentDuration = avatarUnloadDuration;
-            dataStatus += 4; status = StatusEnum.Finished;
+            status = StatusEnum.Finished;
             keyDetector.enabled = true;
             _LookForAvatar();
         }
@@ -519,9 +513,9 @@ namespace Nessie.Udon.SaveState
             avatarIsLoading = false;
             keyDetector.enabled = false;
 
-            dataStatus += 2; status = status = StatusEnum.Failed;
+            status = status = StatusEnum.Failed;
             _SSCallback();
-            dataStatus = 0; status = StatusEnum.Idle;
+            status = StatusEnum.Idle;
         }
 
         private bool MoveNextAvatar(ref int avatarIndex)
