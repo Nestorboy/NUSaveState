@@ -621,32 +621,35 @@ namespace Nessie.Udon.SaveState
         {
             instructions = ReorderInstructions(instructions);
 
-            List<List<Legacy.Instruction>> instructionLists = new List<List<Legacy.Instruction>> { new List<Legacy.Instruction>() };
+            List<List<Legacy.Instruction>> instructionLists = new List<List<Legacy.Instruction>>();
 
             int currentBits = 0;
             int avatarIndex = 0;
             for (int i = 0; i < instructions.Length; i++)
             {
+                if (currentBits == 0)
+                {
+                    instructionLists.Add(new List<Legacy.Instruction>());
+                }
+                
                 Legacy.Instruction instruction = instructions[i];
                 currentBits += instruction.BitCount;
-
-                if (currentBits >= 256)
+                
+                if (currentBits > 256)
                 {
-                    avatarIndex++;
-                    instructionLists.Add(new List<Legacy.Instruction>());
-
-                    if (currentBits > 256)
-                    {
-                        NUExtensions.Variable variable = instruction.Variable;
-                        Debug.LogWarning($"Found overlapping variable {variable.Name} ({variable.Type}). This will prevent backwards compatibility.\nPlease edit the Avatar Data asset to determine which avatar it should be stored on.");
-                        currentBits = 0;
-                        continue;
-                    }
-                    
                     currentBits = 0;
+                    NUExtensions.Variable variable = instruction.Variable;
+                    Debug.LogWarning($"Found overlapping variable {variable.Name} ({variable.Type}). This will prevent backwards compatibility.\nPlease edit the Avatar Data asset to determine which avatar it should be stored on.");
+                    continue;
                 }
                 
                 instructionLists[avatarIndex].Add(instruction);
+                
+                if (currentBits == 256)
+                {
+                    currentBits = 0;
+                    avatarIndex++;
+                }
             }
 
             return instructionLists.Select(l => l.ToArray()).ToArray();
