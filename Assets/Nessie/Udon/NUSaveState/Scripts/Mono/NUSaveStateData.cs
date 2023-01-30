@@ -39,8 +39,6 @@ namespace Nessie.Udon.SaveState
             //Debug.Log("NUSaveStateData: OnValidate");
             
             UpdateVisibility();
-            
-            UpdateInstructions();
         }
         
         public bool OnBuildRequested(VRCSDKRequestedBuildType requestedBuildType)
@@ -78,7 +76,7 @@ namespace Nessie.Udon.SaveState
                 slot.Instructions = newInstructions;
             }
         }
-        
+
         public void ApplyAvatarSlots(NUSaveState saveState)
         {
             if (!saveState)

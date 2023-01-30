@@ -123,7 +123,15 @@ namespace Nessie.Udon.SaveState.Internal
                             EditorGUI.LabelField(labelRect, $"{varSlot.Name} ({varSlot.TypeEnum})");
                             
                             //EditorGUI.PropertyField(udonFieldRect, propUdon, new GUIContent($"{varSlot.Name} ({varSlot.Type.Name})"));
+                            EditorGUI.BeginChangeCheck();
                             propUdon.objectReferenceValue = (UdonBehaviour)EditorGUI.ObjectField(udonRect, propUdon.objectReferenceValue, typeof(UdonBehaviour), true);
+                            if (EditorGUI.EndChangeCheck())
+                            {
+                                AvatarSlot slot = SerializationUtilities.GetPropertyValue<AvatarSlot>(propertyAvatarSlot);
+                                slot.UpdateInstruction(elementIndex);
+                                SerializationUtilities.SetPropertyValue(propertyAvatarSlot, slot);
+                            }
+                            
                             EditorGUI.BeginChangeCheck();
                             int newVariableIndex = EditorGUI.Popup(variableRect, propVarIndex.intValue, data.AvatarSlots[index].Instructions[elementIndex].VariableLabels);
                             if (EditorGUI.EndChangeCheck())

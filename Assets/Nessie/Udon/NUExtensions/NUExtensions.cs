@@ -171,8 +171,7 @@ namespace Nessie.Udon.Extensions
             return variables;
         }
 
-        public static List<Variable> GetFilteredVariables(this UdonBehaviour udon, Type typeFilter, VariableType variableTypeFilter = VariableType.Any)
-            => GetFilteredVariables(udon, new Type[]{typeFilter}, variableTypeFilter);
+        public static List<Variable> GetFilteredVariables(this UdonBehaviour udon, Type typeFilter, VariableType variableTypeFilter = VariableType.Any) => GetFilteredVariables(udon, new Type[]{typeFilter}, variableTypeFilter);
 
         #endregion Public Extensions
     }
