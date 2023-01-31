@@ -408,12 +408,8 @@ namespace Nessie.Udon.SaveState
         /// </summary>
         public void _VerifyData()
         {
-            int avatarByteCount = bufferBytes[dataAvatarIndex].Length;
-            
             // Verify that the write was successful.
-            byte[] inputData = PrepareBuffer(dataAvatarIndex);
-            Array.Copy(bufferBytes[dataAvatarIndex], inputData, avatarByteCount);
-
+            byte[] inputData = bufferBytes[dataAvatarIndex];
             byte[] writtenData = _GetAvatarBytes(dataAvatarIndex);
 
             // Check for corrupt bytes.
