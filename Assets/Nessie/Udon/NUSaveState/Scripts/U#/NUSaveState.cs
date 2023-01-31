@@ -13,7 +13,11 @@ namespace Nessie.Udon.SaveState
     [AddComponentMenu("Nessie/NUSaveState")]
     public class NUSaveState : UdonSharpBehaviour
     {
+        public const string PACKAGE_VERSION = "1.3.0";
+        
         #region Serialized Public Fields
+
+        public string Version = PACKAGE_VERSION;
         
         [FormerlySerializedAs("CallbackReciever")]
         public UdonBehaviour CallbackReceiver;
@@ -22,7 +26,7 @@ namespace Nessie.Udon.SaveState
         #endregion Serialized Public Fields
 
         #region Serialized Private Fields
-
+        
         [Header("Prefabs")]
         [SerializeField] private GameObject stationPrefab;
         [SerializeField] private Transform pedestalContainer;
@@ -146,54 +150,13 @@ namespace Nessie.Udon.SaveState
         private void Start()
         {
             localPlayer = Networking.LocalPlayer;
-
-            int avatarCount = dataAvatarIDs.Length;
-
-            // Validation.
-            if (parameterWriters.Length < avatarCount)
-                Debug.LogError("NUSaveState is missing animator controllers.");
-
-            if (dataAvatarIDs.Length < avatarCount)
-                Debug.LogError("NUSaveState is missing avatar blueprints.");
-
-            if (dataKeyCoords.Length < avatarCount)
-                Debug.LogError("NUSaveState is missing key coordinates.");
-
-            if (gameObject.layer != 5)
-                Debug.LogError("NUSaveState behaviour is not situated on the UI layer.");
-
-            keyDetector = GetComponent<BoxCollider>();
-            if (!keyDetector)
-                Debug.LogError("NUSaveState is missing the BoxCollider.");
-                
+            
+            LogVersion();
+            Validate();
 
             bufferBytes = PrepareBuffers();
-
-            // Prepare data avatar pedestals.
-            dataAvatarPedestals = new VRC_AvatarPedestal[avatarCount];
-            for (int i = 0; i < dataAvatarPedestals.Length; i++)
-            {
-                dataAvatarPedestals[i] = (VRC_AvatarPedestal)Instantiate(pedestalPrefab).GetComponent(typeof(VRC_AvatarPedestal));
-                dataAvatarPedestals[i].transform.SetParent(pedestalContainer, false);
-                dataAvatarPedestals[i].transform.localPosition = new Vector3(0, i + 1, 0);
-                dataAvatarPedestals[i].blueprintId = dataAvatarIDs[i];
-            }
-
-            // Prepare fallback avatar pedestal.
-            fallbackAvatarPedestal = (VRC_AvatarPedestal)pedestalPrefab.GetComponent(typeof(VRC_AvatarPedestal));
-            fallbackAvatarPedestal.transform.SetParent(pedestalContainer, false);
-            fallbackAvatarPedestal.transform.localPosition = new Vector3(1, 1, 0);
-            fallbackAvatarPedestal.blueprintId = FallbackAvatarID;
-
-            // Prepare VRCStation, aka the "data writer".
-            GameObject newStation = Instantiate(stationPrefab); // Instantiate a new station to make it use a relative object path remotely.
-            newStation.transform.SetParent(stationPrefab.transform.parent, false);
-            
-            dataWriter = (VRCStation)newStation.GetComponent(typeof(VRCStation));
-            if (localPlayer != null) // Prevent an error from being throw in the editor.
-                dataWriter.name = $"{localPlayer.displayName} {Guid.NewGuid()}"; // Rename the station to make the path different for each user so others can't occupy it.
-            dataWriter.PlayerMobility = VRCStation.Mobility.Immobilize;
-            dataWriter.canUseStationFromStation = false;
+            PrepareDataAvatarPedestals();
+            PrepareWritingStation();
         }
 
         private void OnParticleCollision(GameObject other)
@@ -307,6 +270,81 @@ namespace Nessie.Udon.SaveState
             }
 
             return null;
+        }
+
+        private void LogVersion()
+        {
+            Debug.Log($"Loaded Nessie's Udon Save State {PACKAGE_VERSION}");
+        }
+        
+        private void Validate()
+        {
+            int avatarCount = dataAvatarIDs.Length;
+
+            if (Version != PACKAGE_VERSION)
+            {
+                Debug.LogWarning($"NUSaveState version mismatch. Behaviour: {Version} Release: {PACKAGE_VERSION}");
+            }
+            
+            if (parameterWriters.Length != avatarCount)
+            {
+                Debug.LogError("NUSaveState is missing animator controllers.");
+            }
+
+            if (dataAvatarIDs.Length != avatarCount)
+            {
+                Debug.LogError("NUSaveState is missing avatar blueprints.");
+            }
+
+            if (dataKeyCoords.Length != avatarCount)
+            {
+                Debug.LogError("NUSaveState is missing key coordinates.");
+            }
+
+            if (gameObject.layer != 5)
+            {
+                Debug.LogError("NUSaveState behaviour is not situated on the UI layer.");
+            }
+            
+            keyDetector = GetComponent<BoxCollider>();
+            if (!keyDetector)
+            {
+                Debug.LogError("NUSaveState is missing the BoxCollider.");
+            }
+        }
+
+        private void PrepareDataAvatarPedestals()
+        {
+            int avatarCount = dataAvatarIDs.Length;
+            
+            // Prepare data avatar pedestals.
+            dataAvatarPedestals = new VRC_AvatarPedestal[avatarCount];
+            for (int i = 0; i < dataAvatarPedestals.Length; i++)
+            {
+                dataAvatarPedestals[i] = (VRC_AvatarPedestal)Instantiate(pedestalPrefab).GetComponent(typeof(VRC_AvatarPedestal));
+                dataAvatarPedestals[i].transform.SetParent(pedestalContainer, false);
+                dataAvatarPedestals[i].transform.localPosition = new Vector3(0, i + 1, 0);
+                dataAvatarPedestals[i].blueprintId = dataAvatarIDs[i];
+            }
+
+            // Prepare fallback avatar pedestal.
+            fallbackAvatarPedestal = (VRC_AvatarPedestal)pedestalPrefab.GetComponent(typeof(VRC_AvatarPedestal));
+            fallbackAvatarPedestal.transform.SetParent(pedestalContainer, false);
+            fallbackAvatarPedestal.transform.localPosition = new Vector3(1, 1, 0);
+            fallbackAvatarPedestal.blueprintId = FallbackAvatarID;
+        }
+        
+        private void PrepareWritingStation()
+        {
+            // Prepare VRCStation, aka the "data writer".
+            GameObject newStation = Instantiate(stationPrefab); // Instantiate a new station to make it use a relative object path remotely.
+            newStation.transform.SetParent(stationPrefab.transform.parent, false);
+            
+            dataWriter = (VRCStation)newStation.GetComponent(typeof(VRCStation));
+            if (localPlayer != null) // Prevent an error from being throw in the editor.
+                dataWriter.name = $"{localPlayer.displayName} {Guid.NewGuid()}"; // Rename the station to make the path different for each user so others can't occupy it.
+            dataWriter.PlayerMobility = VRCStation.Mobility.Immobilize;
+            dataWriter.canUseStationFromStation = false;
         }
         
         #endregion SaveState API
