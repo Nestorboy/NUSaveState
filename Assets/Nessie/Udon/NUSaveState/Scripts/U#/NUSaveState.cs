@@ -311,6 +311,15 @@ namespace Nessie.Udon.SaveState
             {
                 Debug.LogError("NUSaveState is missing the BoxCollider.");
             }
+
+            foreach (RuntimeAnimatorController controller in parameterWriters)
+            {
+                if (controller)
+                {
+                    Debug.LogError("NUSaveState is missing one or more Parameter Writers.");
+                    break;
+                }
+            }
         }
 
         private void PrepareDataAvatarPedestals()
