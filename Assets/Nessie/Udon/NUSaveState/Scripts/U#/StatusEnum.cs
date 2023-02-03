@@ -13,4 +13,13 @@
         Failed,
         Finished,
     }
+    
+    public enum ProgressState
+    {
+        WaitingForAvatar,
+        Reading,
+        Writing,
+        Verifying,
+        Complete,
+    }
 }

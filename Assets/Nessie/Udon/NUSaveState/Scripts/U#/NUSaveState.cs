@@ -55,7 +55,7 @@ namespace Nessie.Udon.SaveState
         private VRCStation dataWriter;
 
         private VRC_AvatarPedestal[] dataAvatarPedestals;
-        private VRC_AvatarPedestal fallbackAvatarPedestal;
+        public VRC_AvatarPedestal fallbackAvatarPedestal;
 
         private byte[][] bufferBytes;
 
@@ -109,8 +109,9 @@ namespace Nessie.Udon.SaveState
         private float avatarTimeoutDuration = 10f;
         private float avatarUnloadDuration = 2f;
 		
-        private int dataAvatarIndex;
         private int dataByteIndex;
+
+        private ProgressState progressStatus = ProgressState.Complete;
 
         #endregion Private Fields
 
@@ -119,6 +120,22 @@ namespace Nessie.Udon.SaveState
         [NonSerialized] public bool UseFallbackAvatar = true;
         
         [NonSerialized] public string FailReason;
+
+        public ProgressState ProgressStatus
+        {
+            private set
+            {
+                progressStatus = value;
+                
+                if (CallbackReceiver)
+                    CallbackReceiver.SendCustomEvent(callbackEvents[6]);
+            }
+            get => progressStatus;
+        }
+
+        public int ProgressCurrentAvatar { get; private set; }
+
+        public int ProgressTotalAvatars => dataAvatarIDs.Length;
 
         [NonSerialized] public float Progress;
         
@@ -131,11 +148,6 @@ namespace Nessie.Udon.SaveState
             set
             {
                 Progress = value;
-
-                if (CallbackReceiver)
-                    CallbackReceiver.SendCustomEvent(callbackEvents[6]);
-
-                // Debug.Log(String.Format("[NUSS] Progress: {0:P2}%", value));
             }
             get
             {
@@ -163,7 +175,7 @@ namespace Nessie.Udon.SaveState
         {
             if (avatarIsLoading)
             {
-                Debug.Log($"Detected buffer avatar: {dataAvatarIndex}");
+                Debug.Log($"Detected buffer avatar: {ProgressCurrentAvatar}");
 
                 avatarCurrentDuration = 0f;
                 avatarIsLoading = false;
@@ -171,10 +183,14 @@ namespace Nessie.Udon.SaveState
 
                 if (mode == ModeEnum.Saving)
                 {
+                    ProgressStatus = ProgressState.Writing;
                     SendCustomEventDelayedFrames(nameof(_ClearData), 2);
                 }
                 else
+                {
+                    ProgressStatus = ProgressState.Reading;
                     SendCustomEventDelayedFrames(nameof(_GetData), 1);
+                }
             }
             else if (status == StatusEnum.Finished)
             {
@@ -205,7 +221,7 @@ namespace Nessie.Udon.SaveState
             dataWriter.animatorController = null;
             dataWriter.UseStation(localPlayer);
 
-            dataAvatarIndex = 0;
+            ProgressCurrentAvatar = 0;
             _ChangeAvatar();
         }
 
@@ -222,7 +238,7 @@ namespace Nessie.Udon.SaveState
             mode = ModeEnum.Loading;
             status = StatusEnum.Processing;
 
-            dataAvatarIndex = 0;
+            ProgressCurrentAvatar = 0;
             _ChangeAvatar();
         }
 
@@ -362,10 +378,12 @@ namespace Nessie.Udon.SaveState
 
         private void _ChangeAvatar()
         {
+            ProgressStatus = ProgressState.WaitingForAvatar;
+
             dataByteIndex = 0;
 
-            Debug.Log($"Switching avatar to buffer avatar: {dataAvatarIndex}.");
-            dataAvatarPedestals[dataAvatarIndex].SetAvatarUse(localPlayer);
+            Debug.Log($"Switching avatar to buffer avatar: {ProgressCurrentAvatar} ({dataAvatarPedestals[ProgressCurrentAvatar].blueprintId})");
+            dataAvatarPedestals[ProgressCurrentAvatar].SetAvatarUse(localPlayer);
 
             avatarCurrentDuration = avatarTimeoutDuration;
             avatarIsLoading = true;
@@ -375,12 +393,19 @@ namespace Nessie.Udon.SaveState
 
         public void _LookForAvatar()
         {
-            keyDetector.center = transform.InverseTransformPoint(localPlayer.GetBonePosition(HumanBodyBones.Hips) + localPlayer.GetBoneRotation(HumanBodyBones.Hips) * dataKeyCoords[dataAvatarIndex]);
+            keyDetector.center = transform.InverseTransformPoint(localPlayer.GetBonePosition(HumanBodyBones.Hips) + localPlayer.GetBoneRotation(HumanBodyBones.Hips) * dataKeyCoords[ProgressCurrentAvatar]);
 
             if (avatarIsLoading)
             {
                 if (avatarCurrentDuration > 0)
                 {
+                    //current avatar contributes to progress in 1/avatarcount increments
+                    float avatarProgress = ProgressCurrentAvatar / (float)dataAvatarPedestals.Length;
+                    //avatar waiting time contributes a 1/avatarcount / 2 increment sized chunk, slowly increasing as avatarCurrentDuration decreases
+                    float avatarTimeoutProgress = (1 - (avatarCurrentDuration / avatarTimeoutDuration)) / 2;
+                    
+                    dataProgress = avatarProgress + avatarTimeoutProgress;
+
                     avatarCurrentDuration -= Time.deltaTime;
                     SendCustomEventDelayedFrames(nameof(_LookForAvatar), 1);
                 }
@@ -419,10 +444,10 @@ namespace Nessie.Udon.SaveState
         {
             //Log($"Writing data for avatar {dataAvatarIndex}: data byte index {dataByteIndex}");
             
-            int avatarByteCount = bufferBytes[dataAvatarIndex].Length;
+            int avatarByteCount = bufferBytes[ProgressCurrentAvatar].Length;
 
             bool controlBit = dataByteIndex % 6 == 0; // Mod the 9th bit in order to control the animator steps.
-            byte[] avatarBytes = bufferBytes[dataAvatarIndex];
+            byte[] avatarBytes = bufferBytes[ProgressCurrentAvatar];
             int byte1 = dataByteIndex < avatarByteCount ? avatarBytes[dataByteIndex++] : 0;
             int byte2 = dataByteIndex < avatarByteCount ? avatarBytes[dataByteIndex++] : 0;
             int byte3 = dataByteIndex < avatarByteCount ? avatarBytes[dataByteIndex++] : 0;
@@ -440,13 +465,21 @@ namespace Nessie.Udon.SaveState
 
             if (dataByteIndex < avatarByteCount)
             {
-                dataProgress = (float)dataAvatarIndex / dataAvatarIDs.Length;
+                float writeProgress = dataByteIndex / (float)avatarByteCount;
+                float avatarProgress = ProgressCurrentAvatar / (float)dataAvatarPedestals.Length + (1/(float)dataAvatarPedestals.Length/2);
+                
+                //current avatar index contributes to progress in 1/avatarcount increments
+                //writing data for a single avatar contributes to 1/4th an avatar worth of progress,
+                //so the total avatar index amount is split between the avatar waiting, the write and the verify processes in 1/2, 1/4, 1/4 increments
+                dataProgress = avatarProgress + (writeProgress / dataAvatarPedestals.Length / 4);
+                //dataProgress = (float)dataAvatarIndex / dataAvatarIDs.Length;
 
                 SendCustomEventDelayedFrames(nameof(_SetData), 1);
             }
             else
             {
                 SendCustomEventDelayedFrames(nameof(_VerifyData), 10);
+                ProgressStatus = ProgressState.Verifying;
             }
         }
 
@@ -455,13 +488,17 @@ namespace Nessie.Udon.SaveState
         /// </summary>
         public void _VerifyData()
         {
+            Debug.Log("Starting data verification...");
+
             // Verify that the write was successful.
-            byte[] inputData = bufferBytes[dataAvatarIndex];
-            byte[] writtenData = _GetAvatarBytes(dataAvatarIndex);
+            byte[] inputData = bufferBytes[ProgressCurrentAvatar];
+            byte[] writtenData = _GetAvatarBytes(ProgressCurrentAvatar);
 
             // Check for corrupt bytes.
             for (int i = 0; i < inputData.Length; i++)
             {
+                //Debug.Log($"Byte {i} input: {inputData[i]:X2} written: {writtenData[i]:X2}");
+
                 if (inputData[i] != writtenData[i])
                 {
                     Debug.LogError($"Data verification failed at index {i}: {inputData[i]:X2} doesn't match {writtenData[i]:X2}! Write should be restarted!");
@@ -473,11 +510,13 @@ namespace Nessie.Udon.SaveState
 
             // Continue if write was successful.
             localPlayer.SetVelocity(Vector3.zero); // Reset velocity before finishing or changing avatar.
-            int newAvatarIndex = dataAvatarIndex + 1;
+            int newAvatarIndex = ProgressCurrentAvatar + 1;
             if (newAvatarIndex < dataAvatarIDs.Length)
             {
-                dataAvatarIndex = newAvatarIndex;
-                dataProgress = (float)dataAvatarIndex / dataAvatarIDs.Length;
+                ProgressCurrentAvatar = newAvatarIndex;
+                dataProgress = (float)ProgressCurrentAvatar / dataAvatarIDs.Length;
+                
+                ProgressStatus = ProgressState.WaitingForAvatar;
 
                 _ChangeAvatar();
             }
@@ -489,16 +528,16 @@ namespace Nessie.Udon.SaveState
 
         public void _GetData() // Read data using finger rotations.
         {
-            byte[] data = _GetAvatarBytes(dataAvatarIndex);
+            byte[] data = _GetAvatarBytes(ProgressCurrentAvatar);
             
             // Append new avatar bytes to the end of the previous bytes.
-            Array.Copy(data, bufferBytes[dataAvatarIndex], data.Length);
+            Array.Copy(data, bufferBytes[ProgressCurrentAvatar], data.Length);
 
             int newAvatarIndex = dataAvatarIndex + 1;
             if (newAvatarIndex < dataAvatarIDs.Length)
             {
-                dataAvatarIndex = newAvatarIndex;
-                dataProgress = (float)dataAvatarIndex / dataAvatarIDs.Length;
+                ProgressCurrentAvatar = newAvatarIndex;
+                dataProgress = (float)ProgressCurrentAvatar / dataAvatarIDs.Length;
                 
                 _ChangeAvatar();
             }
@@ -511,6 +550,7 @@ namespace Nessie.Udon.SaveState
         private void _FinishedData()
         {
             dataProgress = 1;
+            ProgressStatus = ProgressState.Complete;
 
             if (mode == ModeEnum.Saving)
             {
