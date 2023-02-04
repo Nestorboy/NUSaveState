@@ -11,6 +11,9 @@ namespace Nessie.Udon.Extensions
 {
     public static class NUExtensions
     {
+        private static Dictionary<AbstractSerializedUdonProgramAsset, (IUdonSymbolTable, string[])> enrtyTableDict = new Dictionary<AbstractSerializedUdonProgramAsset, (IUdonSymbolTable, string[])>();
+        private static Dictionary<AbstractSerializedUdonProgramAsset, (IUdonSymbolTable, string[])> symbolTableDict = new Dictionary<AbstractSerializedUdonProgramAsset, (IUdonSymbolTable, string[])>();
+
         #region Public Enums
 
         [Flags]
@@ -81,11 +84,17 @@ namespace Nessie.Udon.Extensions
 
         #endregion Public Structs
 
+        public static void ClearTableCache()
+        {
+            enrtyTableDict.Clear();
+            symbolTableDict.Clear();
+        }
+        
         #region Public Extensions
 
         public static VariableType GetSymbolVariableType(this IUdonSymbolTable symbolTable, string symbol)
         {
-            if (symbol.StartsWith("__"))
+            if (symbol.Length > 2 && symbol[0] == '_' && symbol[1] == '_') // Starts with "__"
             {
                 return VariableType.Internal;
             }
@@ -98,15 +107,42 @@ namespace Nessie.Udon.Extensions
             return VariableType.Private;
         }
 
+        private static (IUdonSymbolTable, string[]) GetTableEntries(AbstractSerializedUdonProgramAsset serializedProgram)
+        {
+            if (symbolTableDict.TryGetValue(serializedProgram, out (IUdonSymbolTable, string[]) symbolPair))
+            {
+                return symbolPair;
+            }
+
+            IUdonSymbolTable symbolTable = serializedProgram.RetrieveProgram().EntryPoints;
+            string[] symbols = symbolTable.GetSymbols().ToArray();
+            Array.Sort(symbols);
+            symbolTableDict.Add(serializedProgram, (symbolTable, symbols));
+            return (symbolTable, symbols);
+        }
+
+        private static (IUdonSymbolTable, string[]) GetTableSymbols(AbstractSerializedUdonProgramAsset serializedProgram)
+        {
+            if (symbolTableDict.TryGetValue(serializedProgram, out (IUdonSymbolTable, string[]) symbolPair))
+            {
+                return symbolPair;
+            }
+
+            IUdonSymbolTable symbolTable = serializedProgram.RetrieveProgram().SymbolTable;
+            string[] symbols = symbolTable.GetSymbols().ToArray();
+            Array.Sort(symbols);
+            symbolTableDict.Add(serializedProgram, (symbolTable, symbols));
+            return (symbolTable, symbols);
+        }
+        
         public static List<Event> GetEvents(this UdonBehaviour udon, EventType eventTypeFilter = EventType.Any)
         {
             List<Event> events = new List<Event>();
 
             AbstractUdonProgramSource program = udon.programSource;
             if (!program) return events;
-            IUdonSymbolTable entryTable = program.SerializedProgramAsset.RetrieveProgram().EntryPoints;
-
-            string[] entries = entryTable.GetSymbols().ToArray();
+            
+            (IUdonSymbolTable entryTable, string[] entries) = GetTableEntries(program.SerializedProgramAsset);
             foreach (string entry in entries)
             {
                 if (eventTypeFilter.HasFlag(EventType.Exposed) && !entry.StartsWith("_"))
@@ -128,11 +164,8 @@ namespace Nessie.Udon.Extensions
 
             AbstractUdonProgramSource program = udon.programSource;
             if (!program) return variables;
-            IUdonSymbolTable symbolTable = program.SerializedProgramAsset.RetrieveProgram().SymbolTable;
 
-            string[] symbols = symbolTable.GetSymbols().ToArray();
-            Array.Sort(symbols);
-
+            (IUdonSymbolTable symbolTable, string[] symbols) = GetTableSymbols(program.SerializedProgramAsset);
             foreach (string symbol in symbols)
             {
                 VariableType varType = symbolTable.GetSymbolVariableType(symbol);
@@ -145,16 +178,15 @@ namespace Nessie.Udon.Extensions
 
             return variables;
         }
-
+        
         public static List<Variable> GetFilteredVariables(this UdonBehaviour udon, Type[] typeFilter, VariableType variableTypeFilter = VariableType.Any)
         {
             List<Variable> variables = new List<Variable>();
-            if (!udon.programSource) return variables;
-            IUdonSymbolTable symbolTable = udon.programSource.SerializedProgramAsset.RetrieveProgram().SymbolTable;
-
-            string[] symbols = symbolTable.GetSymbols().ToArray();
-            Array.Sort(symbols);
-
+            
+            AbstractUdonProgramSource program = udon.programSource;
+            if (!program) return variables;
+            
+            (IUdonSymbolTable symbolTable, string[] symbols) = GetTableSymbols(program.SerializedProgramAsset);
             foreach (string symbol in symbols)
             {
                 VariableType varType = symbolTable.GetSymbolVariableType(symbol);
@@ -167,7 +199,7 @@ namespace Nessie.Udon.Extensions
                 
                 variables.Add(new Variable(symbol, varType, type));
             }
-
+            
             return variables;
         }
 
