@@ -46,6 +46,7 @@ namespace Nessie.Udon.SaveState.Internal
             
             data = NUSaveStateData.GetData(saveState);
 
+            NUExtensions.ClearTableCache();
             data.UpdateInstructions();
             dataSO = new SerializedObject(data);
             dataSO.Update();
