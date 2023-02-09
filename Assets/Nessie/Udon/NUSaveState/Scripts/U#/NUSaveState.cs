@@ -323,7 +323,7 @@ namespace Nessie.Udon.SaveState
 
             foreach (RuntimeAnimatorController controller in parameterWriters)
             {
-                if (controller)
+                if (!controller)
                 {
                     Debug.LogError("NUSaveState is missing one or more Parameter Writers.");
                     break;
