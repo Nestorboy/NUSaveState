@@ -22,10 +22,6 @@ Assets/Nessie/Udon/*
 !Assets/Nessie/Udon/NUSaveState.meta
 
 # Exceptions
-Assets/Nessie/Udon/NUSaveState/AssetFolders/*
-!Assets/Nessie/Udon/NUSaveState/AssetFolders/Example-World-Folder
-!Assets/Nessie/Udon/NUSaveState/AssetFolders/Example-World-Folder.meta
-
 Assets/Nessie/Udon/NUSaveState/Avatar/Animators*
 Assets/Nessie/Udon/NUSaveState/Avatar/Expressions*
 Assets/Nessie/Udon/NUSaveState/Avatar/Packages*
