@@ -348,6 +348,7 @@ namespace Nessie.Udon.SaveState.Internal
             System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
             timer.Start();
 
+            bool success = false;
             try
             {
                 AssetDatabase.StartAssetEditing();
@@ -363,15 +364,19 @@ namespace Nessie.Udon.SaveState.Internal
                     avatarSO.ApplyModifiedPropertiesWithoutUndo();
                 }
 
-                DebugUtilities.Log($"World asset creation took: {timer.Elapsed:mm\\:ss\\.fff}");
+                EditorUtility.SetDirty(saveState);
+                data.ApplyAvatarSlots(saveState);
+
+                success = true;
             }
             finally
             {
                 AssetDatabase.StopAssetEditing();
 
-                AssetDatabase.SaveAssets();
-
                 timer.Stop();
+                
+                if (success)
+                    DebugUtilities.Log($"World asset creation took: {timer.Elapsed:mm\\:ss\\.fff}");
             }
         }
         
@@ -395,11 +400,14 @@ namespace Nessie.Udon.SaveState.Internal
             System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
             timer.Start();
 
+            bool success = false;
             try
             {
                 AssetDatabase.StartAssetEditing();
 
                 AssetGenerator.CreateAvatarPackages(data.AvatarSlots.Select(slot => slot.Data).ToArray(), packagePath);
+
+                success = true;
             }
             finally
             {
@@ -409,7 +417,8 @@ namespace Nessie.Udon.SaveState.Internal
 
                 timer.Stop();
                 
-                DebugUtilities.Log($"Avatar asset creation took: {timer.Elapsed:mm\\:ss\\.fff}");
+                if (success)
+                    DebugUtilities.Log($"Avatar asset creation took: {timer.Elapsed:mm\\:ss\\.fff}");
             }
         }
 
