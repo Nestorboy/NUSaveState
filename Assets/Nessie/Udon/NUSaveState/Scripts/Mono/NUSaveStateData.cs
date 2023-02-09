@@ -5,7 +5,6 @@ using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Serialization;
-using VRC.SDKBase.Editor.BuildPipeline;
 using VRC.Udon;
 using VRC.Udon.Serialization.OdinSerializer;
 using Nessie.Udon.Extensions;
@@ -15,7 +14,7 @@ using BindingFlags = System.Reflection.BindingFlags;
 namespace Nessie.Udon.SaveState
 {
     [AddComponentMenu(""), DisallowMultipleComponent]
-    public class NUSaveStateData : MonoBehaviour, IVRCSDKBuildRequestedCallback
+    public class NUSaveStateData : MonoBehaviour
     {
         #region Public Fields
 
@@ -31,29 +30,13 @@ namespace Nessie.Udon.SaveState
         public Legacy.Instruction[] Instructions;
 
         #endregion Public Fields
-
-        public int callbackOrder => 0;
         
         private void OnValidate()
         {
-            //Debug.Log("NUSaveStateData: OnValidate");
-            
             UpdateVisibility();
         }
-        
-        public bool OnBuildRequested(VRCSDKRequestedBuildType requestedBuildType)
-        {
-            if (requestedBuildType != VRCSDKRequestedBuildType.Scene)
-            {
-                return true;
-            }
-            
-            // TODO: Figure out why this causes an exception.
-            //if (TryGetComponent(out NUSaveState saveState))
-            //    ApplyAvatarSlots(saveState);
-            
-            return true;
-        }
+
+        #region Public Methods
         
         public void UpdateInstructions()
         {
@@ -175,8 +158,6 @@ namespace Nessie.Udon.SaveState
             PrefabUtility.RecordPrefabInstancePropertyModifications(saveState);
         }
         
-        #region Public Methods
-        
         public static NUSaveStateData GetData(NUSaveState saveState)
         {
             if (!saveState.TryGetComponent(out NUSaveStateData data))
@@ -194,6 +175,10 @@ namespace Nessie.Udon.SaveState
 
             return data;
         }
+        
+        #endregion Public Methods
+        
+        #region Private Methods
 
         private static bool TryGetLegacyData(NUSaveState saveState, out NUSaveStateData legacyData)
         {
@@ -246,7 +231,7 @@ namespace Nessie.Udon.SaveState
             }
         }
         
-        #endregion Public Methods
+        #endregion Private Methods
     }
 }
 
