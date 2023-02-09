@@ -268,6 +268,8 @@ namespace Nessie.Udon.SaveState.Internal
 
         private void DrawMessages()
         {
+            //void DrawInfoMessage(string s) => EditorGUILayout.HelpBox(s, MessageType.Info);
+            //void DrawWarningMessage(string s) => EditorGUILayout.HelpBox(s, MessageType.Warning);
             //void DrawErrorMessage(string s) => EditorGUILayout.HelpBox(s, MessageType.Error);
         }
 
@@ -324,18 +326,11 @@ namespace Nessie.Udon.SaveState.Internal
                 avatarSlotsRList.DoLayoutList();
                 if (dataSO.ApplyModifiedProperties())
                 {
-                    Debug.Log("avatarList changed");
-                    dataSO.Update();
+                    dataSO.Update(); // Is this necessary?
 
                     if (propAvatarSlots.arraySize > 0)
                     {
-                        if (saveStateSO.ApplyModifiedProperties())
-                        {
-                            //Debug.Log(propertyUdonBehaviours.arraySize + " : " + udonBehaviours.Count);
-                        }
-
                         EditorUtility.SetDirty(saveState);
-
                         data.ApplyAvatarSlots(saveState);
                     }
                 }
@@ -451,6 +446,9 @@ namespace Nessie.Udon.SaveState.Internal
                         
                 dataSO.ApplyModifiedProperties();
 
+                EditorUtility.SetDirty(saveState);
+                data.ApplyAvatarSlots(saveState);
+                
                 // TODO: Figure out a way to prevent "SerializedObject of SerializedProperty has been Disposed" exception.
                 //Selection.activeObject = AssetDatabase.LoadAssetAtPath<AvatarData>(assetPath);
             }
