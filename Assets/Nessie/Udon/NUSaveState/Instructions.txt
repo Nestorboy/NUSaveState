@@ -1,3 +1,6 @@
+Source:
+https://github.com/Nestorboy/NUSaveState
+
 Instructions:
 In order to save or load data, respectively call _SSSave or _SSLoad on the NUSaveState behaviour.
 Once _SSSave is called, it uses the variable instruction list to get program variables from all the specified Udon programs and stores them.
@@ -16,16 +19,18 @@ _SSLoadFailed is called when loading data failed.
 _SSPostSave is called after saving the data and the user has switched out of the last data avatar.
 _SSPostLoad is called after loading the data and the user has switched out of the last data avatar.
 
-_SSProgress is called every frame when the variable called "Progress" has been update.
+_SSProgress is called perdiodically as the NUSaveState loads or saves data.
 Progress is a float ranging from 0 to 1, and it's set to 0 once you initially start saving or loading, and then 1 when it's done.
+If you're using U#, you can get the NUSaveState.Progress property value directly.
+If you're using Udon Graph you can use the GetProgramVariable node to get the value of a variable called "progress".
 
 Notes:
-Every avatar can store up to 32 bytes or 256 bits, but there's no limit to how many avatars you can use.
+Every avatar currently stores up to 32 bytes or 256 bits, but there's no limit to how many avatars you can use.
 It takes roughly 22 frames to write to all 256 bits on an avatar, but we can't predict the time it takes to load avatars.
 Reading 32 bytes can be done almost instantly once an avatar has been detected.
 
-Pre-built avatars:
-Encryption Seed: 404
+Example avatars:
+Encryption Key: 404
 Parameter Name: parameter
 Avatar IDs in order:
 avtr_1a5e837d-1944-44f3-aa2c-b3854a33a8ac
