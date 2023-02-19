@@ -1,5 +1,5 @@
-Source:
-https://github.com/Nestorboy/NUSaveState
+Version: 1.3.0
+Source: https://github.com/Nestorboy/NUSaveState
 
 Instructions:
 In order to save or load data, respectively call _SSSave or _SSLoad on the NUSaveState behaviour.
