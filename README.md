@@ -12,5 +12,5 @@ Due to this systems reliance on avatar parameters and floats, there's a limit as
 - [UdonSharp](https://github.com/MerlinVR/UdonSharp)
 - [VRCSDK3A.dll](https://vrchat.com/home/download)
 
-**It is incredibly important that you import the `VRCSDK3A.dll` which can be found in the 3.0 avatar SDK.
+**It is incredibly important that you import the `VRCSDK3A.dll` along with the `VRCSDK3A.dll.meta` file which can be found in the 3.0 avatar SDK.
 Begin importing any of the VRCSDK3-AVATAR SDKs, but make sure to uncheck everything except for the `VRCSDK/Plugins/VRCSDK3A.dll` file.**
