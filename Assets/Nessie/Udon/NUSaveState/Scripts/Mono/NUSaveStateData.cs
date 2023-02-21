@@ -46,13 +46,13 @@ namespace Nessie.Udon.SaveState
             foreach (AvatarSlot slot in AvatarSlots)
             {
                 AvatarData data = slot.Data;
-                int varSlotCount = data && (data.VariableSlots != null) ? data.VariableSlots.Length : 0;
-                Instruction[] newInstructions = new Instruction[varSlotCount];
-
-                for (int i = 0; i < varSlotCount; i++)
+                int oldLength = slot.Instructions?.Length ?? 0;
+                int newLength = data && (data.VariableSlots != null) ? data.VariableSlots.Length : 0;
+                
+                Instruction[] newInstructions = new Instruction[newLength];
+                for (int i = 0; i < newLength; i++)
                 {
-                    newInstructions[i] = i < slot.Instructions.Length ? slot.Instructions[i] : new Instruction();
-
+                    newInstructions[i] = i < oldLength ? slot.Instructions[i] : new Instruction();
                     newInstructions[i].Slot = data.VariableSlots[i];
                 }
                 
