@@ -93,7 +93,22 @@ namespace Nessie.Udon.SaveState.Internal
                                 instructionRListDict[instructionKey].elementHeight = isExpanded ? 20f : 0f;
                             }
                             
+                            EditorGUI.BeginChangeCheck();
                             EditorGUI.PropertyField(avatarDataRect, propertyAvatarData, new GUIContent(""));
+                            if (EditorGUI.EndChangeCheck())
+                            {
+                                // Update instruction slots.
+                                AvatarData data = SerializationUtilities.GetPropertyValue<AvatarData>(propertyAvatarData);
+                                int newSize = data && (data.VariableSlots != null) ? data.VariableSlots.Length : 0;
+                                propertyInstructions.arraySize = newSize;
+                                for (int i = 0; i < newSize; i++)
+                                {
+                                    SerializedProperty propInstruction = propertyInstructions.GetArrayElementAtIndex(i);
+                                    Instruction instruction = SerializationUtilities.GetPropertyValue<Instruction>(propInstruction);
+                                    instruction.Slot = data.VariableSlots[i];
+                                    SerializationUtilities.SetPropertyValue(propInstruction, instruction);
+                                }
+                            }
                         },
 
                         drawElementCallback = (Rect rect, int elementIndex, bool isActive, bool isFocused) =>
@@ -130,8 +145,10 @@ namespace Nessie.Udon.SaveState.Internal
                                 SerializationUtilities.SetPropertyValue(propertyAvatarSlot, slot);
                             }
                             
+                            SerializedProperty propVariableLabels = propInstruction.FindPropertyRelative("variableLabels");
+                            string[] variableLabels = SerializationUtilities.GetPropertyValue<string[]>(propVariableLabels);
                             EditorGUI.BeginChangeCheck();
-                            int newVariableIndex = EditorGUI.Popup(variableRect, propVarIndex.intValue, data.AvatarSlots[index].Instructions[elementIndex].VariableLabels);
+                            int newVariableIndex = EditorGUI.Popup(variableRect, propVarIndex.intValue, variableLabels);
                             if (EditorGUI.EndChangeCheck())
                             {
                                 propVarIndex.intValue = newVariableIndex;
