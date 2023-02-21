@@ -86,16 +86,14 @@ namespace Nessie.Udon.SaveState.Internal
                             Rect avatarDataRect = new Rect(rect) { x = rect.x + rect.width };
                             
                             EditorGUI.BeginChangeCheck();
-                
                             bool isExpanded = EditorGUI.Foldout(foldoutRect, propertyInstructions.isExpanded, EditorStyles.ContentInstructionList);
-
                             if (EditorGUI.EndChangeCheck())
                             {
                                 propertyInstructions.isExpanded = isExpanded;
                                 instructionRListDict[instructionKey].elementHeight = isExpanded ? 20f : 0f;
                             }
                             
-                            propertyAvatarData.objectReferenceValue = (AvatarData)EditorGUI.ObjectField(avatarDataRect, propertyAvatarData.objectReferenceValue, typeof(AvatarData), false);
+                            EditorGUI.PropertyField(avatarDataRect, propertyAvatarData, new GUIContent(""));
                         },
 
                         drawElementCallback = (Rect rect, int elementIndex, bool isActive, bool isFocused) =>
@@ -123,9 +121,8 @@ namespace Nessie.Udon.SaveState.Internal
                             VariableSlot varSlot = SerializationUtilities.GetPropertyValue<VariableSlot>(propSlot);
                             EditorGUI.LabelField(labelRect, $"{varSlot.Name} ({varSlot.TypeEnum})");
                             
-                            //EditorGUI.PropertyField(udonFieldRect, propUdon, new GUIContent($"{varSlot.Name} ({varSlot.Type.Name})"));
                             EditorGUI.BeginChangeCheck();
-                            propUdon.objectReferenceValue = (UdonBehaviour)EditorGUI.ObjectField(udonRect, propUdon.objectReferenceValue, typeof(UdonBehaviour), true);
+                            EditorGUI.PropertyField(udonRect, propUdon, new GUIContent(""));
                             if (EditorGUI.EndChangeCheck())
                             {
                                 AvatarSlot slot = SerializationUtilities.GetPropertyValue<AvatarSlot>(propertyAvatarSlot);
