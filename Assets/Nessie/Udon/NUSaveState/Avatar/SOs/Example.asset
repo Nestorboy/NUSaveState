@@ -19,6 +19,10 @@ MonoBehaviour:
   ParameterName: parameter
   KeyCoordinate: {x: 0, y: 0, z: 0}
   VariableSlots:
-  - Name: PlayerPosition
-    TypeEnum: 15
-  BitCount: 96
+  - Name: Slider Value
+    TypeEnum: 7
+  - Name: Player Position
+    TypeEnum: 18
+  - Name: Player Rotation
+    TypeEnum: 19
+  BitCount: 232
