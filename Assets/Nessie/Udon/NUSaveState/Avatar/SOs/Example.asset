@@ -22,7 +22,7 @@ MonoBehaviour:
   - Name: Slider Value
     TypeEnum: 7
   - Name: Player Position
-    TypeEnum: 18
+    TypeEnum: 15
   - Name: Player Rotation
     TypeEnum: 19
   BitCount: 232

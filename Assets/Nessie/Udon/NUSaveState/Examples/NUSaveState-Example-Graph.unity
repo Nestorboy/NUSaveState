@@ -609,8 +609,7 @@ PrefabInstance:
         type: 3}
       propertyPath: Preferences.folderAsset
       value: 
-      objectReference: {fileID: 102900000, guid: 0ad1bc3859241ba469befd98bff0dede,
-        type: 3}
+      objectReference: {fileID: 0}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: AvatarSlots.Array.data[0].Data
@@ -645,7 +644,7 @@ PrefabInstance:
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: AvatarSlots.Array.data[0].Instructions.Array.size
-      value: 1
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
@@ -670,13 +669,28 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
-      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[0].udon
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].udon
+      value: 
+      objectReference: {fileID: 1538785986}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].udon
       value: 
       objectReference: {fileID: 1538785986}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[0].slot.Name
-      value: PlayerPosition
+      value: Slider Value
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].slot.Name
+      value: Player Position
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].slot.Name
+      value: Player Rotation
       objectReference: {fileID: 0}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
@@ -686,7 +700,7 @@ PrefabInstance:
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[0].slot.TypeEnum
-      value: 15
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
@@ -696,6 +710,36 @@ PrefabInstance:
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[0].variableIndex
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].slot.TypeEnum
+      value: 15
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].variable.Name
+      value: PlayerPosition
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].variableIndex
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].slot.TypeEnum
+      value: 19
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].variable.Name
+      value: PlayerRotation
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].variableIndex
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
@@ -707,11 +751,31 @@ PrefabInstance:
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[0].variables.Array.size
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].variables.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].variables.Array.size
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[0].variable.VariableType
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].variable.VariableType
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].variable.VariableType
       value: 2
       objectReference: {fileID: 0}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
@@ -723,6 +787,28 @@ PrefabInstance:
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[0].variableLabels.Array.size
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].variable.typeAssemblyName
+      value: UnityEngine.Vector3, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral,
+        PublicKeyToken=null
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].variableLabels.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].variable.typeAssemblyName
+      value: UnityEngine.Quaternion, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral,
+        PublicKeyToken=null
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].variableLabels.Array.size
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
@@ -737,13 +823,55 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].variableLabels.Array.data[0]
+      value: PlayerPosition (Vector3)
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].variables.Array.data[0].Name
+      value: PlayerPosition
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].variableLabels.Array.data[0]
+      value: PlayerRotation (Quaternion)
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].variables.Array.data[0].Name
+      value: PlayerRotation
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
       propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[0].variables.Array.data[0].VariableType
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].variables.Array.data[0].VariableType
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].variables.Array.data[0].VariableType
       value: 2
       objectReference: {fileID: 0}
     - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[0].variables.Array.data[0].typeAssemblyName
       value: UnityEngine.Vector3, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral,
+        PublicKeyToken=null
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[1].variables.Array.data[0].typeAssemblyName
+      value: UnityEngine.Vector3, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral,
+        PublicKeyToken=null
+      objectReference: {fileID: 0}
+    - target: {fileID: -6228184107997569807, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
+      propertyPath: AvatarSlots.Array.data[0].Instructions.Array.data[2].variables.Array.data[0].typeAssemblyName
+      value: UnityEngine.Quaternion, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral,
         PublicKeyToken=null
       objectReference: {fileID: 0}
     - target: {fileID: 2649198357432519897, guid: e3149960738c0d549b6c898273b22bd0,
@@ -785,7 +913,7 @@ PrefabInstance:
     - target: {fileID: 2649198357432519897, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: bufferBitCounts.Array.data[0]
-      value: 96
+      value: 232
       objectReference: {fileID: 0}
     - target: {fileID: 2649198357432519897, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
@@ -817,20 +945,20 @@ PrefabInstance:
       propertyPath: serializationData.PrefabModifications.Array.data[0]
       value: '"path":"bufferTypes","value":{"$id":0,"$type":"Nessie.Udon.SaveState.TypeEnum[][],
         Assembly-CSharp","$rlength":1,"$rcontent":[{"$id":1,"$type":"Nessie.Udon.SaveState.TypeEnum[],
-        Assembly-CSharp","$rlength":1,"$rcontent":[15]}]}'
+        Assembly-CSharp","$rlength":3,"$rcontent":[15,15,19]}]}'
       objectReference: {fileID: 0}
     - target: {fileID: 2649198357432519897, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: serializationData.PrefabModifications.Array.data[1]
       value: '"path":"bufferUdonBehaviours","value":{"$id":0,"$type":"UnityEngine.Component[][],
         UnityEngine.CoreModule","$rlength":1,"$rcontent":[{"$id":1,"$type":"UnityEngine.Component[],
-        UnityEngine.CoreModule","$rlength":1,"$rcontent":[$eref:0]}]}'
+        UnityEngine.CoreModule","$rlength":3,"$rcontent":[null,$eref:0,$eref:0]}]}'
       objectReference: {fileID: 0}
     - target: {fileID: 2649198357432519897, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: serializationData.PrefabModifications.Array.data[2]
       value: '"path":"bufferVariables","value":{"$id":0,"$type":"System.String[][],
-        mscorlib","$rlength":1,"$rcontent":[{"$id":1,"$type":"System.String[], mscorlib","$rlength":1,"$rcontent":["PlayerPosition"]}]}'
+        mscorlib","$rlength":1,"$rcontent":[{"$id":1,"$type":"System.String[], mscorlib","$rlength":3,"$rcontent":["PlayerPosition","PlayerPosition","PlayerRotation"]}]}'
       objectReference: {fileID: 0}
     - target: {fileID: 2649198357432519897, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
@@ -861,7 +989,7 @@ PrefabInstance:
         type: 3}
       propertyPath: publicVariablesUnityEngineObjects.Array.data[1]
       value: 
-      objectReference: {fileID: 9100000, guid: 036b5e45e5ca84e4a830e4205d3c4101, type: 2}
+      objectReference: {fileID: 0}
     - target: {fileID: 8000936731730785914, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: publicVariablesUnityEngineObjects.Array.data[2]
@@ -1646,11 +1774,11 @@ Light:
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
   m_Shadows:
-    m_Type: 1
+    m_Type: 2
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 0.9
-    m_Bias: 0.005
+    m_Bias: 0.05
     m_NormalBias: 0.4
     m_NearPlane: 0.2
     m_CullingMatrixOverride:

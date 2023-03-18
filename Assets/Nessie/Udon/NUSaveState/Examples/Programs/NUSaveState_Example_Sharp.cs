@@ -13,12 +13,12 @@ public class NUSaveState_Example_Sharp : UdonSharpBehaviour
     public NUSaveState NUSaveState;
     
     // Saved/Loaded variables.
-    private Vector3Int PlayerPosition;
+    private Vector3 PlayerPosition;
     private Quaternion PlayerRotation;
 
     public void _Save()
     {
-        PlayerPosition = Vector3Int.RoundToInt(Networking.LocalPlayer.GetPosition());
+        PlayerPosition = Networking.LocalPlayer.GetPosition();
         PlayerRotation = Networking.LocalPlayer.GetRotation();
             
         NUSaveState._SSSave();
@@ -33,7 +33,7 @@ public class NUSaveState_Example_Sharp : UdonSharpBehaviour
 
     public void _SSPostLoad()
     {
-        Networking.LocalPlayer.TeleportTo(PlayerPosition, Networking.LocalPlayer.GetRotation());
+        Networking.LocalPlayer.TeleportTo(PlayerPosition, PlayerRotation);
     }
 
     #endregion Callbacks
