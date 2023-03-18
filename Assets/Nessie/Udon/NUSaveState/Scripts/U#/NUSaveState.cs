@@ -443,7 +443,7 @@ namespace Nessie.Udon.SaveState
             int byte1 = currentByteIndex < avatarByteCount ? avatarBytes[currentByteIndex++] : 0;
             int byte2 = currentByteIndex < avatarByteCount ? avatarBytes[currentByteIndex++] : 0;
             int byte3 = currentByteIndex < avatarByteCount ? avatarBytes[currentByteIndex++] : 0;
-            byte1 += controlBit ? 256 : 0;
+            byte1 |= controlBit ? 1 << 8 : 0;
 
             // Add 1/512th to avoid precision issues as this wont affect the conditionals in the animator.
             // Divide by 256 to normalize the range of a byte.
@@ -482,6 +482,8 @@ namespace Nessie.Udon.SaveState
         /// </summary>
         public void _VerifyData()
         {
+            localPlayer.SetVelocity(Vector3.zero); // Reset velocity before finishing or changing avatar.
+
             Debug.Log("Starting data verification...");
 
             // Verify that the write was successful.
@@ -503,7 +505,6 @@ namespace Nessie.Udon.SaveState
             }
 
             // Continue if write was successful.
-            localPlayer.SetVelocity(Vector3.zero); // Reset velocity before finishing or changing avatar.
             int newAvatarIndex = currentAvatarindex + 1;
             if (newAvatarIndex < totalAvatarCount)
             {
