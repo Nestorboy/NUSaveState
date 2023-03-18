@@ -102,7 +102,7 @@ namespace Nessie.Udon.SaveState
 
                     UdonBehaviour udon = instruction.Udon;
                     string name = variable.Name;
-                    TypeEnum type = BitUtilities.GetTypeEnum(variable.Type);
+                    TypeEnum type = data ? data.VariableSlots[instructionIndex].TypeEnum : TypeEnum.None;
 
                     udonBehaviours[avatarIndex][instructionIndex] = udon;
                     variableNames[avatarIndex][instructionIndex] = name;
