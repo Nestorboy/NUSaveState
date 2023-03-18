@@ -11,6 +11,8 @@ using VRC.SDK3.Avatars.ScriptableObjects;
 using Nessie.Udon.Extensions;
 using Nessie.Udon.SaveState.Data;
 
+using ParameterType = UnityEngine.AnimatorControllerParameterType;
+
 namespace Nessie.Udon.SaveState
 {
     public static class AssetGenerator
@@ -89,14 +91,14 @@ namespace Nessie.Udon.SaveState
             
             string[] velocityNames = new string[] { "VelocityX", "VelocityY", "VelocityZ" }; // Used when preparing the Parameters and Byte Layers.
             foreach (string velocityName in velocityNames)
-                controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = velocityName, type = AnimatorControllerParameterType.Float });
+                controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = velocityName, type = ParameterType.Float });
             
-            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "IgnoreTransition", type = AnimatorControllerParameterType.Bool, defaultBool = true });
-            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Batch", type = AnimatorControllerParameterType.Int });
+            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "IgnoreTransition", type = ParameterType.Bool, defaultBool = true });
+            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Batch", type = ParameterType.Int });
 
             for (int byteIndex = 0; byteIndex < 32; byteIndex++) // Prepare dummy parameters used to transfer the velocity parameters.
             {
-                controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = $"b{byteIndex}", type = AnimatorControllerParameterType.Float });
+                controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = $"b{byteIndex}", type = ParameterType.Float });
             }
             
             #endregion Parameters
@@ -337,7 +339,7 @@ namespace Nessie.Udon.SaveState
             AssetDatabase.AddObjectToAsset(newDefaultClip, controller);
 
             // Prepare default state an animation.
-            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "IsLocal", type = AnimatorControllerParameterType.Bool, defaultBool = false });
+            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "IsLocal", type = ParameterType.Bool, defaultBool = false });
             AnimatorState newDefaultState = newStateMachine.AddStateNoUndo("Default", new Vector3(200, 0));
             newDefaultState.motion = newDefaultClip;
 
@@ -402,18 +404,18 @@ namespace Nessie.Udon.SaveState
             // Prepare BlendTree parameters.
             ChildMotion[] newChildren = newTree.children;
 
-            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Base", type = AnimatorControllerParameterType.Float, defaultFloat = 1 });
+            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Base", type = ParameterType.Float, defaultFloat = 1 });
             newChildren[0].directBlendParameter = "Base";
 
             for (int childIndex = 1; childIndex < newChildren.Length; childIndex++)
             {
                 string newParameter = $"{parameterName}_{childIndex - 1}";
 
-                //controller.AddParameterNoUndo(newParameter, AnimatorControllerParameterType.Float);
+                //controller.AddParameterNoUndo(newParameter, ParameterType.Float);
                 controller.AddParameterNoUndo(new AnimatorControllerParameter()
                 {
                     name = "Base",
-                    type = AnimatorControllerParameterType.Float,
+                    type = ParameterType.Float,
                 });
                 newChildren[childIndex].directBlendParameter = newParameter;
             }
