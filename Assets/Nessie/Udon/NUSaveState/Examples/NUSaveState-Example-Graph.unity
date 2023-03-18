@@ -945,14 +945,14 @@ PrefabInstance:
       propertyPath: serializationData.PrefabModifications.Array.data[0]
       value: '"path":"bufferTypes","value":{"$id":0,"$type":"Nessie.Udon.SaveState.TypeEnum[][],
         Assembly-CSharp","$rlength":1,"$rcontent":[{"$id":1,"$type":"Nessie.Udon.SaveState.TypeEnum[],
-        Assembly-CSharp","$rlength":3,"$rcontent":[15,15,19]}]}'
+        Assembly-CSharp","$rlength":3,"$rcontent":[7,15,19]}]}'
       objectReference: {fileID: 0}
     - target: {fileID: 2649198357432519897, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
       propertyPath: serializationData.PrefabModifications.Array.data[1]
       value: '"path":"bufferUdonBehaviours","value":{"$id":0,"$type":"UnityEngine.Component[][],
         UnityEngine.CoreModule","$rlength":1,"$rcontent":[{"$id":1,"$type":"UnityEngine.Component[],
-        UnityEngine.CoreModule","$rlength":3,"$rcontent":[null,$eref:0,$eref:0]}]}'
+        UnityEngine.CoreModule","$rlength":3,"$rcontent":[$eref:0,$eref:0,$eref:0]}]}'
       objectReference: {fileID: 0}
     - target: {fileID: 2649198357432519897, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}

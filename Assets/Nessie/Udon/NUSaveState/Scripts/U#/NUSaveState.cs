@@ -581,32 +581,7 @@ namespace Nessie.Udon.SaveState
             _SSCallback();
             status = StatusEnum.Idle;
         }
-
-        private bool MoveNextAvatar(ref int avatarIndex)
-        {
-            if (++avatarIndex >= totalAvatarCount)
-                return false;
-
-            if (dataAvatarIDs[avatarIndex] == null)
-                MoveNextAvatar(ref avatarIndex);
-            
-            return true;
-        }
         
-        private bool MoveNextInstruction(int avatarIndex, ref int instructionIndex)
-        {
-            if (++instructionIndex >= bufferUdonBehaviours[avatarIndex].Length)
-                return false;
-
-            DeconstructInstruction(avatarIndex, instructionIndex, out UdonBehaviour udon, out string variableName, out TypeEnum variableType);
-            if (udon == null || variableName == null || variableType == TypeEnum.None)
-            {
-                return MoveNextInstruction(avatarIndex, ref instructionIndex);
-            }
-            
-            return true;
-        }
-
         private void DeconstructInstruction(int avatarIndex, int instructionIndex, out UdonBehaviour udon, out string name, out TypeEnum type)
         {
             udon = (UdonBehaviour)bufferUdonBehaviours[avatarIndex][instructionIndex];
@@ -632,13 +607,11 @@ namespace Nessie.Udon.SaveState
         /// </summary>
         private void PackData(byte[][] buffers)
         {
-            int avatarIndex = -1;
-            while (MoveNextAvatar(ref avatarIndex))
+            for (int avatarIndex = 0; avatarIndex < totalAvatarCount; avatarIndex++)
             {
                 int bitIndex = 0;
                 byte[] buffer = buffers[avatarIndex];
-                int instructionIndex = -1;
-                while (MoveNextInstruction(avatarIndex, ref instructionIndex))
+                for (int instructionIndex = 0; instructionIndex < bufferUdonBehaviours[avatarIndex].Length; instructionIndex++)
                 {
                     DeconstructInstruction(avatarIndex, instructionIndex, out UdonBehaviour udon, out string variableName, out TypeEnum variableType);
 
@@ -653,13 +626,11 @@ namespace Nessie.Udon.SaveState
         /// </summary>
         private void UnpackData(byte[][] buffers)
         {
-            int avatarIndex = -1;
-            while (MoveNextAvatar(ref avatarIndex))
+            for (int avatarIndex = 0; avatarIndex < totalAvatarCount; avatarIndex++)
             {
                 int bitIndex = 0;
                 byte[] buffer = buffers[avatarIndex];
-                int instructionIndex = -1;
-                while (MoveNextInstruction(avatarIndex, ref instructionIndex))
+                for (int instructionIndex = 0; instructionIndex < bufferUdonBehaviours[avatarIndex].Length; instructionIndex++)
                 {
                     DeconstructInstruction(avatarIndex, instructionIndex, out UdonBehaviour udon, out string variableName, out TypeEnum variableType);
 
