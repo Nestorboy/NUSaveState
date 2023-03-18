@@ -64,6 +64,9 @@ namespace Nessie.Udon.SaveState
         {
             if (!saveState)
                 return;
+
+            if (!ValidateVersion(saveState))
+                return;
             
             if (AvatarSlots == null)
                 return;
@@ -180,6 +183,28 @@ namespace Nessie.Udon.SaveState
         
         #region Private Methods
 
+        private bool ValidateVersion(NUSaveState saveState)
+        {
+            if (saveState.Version == NUSaveState.PACKAGE_VERSION)
+            {
+                return true;
+            }
+
+            if (TryBumpVersion(saveState))
+            {
+                return true;
+            }
+
+            // TODO: Add migration disclaimer?
+            return true;
+        }
+        
+        private bool TryBumpVersion(NUSaveState saveState)
+        {
+            saveState.Version = NUSaveState.PACKAGE_VERSION;
+            return true;
+        }
+        
         private static bool TryGetLegacyData(NUSaveState saveState, out NUSaveStateData legacyData)
         {
             legacyData = null;
