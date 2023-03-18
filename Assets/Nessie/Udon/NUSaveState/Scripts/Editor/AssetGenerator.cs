@@ -148,82 +148,20 @@ namespace Nessie.Udon.SaveState
             
             #endregion Clips
 
-            void SetMachineDefaultPositions(AnimatorStateMachine machine)
-            {
-                machine.entryPosition = new Vector2(0, 0);
-                machine.anyStatePosition = new Vector2(0, 50);
-                machine.exitPosition = new Vector2(0, 100);
-            }
-            
-            void SetNoTransitionTimes(AnimatorStateTransition transition)
-            {
-                transition.duration = 0f;
-                transition.exitTime = 0f;
-                transition.hasExitTime = false;
-            }
-
-            #region Base Layer
-            
-            AnimatorStateMachine batchMachine = controller.layers[0].stateMachine;
-            SetMachineDefaultPositions(batchMachine);
-
-            AnimatorState[] batchStates = new AnimatorState[12];
-            
-            // Empty default state to avoid having the animator controller get stuck.
-            batchStates[0] = batchMachine.AddStateNoUndo("Default", new Vector3(200, 0));
-            batchStates[0].writeDefaultValues = false;
-            
-            int driverParameterIndex = 0;
-            for (int stateIndex = 1; stateIndex < batchStates.Length; stateIndex++)
-            {
-                batchStates[stateIndex] = batchMachine.AddStateNoUndo($"Batch {stateIndex}", new Vector3(200, 100 * stateIndex));
-                batchStates[stateIndex].writeDefaultValues = false;
-
-                var batchTransition = batchStates[stateIndex - 1].AddTransitionNoUndo(batchStates[stateIndex]);
-                SetNoTransitionTimes(batchTransition);
-                batchTransition.AddConditionNoUndo(stateIndex % 2 == 0 ? AnimatorConditionMode.Less : AnimatorConditionMode.Greater, 0.03125f, "VelocityX");
-
-                var batchDriver = batchStates[stateIndex].AddStateMachineBehaviour<VRCAvatarParameterDriver>();
-                // batchDriver.debugString = $"[NUSS] Batch: {stateIndex}";
-
-                var batchParameters = new List<VRC_AvatarParameterDriver.Parameter>()
-                {
-                    new VRC_AvatarParameterDriver.Parameter()
-                    {
-                        type = VRC_AvatarParameterDriver.ChangeType.Add,
-                        name = "Batch",
-                        value = 1,
-                    }
-                };
-                
-                for (int i = 0; i < 1 + (stateIndex % 2) && driverParameterIndex < 16; i++)
-                {
-                    batchParameters.Add(new VRC_AvatarParameterDriver.Parameter()
-                    {
-                        type = VRC_AvatarParameterDriver.ChangeType.Set,
-                        name = $"{parameterName}_{driverParameterIndex++}",
-                        value = 0,
-                    });
-                }
-
-                batchDriver.parameters = batchParameters;
-            }
-            
-            #endregion Base Layer
-            
             #region Byte Layers
             
             for (int layerIndex = 0; layerIndex < 32; layerIndex++)
             {
                 int parameterIndex = layerIndex;
 
+                string layerName = $"byte {layerIndex}";
                 AnimatorControllerLayer byteLayer = new AnimatorControllerLayer()
                 {
-                    name = $"byte {layerIndex}",
+                    name = layerName,
                     defaultWeight = 1,
                     stateMachine = new AnimatorStateMachine()
                     {
-                        name = $"byte {layerIndex}",
+                        name = layerName,
                         hideFlags = HideFlags.HideInHierarchy,
                     }
                 };
@@ -328,9 +266,7 @@ namespace Nessie.Udon.SaveState
 
             AnimatorController controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
             AnimatorStateMachine newStateMachine = controller.layers[0].stateMachine;
-            newStateMachine.entryPosition = new Vector2(-30, 0);
-            newStateMachine.anyStatePosition = new Vector2(-30, 50);
-            newStateMachine.exitPosition = new Vector2(-30, 100);
+            SetMachineDefaultPositions(newStateMachine);
 
             // Prepare default animation.
             AnimationClip newDefaultClip = new AnimationClip() { name = "Default" };
@@ -373,7 +309,7 @@ namespace Nessie.Udon.SaveState
             newBaseClip.SetCurve("", typeof(Animator), "RootT.y", AnimationCurve.Constant(0, 0, 1));
             newBaseClip.SetCurve("SaveState-Avatar/hips/SaveState-Key", typeof(GameObject), "m_IsActive", AnimationCurve.Constant(0, 0, 1));
             
-            Vector3 keyCoordinate = avatar.GetKeyCoordinate() / 100f; // Account for the scale of the armature.
+            Vector3 keyCoordinate = avatar.GetKeyCoordinate() / 100f * 50f; // Account for the scale of the armature and bounds.
 
             newBaseClip.SetCurve("SaveState-Avatar/hips/SaveState-Key", typeof(Transform), "m_LocalPosition.x", AnimationCurve.Constant(0, 0, keyCoordinate.x));
             newBaseClip.SetCurve("SaveState-Avatar/hips/SaveState-Key", typeof(Transform), "m_LocalPosition.y", AnimationCurve.Constant(0, 0, keyCoordinate.y));
@@ -410,23 +346,104 @@ namespace Nessie.Udon.SaveState
             for (int childIndex = 1; childIndex < newChildren.Length; childIndex++)
             {
                 string newParameter = $"{parameterName}_{childIndex - 1}";
-
-                //controller.AddParameterNoUndo(newParameter, ParameterType.Float);
-                controller.AddParameterNoUndo(new AnimatorControllerParameter()
-                {
-                    name = "Base",
-                    type = ParameterType.Float,
-                });
+                
+                controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = newParameter, type = ParameterType.Float });
                 newChildren[childIndex].directBlendParameter = newParameter;
             }
 
             newTree.children = newChildren;
 
+            AddFlowControlLayer(controller, parameterName);
+            
             AssetDatabase.ImportAsset(controllerPath);
             
             return controller;
         }
 
+        private static void AddFlowControlLayer(AnimatorController controller, string parameterName)
+        {
+            string layerName = "Flow Control";
+            AnimatorStateMachine batchMachine = new AnimatorStateMachine()
+            {
+                name = layerName,
+                hideFlags = HideFlags.HideInHierarchy,
+            };
+            SetMachineDefaultPositions(batchMachine);
+            AssetDatabase.AddObjectToAsset(batchMachine, controller);
+            
+            AnimatorControllerLayer flowLayer = new AnimatorControllerLayer()
+            {
+                name = layerName,
+                defaultWeight = 1f,
+                stateMachine = batchMachine,
+            };
+            controller.AddLayerNoUndo(flowLayer);
+            
+            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "InStation", type = ParameterType.Bool });
+            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Seated", type = ParameterType.Bool });
+            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Batch", type = ParameterType.Int });
+            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "VelocityX", type = ParameterType.Float });
+            
+            AnimatorState[] batchStates = new AnimatorState[12];
+            
+            // Empty default state to avoid having the animator controller get stuck.
+            batchStates[0] = batchMachine.AddStateNoUndo("Default", new Vector3(200, 0));
+
+            int driverParameterIndex = 0;
+            for (int stateIndex = 1; stateIndex < batchStates.Length; stateIndex++)
+            {
+                batchStates[stateIndex] = batchMachine.AddStateNoUndo($"Batch {stateIndex}", new Vector3(200, 100 * stateIndex));
+
+                var batchTransition = batchStates[stateIndex - 1].AddTransitionNoUndo(batchStates[stateIndex]);
+                SetNoTransitionTimes(batchTransition);
+
+                if (stateIndex == 1)
+                {
+                    batchTransition.AddConditionNoUndo(AnimatorConditionMode.If, 0f, "InStation");
+                    batchTransition.AddConditionNoUndo(AnimatorConditionMode.IfNot, 0f, "Seated");
+                }
+                batchTransition.AddConditionNoUndo(stateIndex % 2 == 0 ? AnimatorConditionMode.Less : AnimatorConditionMode.Greater, 0.03125f, "VelocityX");
+                
+                var batchDriver = batchStates[stateIndex].AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+                // batchDriver.debugString = $"[NUSS] Batch: {stateIndex}";
+
+                var batchParameters = new List<VRC_AvatarParameterDriver.Parameter>
+                {
+                    new VRC_AvatarParameterDriver.Parameter()
+                    {
+                        type = VRC_AvatarParameterDriver.ChangeType.Set,
+                        name = "Batch",
+                        value = stateIndex,
+                    },
+                };
+                
+                for (int i = 0; i < 1 + (stateIndex % 2) && driverParameterIndex < 16; i++)
+                {
+                    batchParameters.Add(new VRC_AvatarParameterDriver.Parameter()
+                    {
+                        type = VRC_AvatarParameterDriver.ChangeType.Set,
+                        name = $"{parameterName}_{driverParameterIndex++}",
+                    });
+                }
+
+                batchDriver.parameters = batchParameters;
+            }
+        }
+
+        private static void SetMachineDefaultPositions(AnimatorStateMachine machine)
+        {
+            machine.entryPosition = new Vector2(-30, 0);
+            machine.anyStatePosition = new Vector2(-30, 50);
+            machine.exitPosition = new Vector2(-30, 100);
+        }
+        
+        private static void SetNoTransitionTimes(AnimatorStateTransition transition)
+        {
+            transition.duration = 0f;
+            transition.exitTime = 0f;
+            transition.hasExitTime = false;
+        }
+        
         public static VRCExpressionsMenu CreateAvatarMenu(AvatarData avatar, string folderPath)
         {
             ReadyPath(folderPath);
