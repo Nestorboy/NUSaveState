@@ -876,6 +876,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2649198357432519897, guid: e3149960738c0d549b6c898273b22bd0,
         type: 3}
+      propertyPath: Version
+      value: 1.4.0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2649198357432519897, guid: e3149960738c0d549b6c898273b22bd0,
+        type: 3}
       propertyPath: CallbackReceiver
       value: 
       objectReference: {fileID: 1538785986}

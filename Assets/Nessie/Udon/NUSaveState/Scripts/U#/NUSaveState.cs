@@ -13,7 +13,7 @@ namespace Nessie.Udon.SaveState
     [AddComponentMenu("Nessie/NUSaveState")]
     public class NUSaveState : UdonSharpBehaviour
     {
-        public const string PACKAGE_VERSION = "1.3.0";
+        public const string PACKAGE_VERSION = "1.4.0";
         
         #region Serialized Public Fields
 
