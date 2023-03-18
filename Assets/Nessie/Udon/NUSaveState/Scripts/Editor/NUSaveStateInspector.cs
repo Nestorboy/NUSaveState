@@ -483,8 +483,6 @@ namespace Nessie.Udon.SaveState.Internal
         
         #endregion Drawers
 
-        #region Resources
-
         private void InitializeProperties()
         {
             propEventReceiver = saveStateSO.FindProperty(nameof(NUSaveState.CallbackReceiver));
@@ -493,7 +491,5 @@ namespace Nessie.Udon.SaveState.Internal
             propAvatarSlots = dataSO.FindProperty(nameof(NUSaveStateData.AvatarSlots));
             propDataVisible = dataSO.FindProperty(nameof(NUSaveStateData.Visible));
         }
-        
-        #endregion Resources
     }
 }
