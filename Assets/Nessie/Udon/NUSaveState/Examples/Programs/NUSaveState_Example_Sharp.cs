@@ -11,11 +11,16 @@ public class NUSaveState_Example_Sharp : UdonSharpBehaviour
 {
     // Simple declarations to reflect the Graph equivalents.
     public NUSaveState NUSaveState;
-    private Vector3 PlayerPosition;
+    
+    // Saved/Loaded variables.
+    private Vector3Int PlayerPosition;
+    private Quaternion PlayerRotation;
 
     public void _Save()
     {
-        PlayerPosition = Networking.LocalPlayer.GetPosition();
+        PlayerPosition = Vector3Int.RoundToInt(Networking.LocalPlayer.GetPosition());
+        PlayerRotation = Networking.LocalPlayer.GetRotation();
+            
         NUSaveState._SSSave();
     }
 
