@@ -8,9 +8,6 @@ namespace Nessie.Udon.SaveState.Data
     [CreateAssetMenu(fileName = "Avatar_Data", menuName = "ScriptableObjects/Nessie/Avatar Data")]
     public class AvatarData : ScriptableObject
     {
-        public const int MAX_BIT_COUNT = 256; // Limited by avatar parameter memory.
-        public const string DEFAULT_PARAMETER_NAME = "parameter";
-
         [Tooltip("Blueprint ID of the avatar used to store this data.")]
         public string AvatarBlueprint;
 
@@ -23,7 +20,7 @@ namespace Nessie.Udon.SaveState.Data
         public bool IsLegacy;
         
         [Tooltip("Name used as a prefix for the parameters in the generated assets. Format: {prefix}{index}")]
-        public string ParameterName = DEFAULT_PARAMETER_NAME;
+        public string ParameterName = DataConstants.DEFAULT_PARAMETER_NAME;
         
         [Tooltip("Coordinate used to identify the avatar once it has loaded in.")]
         public Vector3 KeyCoordinate;
@@ -31,7 +28,7 @@ namespace Nessie.Udon.SaveState.Data
         public VariableSlot[] VariableSlots;
         public int BitCount;
 
-        public string GetParameterName() => IsLegacy ? ParameterName : DEFAULT_PARAMETER_NAME;
+        public string GetParameterName() => IsLegacy ? ParameterName : DataConstants.DEFAULT_PARAMETER_NAME;
 
         public Vector3 GetKeyCoordinate() => IsLegacy ? KeyCoordinate : GetKeyCoordinate(EncryptionKey);
         
