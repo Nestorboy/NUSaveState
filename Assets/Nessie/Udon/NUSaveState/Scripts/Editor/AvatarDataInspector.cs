@@ -48,7 +48,7 @@ namespace Nessie.Udon.SaveState.Internal
                     
                     int bitCount = propBitCount.intValue;
                     string slotsLabel = propVarSlots.displayName;
-                    string bitsLabel = $"Bits: {bitCount} / {Mathf.CeilToInt(bitCount / 256f) * 256} Bytes: {Mathf.Ceil(bitCount / 8f)} / {Mathf.CeilToInt(bitCount / 256f) * 32}";
+                    string bitsLabel = $"Bits: {bitCount} / {DataConstants.MAX_BIT_COUNT} Bytes: {Mathf.CeilToInt(bitCount / 8f)} / {DataConstants.MAX_BIT_COUNT / 8}";
                     
                     //EditorGUI.LabelField(new Rect(rect) { height = EditorGUIUtility.singleLineHeight }, slotsLabel, bitsLabel);
                     
@@ -110,7 +110,7 @@ namespace Nessie.Udon.SaveState.Internal
                     SerializedProperty propertySlot = propVarSlots.GetArrayElementAtIndex(list.index);
                     VariableSlot slot = SerializationUtilities.GetPropertyValue<VariableSlot>(propertySlot);
 
-                    if (slot.GetBitCount() + propBitCount.intValue <= AvatarData.MAX_BIT_COUNT)
+                    if (slot.GetBitCount() + propBitCount.intValue <= DataConstants.MAX_BIT_COUNT)
                     {
                         return;
                     }
@@ -120,7 +120,7 @@ namespace Nessie.Udon.SaveState.Internal
                     ReplaceVariableSlot(list.index, slot);
                 },
                 
-                onCanAddCallback = (ReorderableList list) => propBitCount.intValue < AvatarData.MAX_BIT_COUNT,
+                onCanAddCallback = (ReorderableList list) => propBitCount.intValue < DataConstants.MAX_BIT_COUNT,
             };
         }
 
@@ -246,7 +246,7 @@ namespace Nessie.Udon.SaveState.Internal
 
             int oldBitCount = oldSlot.GetBitCount();
             int newBitCount = propBitCount.intValue - oldBitCount + slot.GetBitCount();
-            if (newBitCount > AvatarData.MAX_BIT_COUNT) return;
+            if (newBitCount > DataConstants.MAX_BIT_COUNT) return;
 
             SerializationUtilities.SetPropertyValue(propertySlot, slot);
         }
