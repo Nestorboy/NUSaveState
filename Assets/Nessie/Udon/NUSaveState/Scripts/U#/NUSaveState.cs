@@ -6,6 +6,7 @@ using VRC.SDKBase;
 using VRC.Udon;
 using VRC.Udon.Serialization.OdinSerializer;
 using UdonSharp;
+using Nessie.Udon.SaveState.Data;
 using Debug = Nessie.Udon.SaveState.DebugUtilities;
 
 namespace Nessie.Udon.SaveState
@@ -93,6 +94,7 @@ namespace Nessie.Udon.SaveState
         private StatusEnum status;
 
         private byte[][] bufferBytes;
+        private int currentPageIndex;
         private int currentByteIndex;
         
         private int totalAvatarCount;
@@ -369,6 +371,7 @@ namespace Nessie.Udon.SaveState
 
         private void _ChangeAvatar()
         {
+            currentPageIndex = 0;
             currentByteIndex = 0;
 
             Debug.Log($"Switching avatar to buffer avatar: {currentAvatarindex} ({dataAvatarPedestals[currentAvatarindex].blueprintId})");
@@ -434,7 +437,7 @@ namespace Nessie.Udon.SaveState
 
         public void _SetData() // Write data by doing float additions.
         {
-            //Log($"Writing data for avatar {ProgressCurrentAvatar}: data byte index {dataByteIndex}");
+            //Debug.Log($"Writing data for avatar {currentAvatarindex}: data byte index {currentByteIndex}");
             
             int avatarByteCount = bufferBytes[currentAvatarindex].Length;
 
@@ -453,7 +456,7 @@ namespace Nessie.Udon.SaveState
 
             //string debugBits = $"{Convert.ToString(byte1, 2).PadLeft(8, '0')}, {Convert.ToString(byte2, 2).PadLeft(8, '0')}, {Convert.ToString(byte3, 2).PadLeft(8, '0')}";
             //string debugVels = $"{newVelocity.x}, {newVelocity.y}, {newVelocity.z}";
-            //Debug.Log($"Batch {Mathf.CeilToInt(dataByteIndex / 3f)}: {debugBits} : {debugVels}");
+            //Debug.Log($"Batch {Mathf.CeilToInt(currentByteIndex / 3f)}: {debugBits} : {debugVels}");
 
             if (currentByteIndex < avatarByteCount)
             {
@@ -473,7 +476,10 @@ namespace Nessie.Udon.SaveState
                 progressStatus = ProgressState.Verifying;
                 _SSProgressCallback();
                 
-                SendCustomEventDelayedFrames(nameof(_VerifyData), 10);
+                currentPageIndex = 0;
+                currentByteIndex = 0;
+                
+                SendCustomEventDelayedFrames(nameof(_VerifyData), 10); // Wait for last byte to be copied over + some padding for good measure.
             }
         }
 
@@ -482,28 +488,46 @@ namespace Nessie.Udon.SaveState
         /// </summary>
         public void _VerifyData()
         {
-            localPlayer.SetVelocity(Vector3.zero); // Reset velocity before finishing or changing avatar.
+            if (currentPageIndex == 0)
+                Debug.Log("Starting data verification...");
 
-            Debug.Log("Starting data verification...");
+            int bufferOffset = currentPageIndex * DataConstants.BYTES_PER_PAGE;
+            int avatarByteCount = bufferBytes[currentAvatarindex].Length;
+            int pageByteCount = Mathf.Min(avatarByteCount - bufferOffset, DataConstants.BYTES_PER_PAGE);
 
             // Verify that the write was successful.
-            byte[] inputData = bufferBytes[currentAvatarindex];
-            byte[] writtenData = _GetAvatarBytes(currentAvatarindex);
+            byte[] inputData = bufferBytes[currentAvatarindex]; // Input bytes for the current avatar.
+            byte[] writtenData = _GetPageBytes(pageByteCount);
 
             // Check for corrupt bytes.
-            for (int i = 0; i < inputData.Length; i++)
+            for (int byteIndex = 0; byteIndex < pageByteCount; byteIndex++)
             {
-                //Debug.Log($"Byte {i} input: {inputData[i]:X2} written: {writtenData[i]:X2}");
-
-                if (inputData[i] != writtenData[i])
+                int bufferIndex = bufferOffset + byteIndex;
+                byte inputByte = inputData[bufferIndex];
+                byte writtenByte = writtenData[byteIndex];
+                //Debug.Log($"Byte {bufferIndex} input: {inputByte:X2} written: {writtenByte:X2}");
+                if (inputByte != writtenByte)
                 {
-                    Debug.LogError($"Data verification failed at index {i}: {inputData[i]:X2} doesn't match {writtenData[i]:X2}! Write should be restarted!");
-                    failReason = $"Data verification failed at index {i}: {inputData[i]:X2} doesn't match {writtenData[i]:X2}";
+                    Debug.LogError($"Data verification failed at index {bufferIndex}: {inputByte:X2} doesn't match {writtenByte:X2}! Write should be restarted!");
+                    failReason = $"Data verification failed at index {bufferIndex}: {inputByte:X2} doesn't match {writtenByte:X2}";
                     _FailedData();
                     return;
                 }
             }
 
+            int avatarPageCount = Mathf.CeilToInt(avatarByteCount / (float)DataConstants.BYTES_PER_PAGE);
+            int newPageIndex = currentPageIndex + 1;
+            if (newPageIndex < avatarPageCount) // Load next data page.
+            {
+                currentPageIndex = newPageIndex;
+                Vector3 newVel = -new Vector3(0, currentPageIndex / 256f, 0);
+                localPlayer.SetVelocity(localPlayer.GetRotation() * newVel);
+                SendCustomEventDelayedFrames(nameof(_VerifyData), 1); // Takes a frame to switch.
+                return;
+            }
+
+            localPlayer.SetVelocity(Vector3.zero); // Reset velocity before finishing or changing avatar.
+            
             // Continue if write was successful.
             int newAvatarIndex = currentAvatarindex + 1;
             if (newAvatarIndex < totalAvatarCount)
@@ -520,7 +544,29 @@ namespace Nessie.Udon.SaveState
 
         public void _GetData() // Read data using finger rotations.
         {
-            _GetAvatarBytes(bufferBytes[currentAvatarindex]);
+            int bufferOffset = currentPageIndex * DataConstants.BYTES_PER_PAGE;
+            int avatarByteCount = bufferBytes[currentAvatarindex].Length;
+            int pageByteCount = Mathf.Min(avatarByteCount - bufferOffset, DataConstants.BYTES_PER_PAGE);
+
+            byte[] pageBytes = _GetPageBytes(pageByteCount);
+            Array.Copy(pageBytes, 0, bufferBytes[CurrentAvatarIndex], bufferOffset, pageByteCount);
+            //for (int byteIndex = 0; byteIndex < pageByteCount; byteIndex++) Debugging.
+            //{
+            //    int bufferIndex = bufferOffset + byteIndex;
+            //    byte pageByte = pageBytes[byteIndex];
+            //    Debug.Log($"Byte {bufferIndex} read: {pageByte:X2}");
+            //}
+            
+            int avatarPageCount = Mathf.CeilToInt(avatarByteCount / (float)DataConstants.BYTES_PER_PAGE);
+            int newPageIndex = currentPageIndex + 1;
+            if (newPageIndex < avatarPageCount) // Load next data page.
+            {
+                currentPageIndex = newPageIndex;
+                Vector3 newVel = -new Vector3(0, currentPageIndex / 256f, 0);
+                localPlayer.SetVelocity(localPlayer.GetRotation() * newVel);
+                SendCustomEventDelayedFrames(nameof(_GetData), 1); // Takes a frame to switch.
+                return;
+            }
             
             int newAvatarIndex = currentAvatarindex + 1;
             if (newAvatarIndex < totalAvatarCount)
@@ -661,34 +707,31 @@ namespace Nessie.Udon.SaveState
         }
         
         /// <summary>
-        /// Fills a byte array with the current avatars data.
+        /// Fills a byte array with the current avatars current page data.
         /// </summary>
-        public void _GetAvatarBytes(byte[] buffer)
+        public void _GetPageBytes(byte[] buffer)
         {
-            int avatarByteCount = buffer.Length;
-            
-            int byteIndex = 0;
+            int pageByteCount = Mathf.Min(buffer.Length, DataConstants.BYTES_PER_PAGE);
 
-            for (int boneIndex = 0; byteIndex < avatarByteCount; boneIndex++)
+            int byteIndex = 0;
+            for (int boneIndex = 0; byteIndex < pageByteCount; boneIndex++)
             {
                 ushort bytes = ReadParameter(boneIndex);
                 buffer[byteIndex++] = (byte)(bytes & 0xFF);
-                if (byteIndex < avatarByteCount)
+                if (byteIndex < pageByteCount)
                     buffer[byteIndex++] = (byte)(bytes >> (ushort)8);
             }
         }
         
         /// <summary>
-        /// Returns a byte array containing current avatars data.
+        /// Returns a byte array containing the current avatars current page data.
         /// </summary>
-        public byte[] _GetAvatarBytes(int avatarIndex)
+        public byte[] _GetPageBytes(int byteCount)
         {
-            int bitCount = bufferBitCounts[avatarIndex];
-            int avatarByteCount = Mathf.CeilToInt(bitCount / 8f);
+            int pageByteCount = Mathf.Min(byteCount, DataConstants.BYTES_PER_PAGE);
+            byte[] output = new byte[pageByteCount];
 
-            byte[] output = new byte[avatarByteCount];
-
-            _GetAvatarBytes(output);
+            _GetPageBytes(output);
             
             return output;
         }

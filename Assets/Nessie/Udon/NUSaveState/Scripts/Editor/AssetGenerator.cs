@@ -96,7 +96,8 @@ namespace Nessie.Udon.SaveState
             controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "IgnoreTransition", type = ParameterType.Bool, defaultBool = true });
             controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Batch", type = ParameterType.Int });
 
-            for (int byteIndex = 0; byteIndex < 32; byteIndex++) // Prepare dummy parameters used to transfer the velocity parameters.
+            int avatarByteCount = Mathf.CeilToInt(avatar.BitCount / 8f);
+            for (int byteIndex = 0; byteIndex < avatarByteCount; byteIndex++) // Prepare dummy parameters used to transfer the velocity parameters.
             {
                 controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = $"b{byteIndex}", type = ParameterType.Float });
             }
@@ -105,7 +106,7 @@ namespace Nessie.Udon.SaveState
             
             #region Clips
 
-            AnimationClip[][] byteClips = new AnimationClip[32][];
+            AnimationClip[][] byteClips = new AnimationClip[avatarByteCount][];
             for (int layerIndex = 0; layerIndex < byteClips.Length; layerIndex++)
             {
                 byteClips[layerIndex] = new AnimationClip[8];
@@ -123,7 +124,7 @@ namespace Nessie.Udon.SaveState
                 }
             }
 
-            AnimationClip[] transferClips = new AnimationClip[32];
+            AnimationClip[] transferClips = new AnimationClip[avatarByteCount];
             for (int byteIndex = 0; byteIndex < transferClips.Length; byteIndex++)
             {
                 AnimationClip transferClip = new AnimationClip() { name = $"b{byteIndex}-transfer" };
@@ -135,7 +136,7 @@ namespace Nessie.Udon.SaveState
                 AssetDatabase.AddObjectToAsset(transferClip, controller);
             }
             
-            AnimationClip[] identityClips = new AnimationClip[32];
+            AnimationClip[] identityClips = new AnimationClip[avatarByteCount];
             for (int byteIndex = 0; byteIndex < identityClips.Length; byteIndex++)
             {
                 AnimationClip identityClip = new AnimationClip() { name = $"b{byteIndex}-identity" };
@@ -150,7 +151,7 @@ namespace Nessie.Udon.SaveState
 
             #region Byte Layers
             
-            for (int layerIndex = 0; layerIndex < 32; layerIndex++)
+            for (int layerIndex = 0; layerIndex < avatarByteCount; layerIndex++)
             {
                 int parameterIndex = layerIndex;
 
@@ -267,42 +268,21 @@ namespace Nessie.Udon.SaveState
             AnimatorController controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
             AnimatorStateMachine newStateMachine = controller.layers[0].stateMachine;
             SetMachineDefaultPositions(newStateMachine);
-
+            
             // Prepare default animation.
             AnimationClip newDefaultClip = new AnimationClip() { name = "Default" };
             newDefaultClip.SetCurve("", typeof(Animator), "RootT.y", AnimationCurve.Constant(0, 0, 1));
 
             AssetDatabase.AddObjectToAsset(newDefaultClip, controller);
 
-            // Prepare default state an animation.
+            // Prepare default state animation.
             controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "IsLocal", type = ParameterType.Bool, defaultBool = false });
             AnimatorState newDefaultState = newStateMachine.AddStateNoUndo("Default", new Vector3(200, 0));
             newDefaultState.motion = newDefaultClip;
 
-            // Prepare data BlendTree state.
-            AnimatorState newBlendState = controller.CreateBlendTreeInController("Data Blend", out BlendTree newTree, 0);
-            ChildAnimatorState[] newChildStates = newStateMachine.states;
-            newChildStates[1].position = new Vector2(200, 50);
-            newStateMachine.states = newChildStates;
-
-            controller.RemoveParameterNoUndo(1); // Get rid of default 'Blend' parameter.
-
-            AnimatorStateTransition newBlendTransition = newStateMachine.AddAnyStateTransitionNoUndo(newBlendState);
-            newBlendTransition.exitTime = 1;
-            newBlendTransition.duration = 0;
-            newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.If, 1, "IsLocal");
-
-            newTree.blendType = BlendTreeType.Direct;
-
-            // Prepare VRC Behaviours.
-            VRCPlayableLayerControl layerControl = newBlendState.AddStateMachineBehaviour<VRCPlayableLayerControl>();
-            VRCAnimatorTrackingControl trackingControl = newBlendState.AddStateMachineBehaviour<VRCAnimatorTrackingControl>();
-
-            layerControl.goalWeight = 1;
-
-            trackingControl.trackingLeftFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
-            trackingControl.trackingRightFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
-
+            // Prepare flow control layer.
+            AddFlowControlLayer(avatar, controller);
+            
             // Prepare base BlendTree animation.
             AnimationClip newBaseClip = new AnimationClip() { name = "SaveState-Base" };
 
@@ -320,47 +300,84 @@ namespace Nessie.Udon.SaveState
                 newBaseClip.SetCurve("", typeof(Animator), $"{MuscleNames[i]}3 Stretched", AnimationCurve.Constant(0, 0, 0.81002f));
             }
 
-            newTree.AddChildNoUndo(newBaseClip);
-
             AssetDatabase.AddObjectToAsset(newBaseClip, controller);
+            
+            // Prepare page animations.
+            string parameterName = avatar.GetParameterName();
 
-            // Prepare data BlendTree animations.
-            string parameterName =  avatar.GetParameterName();
-            int byteCount = Mathf.CeilToInt(avatar.BitCount / 8f);
-            for (int byteIndex = 0; byteIndex < Math.Min(byteCount, 16); byteIndex++)
+            int maxPageClipCount = Mathf.CeilToInt(Mathf.Min(avatar.BitCount, DataConstants.BITS_PER_PAGE) / 16f); // Outputs two bytes per finger animation.
+            AnimationClip[] pageClips = new AnimationClip[maxPageClipCount]; // Outputs two bytes per finger animation.
+            for (int clipIndex = 0; clipIndex < pageClips.Length; clipIndex++)
             {
-                AnimationClip newClip = new AnimationClip() { name = $"SaveState-{parameterName}_{byteIndex}.anim" };
-
-                newClip.SetCurve("", typeof(Animator), $"{MuscleNames[byteIndex % MuscleNames.Length]}{3 - byteIndex / MuscleNames.Length} Stretched", AnimationCurve.Constant(0, 0, 1));
-                newTree.AddChildNoUndo(newClip);
-
+                AnimationClip newClip = new AnimationClip() { name = $"SaveState-{parameterName}_{clipIndex}.anim" };
+                newClip.SetCurve("", typeof(Animator), $"{MuscleNames[clipIndex % MuscleNames.Length]}{3 - clipIndex / MuscleNames.Length} Stretched", AnimationCurve.Constant(0, 0, 1));
+                pageClips[clipIndex] = newClip;
+                
                 AssetDatabase.AddObjectToAsset(newClip, controller);
             }
-
-            // Prepare BlendTree parameters.
-            ChildMotion[] newChildren = newTree.children;
-
+            
+            // Prepare page BlendTrees.
             controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Base", type = ParameterType.Float, defaultFloat = 1 });
-            newChildren[0].directBlendParameter = "Base";
+            
+            int avatarPageCount = Mathf.CeilToInt(avatar.BitCount / (float)DataConstants.BITS_PER_PAGE);
 
-            for (int childIndex = 1; childIndex < newChildren.Length; childIndex++)
+            for (int pageIndex = 0; pageIndex < avatarPageCount; pageIndex++)
             {
-                string newParameter = $"{parameterName}_{childIndex - 1}";
+                AnimatorState newBlendState = controller.CreateBlendTreeInController($"Page Blend {pageIndex}", out BlendTree newTree, 0);
+                ChildAnimatorState[] newChildStates = newStateMachine.states;
+                newChildStates[1 + pageIndex].position = new Vector2(200, 50 + 50 * pageIndex);
+                newStateMachine.states = newChildStates;
                 
-                controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = newParameter, type = ParameterType.Float });
-                newChildren[childIndex].directBlendParameter = newParameter;
+                AnimatorStateTransition newBlendTransition = newStateMachine.AddAnyStateTransitionNoUndo(newBlendState);
+                SetNoTransitionTimes(newBlendTransition);
+                newBlendTransition.canTransitionToSelf = false;
+                
+                newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.If, 1, "IsLocal");
+                float lowerBoundary = -(pageIndex + 0.5f) / 256f;
+                newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.Greater, lowerBoundary, "VelocityY");
+                if (pageIndex != 0)
+                {
+                    float upperBoundary = -(pageIndex - 0.5f) / 256f;
+                    newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.Less, upperBoundary, "VelocityY");
+                }
+                
+                newTree.blendType = BlendTreeType.Direct;
+                newTree.AddChildNoUndo(newBaseClip);
+                int pageClipCount = Mathf.CeilToInt(Mathf.Min(avatar.BitCount - pageIndex * DataConstants.BITS_PER_PAGE, DataConstants.BITS_PER_PAGE) / 16f);
+                for (int clipIndex = 0; clipIndex < pageClipCount; clipIndex++)
+                {
+                    newTree.AddChildNoUndo(pageClips[clipIndex]);
+                }
+                
+                // Prepare BlendTree parameters.
+                ChildMotion[] newChildren = newTree.children;
+
+                newChildren[0].directBlendParameter = "Base";
+                for (int childIndex = 1; childIndex < newChildren.Length; childIndex++)
+                {
+                    string newParameter = $"{parameterName}_{childIndex - 1 + pageIndex * DataConstants.BITS_PER_PAGE / 16}";
+                    controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = newParameter, type = ParameterType.Float });
+                    newChildren[childIndex].directBlendParameter = newParameter;
+                }
+
+                newTree.children = newChildren;
+                
+                // Prepare VRC Behaviours.
+                VRCPlayableLayerControl layerControl = newBlendState.AddStateMachineBehaviour<VRCPlayableLayerControl>();
+                VRCAnimatorTrackingControl trackingControl = newBlendState.AddStateMachineBehaviour<VRCAnimatorTrackingControl>();
+
+                layerControl.goalWeight = 1;
+
+                trackingControl.trackingLeftFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
+                trackingControl.trackingRightFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
             }
 
-            newTree.children = newChildren;
-
-            AddFlowControlLayer(controller, parameterName);
-            
             AssetDatabase.ImportAsset(controllerPath);
             
             return controller;
         }
 
-        private static void AddFlowControlLayer(AnimatorController controller, string parameterName)
+        private static void AddFlowControlLayer(AvatarData avatar, AnimatorController controller)
         {
             string layerName = "Flow Control";
             AnimatorStateMachine batchMachine = new AnimatorStateMachine()
@@ -381,11 +398,16 @@ namespace Nessie.Udon.SaveState
             
             controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "InStation", type = ParameterType.Bool });
             controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Seated", type = ParameterType.Bool });
-            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Batch", type = ParameterType.Int });
             controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "VelocityX", type = ParameterType.Float });
+            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "VelocityY", type = ParameterType.Float });
+            controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Batch", type = ParameterType.Int });
             
-            AnimatorState[] batchStates = new AnimatorState[12];
-            
+            // We're able to write three bytes per batch since we're packing one byte into each Velocity parameter.
+            // Since each parameter contains two bytes, we can only clear them in sets of two, so we alternative between clearing 2 and 1 parameters.
+            int avatarParameterCount = Mathf.CeilToInt(avatar.BitCount / 16f);
+            int avatarBatchCount = avatarParameterCount - Mathf.FloorToInt(avatarParameterCount / 3f + 0.5f);
+            AnimatorState[] batchStates = new AnimatorState[avatarBatchCount + 1];
+
             // Empty default state to avoid having the animator controller get stuck.
             batchStates[0] = batchMachine.AddStateNoUndo("Default", new Vector3(200, 0));
 
@@ -399,13 +421,14 @@ namespace Nessie.Udon.SaveState
 
                 if (stateIndex == 1)
                 {
+                    batchTransition.AddConditionNoUndo(AnimatorConditionMode.If, 0f, "IsLocal");
                     batchTransition.AddConditionNoUndo(AnimatorConditionMode.If, 0f, "InStation");
                     batchTransition.AddConditionNoUndo(AnimatorConditionMode.IfNot, 0f, "Seated");
                 }
                 batchTransition.AddConditionNoUndo(stateIndex % 2 == 0 ? AnimatorConditionMode.Less : AnimatorConditionMode.Greater, 0.03125f, "VelocityX");
                 
                 var batchDriver = batchStates[stateIndex].AddStateMachineBehaviour<VRCAvatarParameterDriver>();
-                // batchDriver.debugString = $"[NUSS] Batch: {stateIndex}";
+                //batchDriver.debugString = $"[NUSS] Batch: {stateIndex}";
 
                 var batchParameters = new List<VRC_AvatarParameterDriver.Parameter>
                 {
@@ -417,12 +440,12 @@ namespace Nessie.Udon.SaveState
                     },
                 };
                 
-                for (int i = 0; i < 1 + (stateIndex % 2) && driverParameterIndex < 16; i++)
+                for (int i = 0; i < 1 + (stateIndex % 2); i++)
                 {
                     batchParameters.Add(new VRC_AvatarParameterDriver.Parameter()
                     {
                         type = VRC_AvatarParameterDriver.ChangeType.Set,
-                        name = $"{parameterName}_{driverParameterIndex++}",
+                        name = $"{avatar.GetParameterName()}_{driverParameterIndex++}",
                     });
                 }
 
@@ -471,13 +494,14 @@ namespace Nessie.Udon.SaveState
             string parameterName = avatar.GetParameterName();
             int paramCount = Mathf.CeilToInt(avatar.BitCount / 16f);
 
-            VRCExpressionParameters.Parameter[] expressionControls = new VRCExpressionParameters.Parameter[Math.Min(paramCount, 16)];
+            VRCExpressionParameters.Parameter[] expressionControls = new VRCExpressionParameters.Parameter[paramCount];
             for (int i = 0; i < expressionControls.Length; i++)
             {
                 expressionControls[i] = new VRCExpressionParameters.Parameter()
                 {
                     name = $"{parameterName}_{i}",
-                    valueType = VRCExpressionParameters.ValueType.Float
+                    valueType = VRCExpressionParameters.ValueType.Float,
+                    networkSynced = false
                 };
             }
 
@@ -581,7 +605,7 @@ namespace Nessie.Udon.SaveState
             SerializedProperty propertyAvatarIDs = so.FindProperty("dataAvatarIDs");
             SerializedProperty propAvatarCoordinates = so.FindProperty("dataKeyCoords");
 
-            bool isLegacyParameter = preferences.Parameter != AvatarData.DEFAULT_PARAMETER_NAME;
+            bool isLegacyParameter = preferences.Parameter != DataConstants.DEFAULT_PARAMETER_NAME;
 
             Legacy.Instruction[][] avatarInstructions = SplitAvatarInstructions(data.Instructions);
             string[] avatarDataPaths = new string[avatarInstructions.Length];
