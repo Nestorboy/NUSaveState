@@ -404,14 +404,15 @@ namespace Nessie.Udon.SaveState
             
             // We're able to write three bytes per batch since we're packing one byte into each Velocity parameter.
             // Since each parameter contains two bytes, we can only clear them in sets of two, so we alternative between clearing 2 and 1 parameters.
-            int avatarParameterCount = Mathf.CeilToInt(avatar.BitCount / 16f);
-            int avatarBatchCount = avatarParameterCount - Mathf.FloorToInt(avatarParameterCount / 3f + 0.5f);
+            int avatarByteCount = Mathf.CeilToInt(avatar.BitCount / 8f);
+            int avatarParameterCount = Mathf.CeilToInt(avatarByteCount / 2f);
+            int avatarBatchCount = Mathf.CeilToInt(avatarByteCount / 3f);
             AnimatorState[] batchStates = new AnimatorState[avatarBatchCount + 1];
 
             // Empty default state to avoid having the animator controller get stuck.
             batchStates[0] = batchMachine.AddStateNoUndo("Default", new Vector3(200, 0));
 
-            int driverParameterIndex = 0;
+            int parameterDriverIndex = 0;
             for (int stateIndex = 1; stateIndex < batchStates.Length; stateIndex++)
             {
                 batchStates[stateIndex] = batchMachine.AddStateNoUndo($"Batch {stateIndex}", new Vector3(200, 100 * stateIndex));
@@ -439,13 +440,14 @@ namespace Nessie.Udon.SaveState
                         value = stateIndex,
                     },
                 };
-                
-                for (int i = 0; i < 1 + (stateIndex % 2); i++)
+
+                int parameterDriverCount = Mathf.Min(1 + (stateIndex % 2), avatarParameterCount - parameterDriverIndex);
+                for (int i = 0; i < parameterDriverCount; i++)
                 {
                     batchParameters.Add(new VRC_AvatarParameterDriver.Parameter()
                     {
                         type = VRC_AvatarParameterDriver.ChangeType.Set,
-                        name = $"{avatar.GetParameterName()}_{driverParameterIndex++}",
+                        name = $"{avatar.GetParameterName()}_{parameterDriverIndex++}",
                     });
                 }
 
