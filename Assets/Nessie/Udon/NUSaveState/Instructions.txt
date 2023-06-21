@@ -1,4 +1,4 @@
-Version: 1.4.0
+Version: 1.5.0
 Source: https://github.com/Nestorboy/NUSaveState
 
 Instructions:
@@ -25,9 +25,10 @@ If you're using U#, you can get the NUSaveState.Progress property value directly
 If you're using Udon Graph you can use the GetProgramVariable node to get the value of a variable called "progress".
 
 Notes:
-Every avatar currently stores up to 32 bytes or 256 bits, but there's no limit to how many avatars you can use.
-It takes roughly 22 frames to write to all 256 bits on an avatar, but we can't predict the time it takes to load avatars.
-Reading 32 bytes can be done almost instantly once an avatar has been detected.
+Every avatar can currently store up to 256 pages, each page containing 32 bytes, so the total amount of data an avatar can store is 8 KiB.
+Certain data might be wise to put on a separate avatar for the purpose of sharing the data with other projects.
+Most of the time spent loading or saving is taken up by the avatar having to load.
+Reading a page (32 bytes) can be done almost instantly once an avatar has been detected, but it takes one frame to switch between pages.
 
 Example avatar:
 Blueprint: avtr_1a5e837d-1944-44f3-aa2c-b3854a33a8ac
