@@ -330,8 +330,7 @@ namespace Nessie.Udon.SaveState
                 
                 AnimatorStateTransition newBlendTransition = newStateMachine.AddAnyStateTransitionNoUndo(newBlendState);
                 SetNoTransitionTimes(newBlendTransition);
-                newBlendTransition.canTransitionToSelf = false;
-                
+
                 newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.If, 1, "IsLocal");
                 float lowerBoundary = -(pageIndex + 0.5f) / 256f;
                 newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.Greater, lowerBoundary, "VelocityY");
