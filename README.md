@@ -9,7 +9,7 @@ Due to this systems reliance on avatar parameters and floats, there's a limit as
 
 ### Requirements
 - [Udon](https://vrchat.com/home/download)
-- [UdonSharp](https://github.com/MerlinVR/UdonSharp)
+- [UdonSharp](https://github.com/vrchat-community/UdonSharp)
 - [VRCSDK3A.dll](https://vrchat.com/home/download)
 
 **It is incredibly important that you import the `VRCSDK3A.dll` along with the `VRCSDK3A.dll.meta` file which can be found in the 3.0 avatar SDK.
