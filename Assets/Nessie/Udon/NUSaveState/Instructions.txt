@@ -8,7 +8,7 @@ Once _SSLoad is called, it begins gathering the data from the avatars, and once 
 It is recommended to use _SSLoaded or _SSPostLoad once the data has been loaded in order to initialize it in your world.
 
 Callbacks:
-The Callback Reciever recieves custom events from the NUSaveState behaviour in order for you to use the events to initialize and update your scripts accordingly.
+The Callback Receiver receives custom events from the NUSaveState behaviour in order for you to use the events to initialize and update your scripts accordingly.
 
 _SSSaved is called as soon as all the data has been saved.
 _SSLoaded is called as soon as all the data has been loaded.
@@ -19,7 +19,7 @@ _SSLoadFailed is called when loading data failed.
 _SSPostSave is called after saving the data and the user has switched out of the last data avatar.
 _SSPostLoad is called after loading the data and the user has switched out of the last data avatar.
 
-_SSProgress is called perdiodically as the NUSaveState loads or saves data.
+_SSProgress is called periodically as the NUSaveState loads or saves data.
 Progress is a float ranging from 0 to 1, and it's set to 0 once you initially start saving or loading, and then 1 when it's done.
 If you're using U#, you can get the NUSaveState.Progress property value directly.
 If you're using Udon Graph you can use the GetProgramVariable node to get the value of a variable called "progress".
