@@ -113,6 +113,7 @@ MonoBehaviour:
   Placement: {fileID: 0}
   ChangeAvatarsOnUse: 1
   scale: 1
+  avatarImage: {fileID: 0}
 --- !u!1 &8000936731730785909
 GameObject:
   m_ObjectHideFlags: 0
@@ -180,7 +181,7 @@ MonoBehaviour:
       Entry: 6
       Data: 
   _udonSharpBackingUdonBehaviour: {fileID: 8000936731730785914}
-  Version: 1.4.0
+  Version: 1.5.2
   CallbackReceiver: {fileID: 0}
   FallbackAvatarID: avtr_c38a1615-5bf5-42b4-84eb-a8b6c37cbd11
   stationPrefab: {fileID: 1852400263297152911}
