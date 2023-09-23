@@ -203,8 +203,9 @@ namespace Nessie.Udon.SaveState
             status = StatusEnum.Processing;
 
             PackData(bufferBytes);
-            
-            dataWriter.transform.SetPositionAndRotation(localPlayer.GetPosition(), localPlayer.GetRotation()); // Put user in station to prevent movement and set the velocity parameters to 0.
+
+            Quaternion rotation = localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.AvatarRoot).rotation;
+            dataWriter.transform.SetPositionAndRotation(localPlayer.GetPosition(), rotation); // Put user in station to prevent movement and set the velocity parameters to 0.
             dataWriter.animatorController = null;
             dataWriter.UseStation(localPlayer);
 
@@ -452,7 +453,7 @@ namespace Nessie.Udon.SaveState
             // Divide by 256 to normalize the range of a byte.
             // Lastly divide by 16 to account for the avatar's velocity parameter transition speed, this is then in turn multiplied by 16 in the animator controller so that it's normalized again.
             Vector3 newVelocity = (new Vector3(byte1, byte2, byte3) + (Vector3.one / 8f)) / 256f / 32f; // 8 data bits and 1 control bit (0-511)
-            localPlayer.SetVelocity(localPlayer.GetRotation() * newVelocity);
+            SetLocalVelocity(newVelocity);
 
             //string debugBits = $"{Convert.ToString(byte1, 2).PadLeft(8, '0')}, {Convert.ToString(byte2, 2).PadLeft(8, '0')}, {Convert.ToString(byte3, 2).PadLeft(8, '0')}";
             //string debugVels = $"{newVelocity.x}, {newVelocity.y}, {newVelocity.z}";
@@ -521,7 +522,7 @@ namespace Nessie.Udon.SaveState
             {
                 currentPageIndex = newPageIndex;
                 Vector3 newVel = -new Vector3(0, currentPageIndex / 256f, 0);
-                localPlayer.SetVelocity(localPlayer.GetRotation() * newVel);
+                SetLocalVelocity(newVel);
                 SendCustomEventDelayedFrames(nameof(_VerifyData), 1); // Takes a frame to switch.
                 return;
             }
@@ -563,7 +564,7 @@ namespace Nessie.Udon.SaveState
             {
                 currentPageIndex = newPageIndex;
                 Vector3 newVel = -new Vector3(0, currentPageIndex / 256f, 0);
-                localPlayer.SetVelocity(localPlayer.GetRotation() * newVel);
+                SetLocalVelocity(newVel);
                 SendCustomEventDelayedFrames(nameof(_GetData), 1); // Takes a frame to switch.
                 return;
             }
@@ -686,6 +687,16 @@ namespace Nessie.Udon.SaveState
             }
         }
 
+        /// <summary>
+        /// Transforms a velocity from world space to one relative to the avatar and applies it to the player.
+        /// </summary>
+        /// <param name="velocity"></param>
+        private void SetLocalVelocity(Vector3 velocity)
+        {
+            Quaternion localRotation = localPlayer.GetTrackingData(VRCPlayerApi.TrackingDataType.AvatarRoot).rotation;
+            localPlayer.SetVelocity(localRotation * velocity);
+        }
+        
         private float InverseMuscle(Quaternion a, Quaternion b) // Funky numbers that make the world go round.
         {
             Quaternion deltaQ = Quaternion.Inverse(b) * a;
