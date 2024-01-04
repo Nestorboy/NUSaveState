@@ -494,14 +494,20 @@ namespace Nessie.Udon.SaveState
             VRCExpressionParameters parameters = ScriptableObject.CreateInstance<VRCExpressionParameters>();
 
             string parameterName = avatar.GetParameterName();
-            int paramCount = Mathf.CeilToInt(avatar.BitCount / 16f);
+            int paramCount = Mathf.CeilToInt(avatar.BitCount / 16f) * 2;
 
             VRCExpressionParameters.Parameter[] expressionControls = new VRCExpressionParameters.Parameter[paramCount];
-            for (int i = 0; i < expressionControls.Length; i++)
+            for (int i = 0; i < expressionControls.Length / 2; i++)
             {
                 expressionControls[i] = new VRCExpressionParameters.Parameter()
                 {
                     name = $"{parameterName}_{i}",
+                    valueType = VRCExpressionParameters.ValueType.Float,
+                    networkSynced = false
+                };
+                expressionControls[i + expressionControls.Length / 2] = new VRCExpressionParameters.Parameter()
+                {
+                    name = $"intermediate_{i}",
                     valueType = VRCExpressionParameters.ValueType.Float,
                     networkSynced = false
                 };
