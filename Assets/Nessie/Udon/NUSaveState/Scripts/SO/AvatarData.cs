@@ -31,6 +31,12 @@ namespace Nessie.Udon.SaveState.Data
         public string GetParameterName() => IsLegacy ? ParameterName : DataConstants.DEFAULT_PARAMETER_NAME;
 
         public Vector3 GetKeyCoordinate() => IsLegacy ? KeyCoordinate : GetKeyCoordinate(EncryptionKey);
+
+        public int GetByteCount() => Mathf.CeilToInt(BitCount / 8f);
+
+        public int GetParameterCount() => Mathf.CeilToInt(BitCount / 16f);
+
+        public int GetPageCount() => Mathf.CeilToInt(BitCount / (float)DataConstants.BITS_PER_PAGE);
         
         public static Vector3 GetKeyCoordinate(string id)
         {
