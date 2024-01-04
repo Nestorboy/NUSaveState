@@ -233,7 +233,7 @@ namespace Nessie.Udon.SaveState
                         new VRC_AvatarParameterDriver.Parameter()
                         {
                             type = VRC_AvatarParameterDriver.ChangeType.Add,
-                            name = $"{parameterName}_{layerIndex / 2}",
+                            name = $"intermediate_{layerIndex / 2}",
                             value = 1 / Mathf.Pow(2, stepIndex + (layerIndex & 1 ^ 1) * 8 + 1),
                         }
                     };
