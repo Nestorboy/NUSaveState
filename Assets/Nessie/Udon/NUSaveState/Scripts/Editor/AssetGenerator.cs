@@ -302,16 +302,16 @@ namespace Nessie.Udon.SaveState
 
             AssetDatabase.AddObjectToAsset(newBaseClip, controller);
             
-            // Prepare page animations.
+            // Prepare output animations.
             string parameterName = avatar.GetParameterName();
 
-            int maxPageClipCount = Mathf.CeilToInt(Mathf.Min(avatar.BitCount, DataConstants.BITS_PER_PAGE) / 16f); // Outputs two bytes per finger animation.
-            AnimationClip[] pageClips = new AnimationClip[maxPageClipCount]; // Outputs two bytes per finger animation.
-            for (int clipIndex = 0; clipIndex < pageClips.Length; clipIndex++)
+            int maxOutputClipCount = Mathf.CeilToInt(Mathf.Min(avatar.BitCount, DataConstants.BITS_PER_PAGE) / 16f); // Outputs two bytes per finger animation.
+            AnimationClip[] outputClips = new AnimationClip[maxOutputClipCount]; // Outputs two bytes per finger animation.
+            for (int outputIndex = 0; outputIndex < outputClips.Length; outputIndex++)
             {
-                AnimationClip newClip = new AnimationClip() { name = $"SaveState-{parameterName}_{clipIndex}.anim" };
-                newClip.SetCurve("", typeof(Animator), $"{MuscleNames[clipIndex % MuscleNames.Length]}{3 - clipIndex / MuscleNames.Length} Stretched", AnimationCurve.Constant(0, 0, 1));
-                pageClips[clipIndex] = newClip;
+                AnimationClip newClip = new AnimationClip() { name = $"SaveState-output_{outputIndex}.anim" };
+                newClip.SetCurve("", typeof(Animator), $"{MuscleNames[outputIndex % MuscleNames.Length]}{3 - outputIndex / MuscleNames.Length} Stretched", AnimationCurve.Constant(0, 0, 1));
+                outputClips[outputIndex] = newClip;
                 
                 AssetDatabase.AddObjectToAsset(newClip, controller);
             }
@@ -345,7 +345,7 @@ namespace Nessie.Udon.SaveState
                 int pageClipCount = Mathf.CeilToInt(Mathf.Min(avatar.BitCount - pageIndex * DataConstants.BITS_PER_PAGE, DataConstants.BITS_PER_PAGE) / 16f);
                 for (int clipIndex = 0; clipIndex < pageClipCount; clipIndex++)
                 {
-                    newTree.AddChildNoUndo(pageClips[clipIndex]);
+                    newTree.AddChildNoUndo(outputClips[clipIndex]);
                 }
                 
                 // Prepare BlendTree parameters.
