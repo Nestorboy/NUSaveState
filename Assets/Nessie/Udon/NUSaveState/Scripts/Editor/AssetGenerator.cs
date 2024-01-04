@@ -440,13 +440,14 @@ namespace Nessie.Udon.SaveState
                     },
                 };
 
+                string parameterName = avatar.GetParameterName();
                 int parameterDriverCount = Mathf.Min(1 + (stateIndex % 2), avatarParameterCount - parameterDriverIndex);
                 for (int i = 0; i < parameterDriverCount; i++)
                 {
                     batchParameters.Add(new VRC_AvatarParameterDriver.Parameter()
                     {
                         type = VRC_AvatarParameterDriver.ChangeType.Set,
-                        name = $"{avatar.GetParameterName()}_{parameterDriverIndex++}",
+                        name = $"{parameterName}_{parameterDriverIndex++}",
                     });
                 }
 
