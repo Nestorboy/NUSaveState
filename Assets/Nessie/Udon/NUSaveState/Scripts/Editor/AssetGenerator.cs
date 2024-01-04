@@ -96,7 +96,7 @@ namespace Nessie.Udon.SaveState
             controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "IgnoreTransition", type = ParameterType.Bool, defaultBool = true });
             controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Batch", type = ParameterType.Int });
 
-            int avatarByteCount = Mathf.CeilToInt(avatar.BitCount / 8f);
+            int avatarByteCount = avatar.GetByteCount();
             for (int byteIndex = 0; byteIndex < avatarByteCount; byteIndex++) // Prepare dummy parameters used to transfer the velocity parameters.
             {
                 controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = $"b{byteIndex}", type = ParameterType.Float });
@@ -319,7 +319,7 @@ namespace Nessie.Udon.SaveState
             // Prepare page BlendTrees.
             controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = "Base", type = ParameterType.Float, defaultFloat = 1 });
             
-            int avatarPageCount = Mathf.CeilToInt(avatar.BitCount / (float)DataConstants.BITS_PER_PAGE);
+            int avatarPageCount = avatar.GetPageCount();
 
             for (int pageIndex = 0; pageIndex < avatarPageCount; pageIndex++)
             {
@@ -403,8 +403,8 @@ namespace Nessie.Udon.SaveState
             
             // We're able to write three bytes per batch since we're packing one byte into each Velocity parameter.
             // Since each parameter contains two bytes, we can only clear them in sets of two, so we alternative between clearing 2 and 1 parameters.
-            int avatarByteCount = Mathf.CeilToInt(avatar.BitCount / 8f);
-            int avatarParameterCount = Mathf.CeilToInt(avatarByteCount / 2f);
+            int avatarByteCount = avatar.GetByteCount();
+            int avatarParameterCount = avatar.GetParameterCount();
             int avatarBatchCount = Mathf.CeilToInt(avatarByteCount / 3f);
             AnimatorState[] batchStates = new AnimatorState[avatarBatchCount + 1];
 
@@ -493,10 +493,10 @@ namespace Nessie.Udon.SaveState
             VRCExpressionParameters parameters = ScriptableObject.CreateInstance<VRCExpressionParameters>();
 
             string parameterName = avatar.GetParameterName();
-            int paramCount = Mathf.CeilToInt(avatar.BitCount / 16f) * 2;
+            int paramCount = avatar.GetParameterCount();
 
-            VRCExpressionParameters.Parameter[] expressionControls = new VRCExpressionParameters.Parameter[paramCount];
-            for (int i = 0; i < expressionControls.Length / 2; i++)
+            VRCExpressionParameters.Parameter[] expressionControls = new VRCExpressionParameters.Parameter[paramCount * 2];
+            for (int i = 0; i < paramCount; i++)
             {
                 expressionControls[i] = new VRCExpressionParameters.Parameter()
                 {
@@ -504,7 +504,7 @@ namespace Nessie.Udon.SaveState
                     valueType = VRCExpressionParameters.ValueType.Float,
                     networkSynced = false
                 };
-                expressionControls[i + expressionControls.Length / 2] = new VRCExpressionParameters.Parameter()
+                expressionControls[i + paramCount] = new VRCExpressionParameters.Parameter()
                 {
                     name = $"intermediate_{i}",
                     valueType = VRCExpressionParameters.ValueType.Float,
