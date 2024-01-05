@@ -332,11 +332,11 @@ namespace Nessie.Udon.SaveState
                 SetNoTransitionTimes(newBlendTransition);
 
                 newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.If, 1, "IsLocal");
-                float lowerBoundary = -(pageIndex + 0.5f) / 256f;
+                float lowerBoundary = -(pageIndex + 0.5f) / 512f;
                 newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.Greater, lowerBoundary, "VelocityY");
                 if (pageIndex != 0)
                 {
-                    float upperBoundary = -(pageIndex - 0.5f) / 256f;
+                    float upperBoundary = -(pageIndex - 0.5f) / 512f;
                     newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.Less, upperBoundary, "VelocityY");
                 }
                 
@@ -369,6 +369,83 @@ namespace Nessie.Udon.SaveState
 
                 trackingControl.trackingLeftFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
                 trackingControl.trackingRightFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
+            }
+            
+            // Prepare validation BlendTrees.
+            for (int validIndex = 0; validIndex < avatarPageCount; validIndex++)
+            {
+                AnimatorState newBlendState = controller.CreateBlendTreeInController($"Valid Blend {validIndex}", out BlendTree newTree, 0);
+                ChildAnimatorState[] newChildStates = newStateMachine.states;
+                newChildStates[1 + validIndex + avatarPageCount].position = new Vector2(-300, 50 + 50 * validIndex);
+                newStateMachine.states = newChildStates;
+                
+                AnimatorStateTransition newBlendTransition = newStateMachine.AddAnyStateTransitionNoUndo(newBlendState);
+                SetNoTransitionTimes(newBlendTransition);
+
+                newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.If, 1, "IsLocal");
+                float lowerBoundary = -0.5f - (validIndex + 0.5f) / 512f;
+                newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.Greater, lowerBoundary, "VelocityY");
+                float upperBoundary = -0.5f - (validIndex - 0.5f) / 512f;
+                newBlendTransition.AddConditionNoUndo(AnimatorConditionMode.Less, upperBoundary, "VelocityY");
+                
+                newTree.blendType = BlendTreeType.Direct;
+                newTree.AddChildNoUndo(newBaseClip);
+                int pageClipCount = Mathf.CeilToInt(Mathf.Min(avatar.BitCount - validIndex * DataConstants.BITS_PER_PAGE, DataConstants.BITS_PER_PAGE) / 16f);
+                for (int clipIndex = 0; clipIndex < pageClipCount; clipIndex++)
+                {
+                    newTree.AddChildNoUndo(outputClips[clipIndex]);
+                }
+                
+                // Prepare BlendTree parameters.
+                ChildMotion[] newChildren = newTree.children;
+
+                newChildren[0].directBlendParameter = "Base";
+                for (int childIndex = 1; childIndex < newChildren.Length; childIndex++)
+                {
+                    string newParameter = $"intermediate_{childIndex - 1 + validIndex * DataConstants.BITS_PER_PAGE / 16}";
+                    controller.AddParameterNoUndo(new AnimatorControllerParameter() { name = newParameter, type = ParameterType.Float });
+                    newChildren[childIndex].directBlendParameter = newParameter;
+                }
+
+                newTree.children = newChildren;
+                
+                // Prepare VRC Behaviours.
+                VRCPlayableLayerControl layerControl = newBlendState.AddStateMachineBehaviour<VRCPlayableLayerControl>();
+                VRCAnimatorTrackingControl trackingControl = newBlendState.AddStateMachineBehaviour<VRCAnimatorTrackingControl>();
+
+                layerControl.goalWeight = 1;
+
+                trackingControl.trackingLeftFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
+                trackingControl.trackingRightFingers = VRC_AnimatorTrackingControl.TrackingType.Animation;
+            }
+
+            {
+                int avatarParamCount = avatar.GetParameterCount();
+                
+                AnimatorState applyState = newStateMachine.AddStateNoUndo($"Apply", new Vector2(-300, 0));
+                applyState.motion = newDefaultClip;
+                
+                AnimatorStateTransition applyTransition = newStateMachine.AddAnyStateTransitionNoUndo(applyState);
+                SetNoTransitionTimes(applyTransition);
+                
+                applyTransition.AddConditionNoUndo(AnimatorConditionMode.If, 0f, "IsLocal");
+                applyTransition.AddConditionNoUndo(AnimatorConditionMode.If, 0f, "InStation");
+                applyTransition.AddConditionNoUndo(AnimatorConditionMode.IfNot, 0f, "Seated");
+                applyTransition.AddConditionNoUndo(AnimatorConditionMode.Less, -1f, "VelocityY");
+
+                var applyParameters = new List<VRC_AvatarParameterDriver.Parameter>();
+                for (int paramIndex = 0; paramIndex < avatarParamCount; paramIndex++)
+                {
+                    applyParameters.Add(new VRC_AvatarParameterDriver.Parameter()
+                    {
+                        type = VRC_AvatarParameterDriver.ChangeType.Copy,
+                        name = $"{parameterName}_{paramIndex}",
+                        source = $"intermediate_{paramIndex}",
+                    });
+                }
+
+                VRCAvatarParameterDriver applyDriver = applyState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+                applyDriver.parameters = applyParameters;
             }
 
             AssetDatabase.ImportAsset(controllerPath);
