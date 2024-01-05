@@ -480,8 +480,13 @@ namespace Nessie.Udon.SaveState
                 currentPageIndex = 0;
                 currentByteIndex = 0;
                 
-                SendCustomEventDelayedFrames(nameof(_VerifyData), 10); // Wait for last byte to be copied over + some padding for good measure.
+                SendCustomEventDelayedFrames(nameof(_BeginVerifyingData), 10); // Wait for last byte to be copied over + some padding for good measure.
             }
+        }
+
+        public void _BeginVerifyingData()
+        {
+            RequestIntermediateData(0, nameof(_VerifyData));
         }
 
         /// <summary>
@@ -521,15 +526,16 @@ namespace Nessie.Udon.SaveState
             if (newPageIndex < avatarPageCount) // Load next data page.
             {
                 currentPageIndex = newPageIndex;
-                Vector3 newVel = -new Vector3(0, currentPageIndex / 256f, 0);
-                SetLocalVelocity(newVel);
-                SendCustomEventDelayedFrames(nameof(_VerifyData), 1); // Takes a frame to switch.
+                RequestIntermediateData(currentPageIndex, nameof(_VerifyData));
                 return;
             }
 
+            ApplyIntermediateData(nameof(_FinishVerifyData));
+        }
+
+        public void _FinishVerifyData()
+        {
             localPlayer.SetVelocity(Vector3.zero); // Reset velocity before finishing or changing avatar.
-            
-            // Continue if write was successful.
             int newAvatarIndex = currentAvatarindex + 1;
             if (newAvatarIndex < totalAvatarCount)
             {
@@ -563,9 +569,7 @@ namespace Nessie.Udon.SaveState
             if (newPageIndex < avatarPageCount) // Load next data page.
             {
                 currentPageIndex = newPageIndex;
-                Vector3 newVel = -new Vector3(0, currentPageIndex / 256f, 0);
-                SetLocalVelocity(newVel);
-                SendCustomEventDelayedFrames(nameof(_GetData), 1); // Takes a frame to switch.
+                RequestPageData(currentPageIndex, nameof(_GetData));
                 return;
             }
             
@@ -687,6 +691,43 @@ namespace Nessie.Udon.SaveState
             }
         }
 
+        /// <summary>
+        /// Make the avatar output the data from a page specified by the page index, calling the callback once done.
+        /// </summary>
+        /// <param name="pageIndex"></param>
+        /// <param name="callback"></param>
+        private void RequestPageData(int pageIndex, string callback)
+        {
+            Vector3 newVel = new Vector3(0, -pageIndex / 512f, 0);
+            ApplyParameterValues(newVel, callback);
+        }
+
+        /// <summary>
+        /// Make the avatar output the data from an intermediate page buffer specified by the page index, calling the callback once done.
+        /// </summary>
+        /// <param name="pageIndex"></param>
+        /// <param name="callback"></param>
+        private void RequestIntermediateData(int pageIndex, string callback)
+        {
+            Vector3 newVel = new Vector3(0, -0.5f - pageIndex / 512f, 0);
+            ApplyParameterValues(newVel, callback);
+        }
+
+        /// <summary>
+        /// Copies over the data from the intermediate buffers to the final ones, calling the callback once done.
+        /// </summary>
+        private void ApplyIntermediateData(string callback)
+        {
+            // Copies intermediate parameters to final ones using a ParameterDriver.
+            ApplyParameterValues(Vector3.down * 2f, callback);
+        }
+
+        private void ApplyParameterValues(Vector3 velocity, string callback)
+        {
+            SetLocalVelocity(velocity);
+            SendCustomEventDelayedFrames(callback, 1); // Takes a frame for the animator state machine to catch up.
+        }
+        
         /// <summary>
         /// Transforms a velocity from world space to one relative to the avatar and applies it to the player.
         /// </summary>
