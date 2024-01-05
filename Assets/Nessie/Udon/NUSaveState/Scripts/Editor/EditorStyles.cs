@@ -75,16 +75,18 @@ namespace Nessie.Udon.SaveState.Internal
         {
             BoldLabel = UnityEditor.EditorStyles.boldLabel;
             
+            RectOffset helpPadding = UnityEditor.EditorStyles.helpBox.padding;
             HelpBox = new GUIStyle(UnityEditor.EditorStyles.helpBox)
             {
                 margin = new RectOffset(0, 0, 2, 2),
-                padding = new RectOffset(0, 0, 0, UnityEditor.EditorStyles.helpBox.padding.bottom * 2),
+                padding = new RectOffset(0, 0, 0, helpPadding.bottom * 2),
             };
             
+            RectOffset boxPadding = GUI.skin.box.padding;
             Box = new GUIStyle(GUI.skin.box)
             {
                 margin = new RectOffset(0, 0, 0, 0),
-                padding = new RectOffset(GUI.skin.box.padding.left * 2, GUI.skin.box.padding.right * 2, GUI.skin.box.padding.top * 2, GUI.skin.box.padding.bottom * 2),
+                padding = new RectOffset(boxPadding.left * 2, boxPadding.right * 2, boxPadding.top * 2, boxPadding.bottom * 2),
             };
             
             RTLabel = new GUIStyle(GUI.skin.label) { richText = true, };
