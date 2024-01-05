@@ -1,5 +1,4 @@
 ﻿
-using System;
 using UnityEngine;
 
 namespace Nessie.Udon.SaveState.Internal
@@ -47,14 +46,10 @@ namespace Nessie.Udon.SaveState.Internal
         
         #endregion Contents
 
-        public struct BlockScope : IDisposable
+        public class BlockScope : GUI.Scope
         {
-            private bool disposed;
-
             public BlockScope(GUIContent content)
             {
-                disposed = false;
-
                 GUILayout.BeginVertical(HelpBox);
                 GUILayout.Label(content, RTLabel);
                 GUILayout.BeginVertical(Box);
@@ -62,11 +57,8 @@ namespace Nessie.Udon.SaveState.Internal
             
             public BlockScope(string label) : this(new GUIContent(label)) {}
 
-            public void Dispose()
+            protected override void CloseScope()
             {
-                if (disposed) return;
-                disposed = true;
-                
                 GUILayout.EndVertical();
                 GUILayout.EndVertical();
             }
