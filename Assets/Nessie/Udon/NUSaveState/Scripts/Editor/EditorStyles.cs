@@ -102,7 +102,7 @@ namespace Nessie.Udon.SaveState.Internal
         private static void InitializeContents()
         {
             ContentVRChat = new GUIContent(iconVRChat, "VRChat");
-            ContentGitHub = new GUIContent(iconGitHub, "Github");
+            ContentGitHub = new GUIContent(iconGitHub, "GitHub");
         }
     }
 }
