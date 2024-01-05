@@ -508,6 +508,7 @@ namespace Nessie.Udon.SaveState
                 {
                     name = $"intermediate_{i}",
                     valueType = VRCExpressionParameters.ValueType.Float,
+                    saved = false,
                     networkSynced = false
                 };
             }
