@@ -1,6 +1,7 @@
 ﻿
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.Callbacks;
 using VRC.SDKBase.Editor.BuildPipeline;
 
 namespace Nessie.Udon.SaveState.Internal
@@ -25,6 +26,16 @@ namespace Nessie.Udon.SaveState.Internal
             }
             
             return true;
+        }
+        
+        [PostProcessScene(0)]
+        public static void OnPostprocessScene()
+        {
+            NUSaveStateData[] datas = Object.FindObjectsOfType<NUSaveStateData>();
+            foreach (NUSaveStateData data in datas)
+            {
+                Object.DestroyImmediate(data);
+            }
         }
     }
 }
