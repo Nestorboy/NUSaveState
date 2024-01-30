@@ -77,6 +77,7 @@ namespace Nessie.Udon.SaveState.Internal
                         draggable = false,
                         
                         elementHeight = propertyInstructions.isExpanded ? 20f : 0f,
+                        footerHeight = 2f,
 
                         drawHeaderCallback = (Rect rect) =>
                         {
@@ -226,13 +227,21 @@ namespace Nessie.Udon.SaveState.Internal
 
                     ReorderableList instructionRList = GetInstructionRList(index);
                     
-                    float height = 0f;
-                    height += 4f; // Element padding.
-                    height += instructionRList.headerHeight; // Fit header.
-                    height += Math.Max(instructionRList.count * instructionRList.elementHeight, instructionRList.elementHeight); // Fit elements.
-                    height += 4f; // Bottom padding.
-                    height += 4f; // Top padding.
-                    return height;
+                    float headerHeight = instructionRList.headerHeight;
+
+                    int elementCount = instructionRList.count;
+                    float elementHeight = instructionRList.elementHeight;
+                    bool isExpanded = instructionRList.elementHeight > 0;
+                    bool hasElements = elementCount > 0;
+                    if (isExpanded && hasElements) elementHeight += 2f;
+                    float elementsHeight = 0f;
+                    elementsHeight += 4f; // listElementTopPadding.
+                    elementsHeight += Math.Max(elementCount * elementHeight, elementHeight); // Sum of element heights.
+                    elementsHeight += 4f; // kListElementBottomPadding.
+                    
+                    float footerHeight = instructionRList.footerHeight;
+
+                    return headerHeight + elementsHeight + footerHeight;
                 },
             };
 
